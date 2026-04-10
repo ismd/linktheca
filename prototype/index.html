@@ -1,0 +1,2346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Linktheca — A Private Archive for the Careful Reader</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            paper: '#f3ece0',
+            'paper-2': '#ebe3d2',
+            'paper-3': '#e2d9c3',
+            ink: '#1a1814',
+            'ink-2': '#2d2a24',
+            'ink-3': '#4a4438',
+            muted: '#8a8275',
+            'muted-2': '#a69d8a',
+            rule: '#d4cdbe',
+            'rule-2': '#e2dbc9',
+            vermillion: '#c83832',
+            'vermillion-dark': '#9c241e',
+            ochre: '#c89632',
+            sage: '#6e8458',
+            plum: '#6b3a4e',
+          },
+          fontFamily: {
+            display: ['Fraunces', 'ui-serif', 'Georgia', 'serif'],
+            body: ['Newsreader', 'Georgia', 'serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    :root {
+      --paper: #f3ece0;
+      --paper-2: #ebe3d2;
+      --ink: #1a1814;
+      --vermillion: #c83832;
+      --rule: #d4cdbe;
+      --muted: #8a8275;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Newsreader', Georgia, serif;
+      font-feature-settings: 'ss01', 'ss02', 'kern';
+      background: var(--paper);
+      color: var(--ink);
+      font-optical-sizing: auto;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* Paper grain */
+    .grain-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.5;
+      mix-blend-mode: multiply;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.08 0 0 0 0 0.05 0 0 0 0.08 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    /* Subtle paper variation */
+    .paper-surface {
+      background-color: var(--paper);
+      background-image: radial-gradient(
+          ellipse at 30% 20%,
+          rgba(200, 56, 50, 0.015) 0%,
+          transparent 50%
+        ),
+        radial-gradient(ellipse at 70% 80%, rgba(138, 130, 117, 0.04) 0%, transparent 60%);
+    }
+
+    /* Rules */
+    .rule-dotted {
+      background-image: linear-gradient(to right, var(--muted) 40%, transparent 40%);
+      background-size: 5px 1px;
+      background-repeat: repeat-x;
+      background-position: 0 50%;
+      height: 1px;
+    }
+    .rule-dotted-v {
+      background-image: linear-gradient(to bottom, var(--muted) 40%, transparent 40%);
+      background-size: 1px 5px;
+      background-repeat: repeat-y;
+      width: 1px;
+    }
+    .rule-double {
+      border-top: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+      height: 5px;
+    }
+    .rule-thick {
+      border-top: 2px solid var(--ink);
+    }
+
+    /* Small caps label */
+    .label-sc {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    .label-sc-lg {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    /* Display heading tuning */
+    .display-tight {
+      font-family: 'Fraunces', serif;
+      font-variation-settings: 'SOFT' 50, 'WONK' 0, 'opsz' 144;
+      letter-spacing: -0.02em;
+      line-height: 0.95;
+      font-weight: 400;
+    }
+
+    .display-wonky {
+      font-family: 'Fraunces', serif;
+      font-variation-settings: 'SOFT' 100, 'WONK' 1, 'opsz' 144;
+      line-height: 0.95;
+      letter-spacing: -0.015em;
+    }
+
+    /* Selection */
+    ::selection {
+      background: var(--vermillion);
+      color: var(--paper);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--paper-2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #a69d8a;
+      border: 3px solid var(--paper-2);
+      border-radius: 0;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--muted);
+    }
+
+    /* Focus */
+    button:focus-visible,
+    a:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible {
+      outline: 2px solid var(--vermillion);
+      outline-offset: 2px;
+    }
+    input:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+    }
+
+    /* Animations */
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    @keyframes fade-in-slow {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+    @keyframes scale-in {
+      from {
+        opacity: 0;
+        transform: scale(0.96) translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+    @keyframes overlay-fade {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+    @keyframes width-grow {
+      from {
+        width: 0;
+      }
+      to {
+        width: var(--target-width, 100%);
+      }
+    }
+    @keyframes blink {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.3;
+      }
+    }
+    @keyframes ping-soft {
+      0% {
+        box-shadow: 0 0 0 0 rgba(110, 132, 88, 0.5);
+      }
+      100% {
+        box-shadow: 0 0 0 8px rgba(110, 132, 88, 0);
+      }
+    }
+    @keyframes skeleton-wave {
+      0% {
+        background-position: -200% 0;
+      }
+      100% {
+        background-position: 200% 0;
+      }
+    }
+
+    .animate-fade-in {
+      animation: fade-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    .animate-fade-in-slow {
+      animation: fade-in-slow 0.8s ease-out both;
+    }
+    .animate-scale-in {
+      animation: scale-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    .animate-overlay-fade {
+      animation: overlay-fade 0.25s ease-out both;
+    }
+    .animate-ping-soft {
+      animation: ping-soft 2s ease-out infinite;
+    }
+
+    .stagger-1 {
+      animation-delay: 0.05s;
+    }
+    .stagger-2 {
+      animation-delay: 0.12s;
+    }
+    .stagger-3 {
+      animation-delay: 0.19s;
+    }
+    .stagger-4 {
+      animation-delay: 0.26s;
+    }
+    .stagger-5 {
+      animation-delay: 0.33s;
+    }
+    .stagger-6 {
+      animation-delay: 0.4s;
+    }
+    .stagger-7 {
+      animation-delay: 0.47s;
+    }
+    .stagger-8 {
+      animation-delay: 0.54s;
+    }
+
+    /* Drop cap */
+    .drop-cap > p:first-of-type::first-letter {
+      font-family: 'Fraunces', serif;
+      font-variation-settings: 'SOFT' 100, 'WONK' 1;
+      float: left;
+      font-size: 5.25rem;
+      line-height: 0.8;
+      padding: 0.35rem 0.75rem 0 0;
+      font-weight: 500;
+      color: var(--vermillion);
+    }
+
+    /* Reading progress */
+    #reading-progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 2px;
+      background: var(--vermillion);
+      z-index: 50;
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+
+    /* Card hover */
+    .feed-card {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .feed-card:hover .card-title {
+      color: var(--vermillion);
+    }
+    .feed-card:hover .card-underline {
+      background-size: 100% 1px;
+    }
+
+    /* Sidebar nav */
+    .nav-item {
+      position: relative;
+      transition: all 0.2s ease;
+    }
+    .nav-item::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%) scaleX(0);
+      transform-origin: left;
+      width: 12px;
+      height: 2px;
+      background: var(--vermillion);
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .nav-item.active::after {
+      transform: translateY(-50%) scaleX(1);
+    }
+    .nav-item.active .nav-label {
+      color: var(--ink);
+    }
+    .nav-item.active .nav-number {
+      color: var(--vermillion);
+    }
+    .nav-item:hover:not(.active)::after {
+      transform: translateY(-50%) scaleX(0.5);
+      background: var(--muted);
+    }
+
+    /* Stamp — library-style */
+    .stamp {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.2rem 0.55rem;
+      border: 1.5px solid currentColor;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 500;
+      transform: rotate(-0.8deg);
+      white-space: nowrap;
+    }
+    .stamp-flat {
+      transform: none;
+    }
+
+    /* Mock image backgrounds */
+    .img-1 {
+      background:
+        radial-gradient(circle at 70% 20%, rgba(200, 56, 50, 0.7), transparent 45%),
+        radial-gradient(circle at 30% 70%, rgba(107, 58, 78, 0.9), transparent 50%),
+        linear-gradient(135deg, #2d2a24, #1a1814);
+    }
+    .img-2 {
+      background:
+        radial-gradient(circle at 20% 80%, rgba(200, 150, 50, 0.6), transparent 50%),
+        linear-gradient(120deg, #3d3a2e 0%, #1a1814 70%);
+    }
+    .img-3 {
+      background:
+        radial-gradient(ellipse at 50% 30%, rgba(110, 132, 88, 0.7), transparent 60%),
+        linear-gradient(180deg, #1a2418, #0f1a0f);
+    }
+    .img-4 {
+      background:
+        radial-gradient(circle at 80% 70%, rgba(200, 56, 50, 0.55), transparent 50%),
+        linear-gradient(45deg, #1a1814, #2d2a24);
+    }
+    .img-5 {
+      background:
+        repeating-linear-gradient(
+          45deg,
+          rgba(200, 150, 50, 0.08) 0 2px,
+          transparent 2px 12px
+        ),
+        linear-gradient(120deg, #2d2a24, #1a1814);
+    }
+    .img-6 {
+      background:
+        radial-gradient(circle at 30% 30%, rgba(200, 56, 50, 0.6), transparent 45%),
+        radial-gradient(circle at 70% 70%, rgba(200, 150, 50, 0.4), transparent 50%),
+        #1a1814;
+    }
+    .img-7 {
+      background:
+        conic-gradient(from 120deg at 40% 60%, #6b3a4e, #1a1814, #2d2a24, #6b3a4e);
+    }
+    .img-8 {
+      background:
+        radial-gradient(ellipse at 60% 40%, rgba(110, 132, 88, 0.5), transparent 55%),
+        linear-gradient(200deg, #1a1814, #3a4a2e 120%);
+    }
+    .img-9 {
+      background:
+        linear-gradient(135deg, rgba(200, 56, 50, 0.25), transparent 60%),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 8px),
+        #1a1814;
+    }
+    .img-10 {
+      background:
+        radial-gradient(circle at 50% 50%, rgba(200, 150, 50, 0.5), transparent 60%),
+        #241e18;
+    }
+
+    .img-watermark {
+      font-family: 'Fraunces', serif;
+      font-variation-settings: 'SOFT' 100, 'WONK' 1;
+      color: rgba(243, 236, 224, 0.18);
+      font-size: 8rem;
+      line-height: 0.8;
+      font-weight: 500;
+      letter-spacing: -0.04em;
+    }
+
+    /* Skeleton loading */
+    .skeleton {
+      background: linear-gradient(
+        90deg,
+        rgba(212, 205, 190, 0.3) 0%,
+        rgba(212, 205, 190, 0.6) 50%,
+        rgba(212, 205, 190, 0.3) 100%
+      );
+      background-size: 200% 100%;
+      animation: skeleton-wave 1.4s ease-in-out infinite;
+    }
+
+    /* Modal backdrop */
+    .modal-backdrop {
+      background-color: rgba(26, 24, 20, 0.55);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+    }
+
+    /* Hidden */
+    .hide {
+      display: none !important;
+    }
+
+    /* Body content in reader */
+    .prose-reader {
+      font-family: 'Newsreader', Georgia, serif;
+      font-size: 1.2rem;
+      line-height: 1.7;
+      color: var(--ink-2);
+    }
+    .prose-reader p {
+      margin-bottom: 1.3em;
+    }
+    .prose-reader p:first-of-type {
+      margin-top: 0;
+    }
+    .prose-reader h2 {
+      font-family: 'Fraunces', serif;
+      font-size: 1.8rem;
+      font-weight: 500;
+      margin-top: 2.5em;
+      margin-bottom: 0.8em;
+      letter-spacing: -0.015em;
+      color: var(--ink);
+    }
+    .prose-reader blockquote {
+      border-left: 3px solid var(--vermillion);
+      padding: 0.3em 0 0.3em 1.5em;
+      margin: 2em 0;
+      font-style: italic;
+      font-size: 1.35rem;
+      color: var(--ink);
+      font-family: 'Fraunces', serif;
+      line-height: 1.45;
+    }
+    .prose-reader code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88em;
+      background: var(--paper-2);
+      padding: 0.1em 0.35em;
+      border: 1px solid var(--rule);
+    }
+    .prose-reader a {
+      color: var(--vermillion);
+      text-decoration: underline;
+      text-decoration-style: dotted;
+      text-underline-offset: 3px;
+    }
+    .prose-reader em {
+      font-style: italic;
+    }
+    .prose-reader strong {
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    /* Content image placeholder */
+    .content-figure {
+      margin: 2.5em 0;
+      padding: 0;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .content-figure figcaption {
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-top: 0.6em;
+      text-align: center;
+    }
+
+    /* Tag pill */
+    .tag-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.15rem 0.55rem 0.2rem;
+      background: var(--paper-2);
+      border: 1px solid var(--rule);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .tag-pill:hover {
+      background: var(--ink);
+      color: var(--paper);
+      border-color: var(--ink);
+    }
+
+    /* Checkbox custom */
+    .checkbox-custom {
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid var(--ink-3);
+      background: var(--paper);
+      cursor: pointer;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .checkbox-custom:checked {
+      background: var(--ink);
+      border-color: var(--ink);
+    }
+    .checkbox-custom:checked::after {
+      content: '';
+      position: absolute;
+      left: 3px;
+      top: 0px;
+      width: 4px;
+      height: 8px;
+      border: solid var(--paper);
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    /* Toggle */
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 22px;
+      background: var(--rule);
+      border: 1.5px solid var(--ink-3);
+      cursor: pointer;
+      transition: all 0.25s;
+      flex-shrink: 0;
+    }
+    .toggle::after {
+      content: '';
+      position: absolute;
+      left: 1px;
+      top: 1px;
+      width: 16px;
+      height: 16px;
+      background: var(--paper);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid var(--ink-3);
+    }
+    .toggle.on {
+      background: var(--vermillion);
+      border-color: var(--vermillion-dark);
+    }
+    .toggle.on::after {
+      left: 23px;
+      border-color: var(--vermillion-dark);
+    }
+
+    /* Expandable top-bar search */
+    .search-expandable {
+      width: 0;
+      overflow: hidden;
+      transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .search-expandable.open {
+      width: 280px;
+    }
+    @media (max-width: 640px) {
+      .search-expandable.open {
+        width: 180px;
+      }
+    }
+
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--rule);
+      color: var(--ink-3);
+      transition: all 0.2s ease;
+      cursor: pointer;
+      background: transparent;
+      flex-shrink: 0;
+    }
+    .icon-btn:hover {
+      border-color: var(--ink);
+      color: var(--ink);
+    }
+
+    /* Filter panel transition */
+    .filter-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .filter-panel.open {
+      max-height: 500px;
+    }
+
+    /* Generic collapsible section */
+    .collapsible-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .collapsible-section.expanded .collapsible-content {
+      max-height: 1200px;
+    }
+    .collapsible-section .chev {
+      transition: transform 0.3s ease;
+    }
+    .collapsible-section.expanded .chev {
+      transform: rotate(180deg);
+    }
+
+    /* Press effect */
+    .btn-press {
+      transition: all 0.15s ease;
+    }
+    .btn-press:active {
+      transform: translateY(1px);
+    }
+
+    /* Vertical text label */
+    .vertical-label {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+    }
+
+    /* Plus icon that rotates */
+    .plus-icon {
+      transition: transform 0.3s ease;
+    }
+    .plus-icon.open {
+      transform: rotate(45deg);
+    }
+
+    /* Source row in list */
+    .source-list-item {
+      border-bottom: 1px dotted var(--rule);
+    }
+    .source-list-item:last-child {
+      border-bottom: none;
+    }
+
+    /* Numeric display font for index numbers */
+    .idx-num {
+      font-family: 'Fraunces', serif;
+      font-variation-settings: 'SOFT' 50, 'opsz' 144, 'WONK' 1;
+      font-weight: 300;
+      letter-spacing: -0.04em;
+      color: var(--muted);
+      font-feature-settings: 'lnum', 'tnum';
+    }
+
+    /* Print-like card for topics */
+    .topic-card {
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      position: relative;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .topic-card:hover {
+      border-color: var(--ink);
+      transform: translateY(-1px);
+      box-shadow: 3px 3px 0 var(--ink);
+    }
+    .topic-card::before {
+      content: '';
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 6px;
+      height: 6px;
+      background: var(--vermillion);
+      border-radius: 50%;
+    }
+    .topic-card.inactive::before {
+      background: var(--rule);
+    }
+
+    /* Sparkle */
+    @keyframes sparkle {
+      0%, 100% {
+        opacity: 0.4;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1.1);
+      }
+    }
+    .sparkle-dot {
+      animation: sparkle 2s ease-in-out infinite;
+    }
+
+    /* Filters chip input */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.25rem 0.6rem 0.3rem;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.04em;
+    }
+    .chip-remove {
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 0.15s;
+    }
+    .chip-remove:hover {
+      opacity: 1;
+    }
+
+    /* Hide on small screens */
+    @media (max-width: 768px) {
+      .hide-mobile {
+        display: none !important;
+      }
+    }
+
+    /* Mobile sidebar */
+    @media (max-width: 1024px) {
+      .sidebar {
+        position: fixed;
+        left: -280px;
+        top: 0;
+        bottom: 0;
+        z-index: 40;
+        transition: left 0.3s ease;
+        background: var(--paper-2);
+      }
+      .sidebar.mobile-open {
+        left: 0;
+      }
+      .main-area {
+        margin-left: 0 !important;
+      }
+      .mobile-menu-btn {
+        display: flex !important;
+      }
+    }
+
+    .mobile-menu-btn {
+      display: none;
+    }
+
+    /* Utility */
+    .border-ink { border-color: var(--ink); }
+    .border-rule { border-color: var(--rule); }
+
+    /* Ink on paper buttons */
+    .btn-ink {
+      background: var(--ink);
+      color: var(--paper);
+      transition: all 0.2s ease;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 500;
+      padding: 0.6rem 1.1rem;
+      border: 1.5px solid var(--ink);
+      cursor: pointer;
+    }
+    .btn-ink:hover {
+      background: var(--vermillion);
+      border-color: var(--vermillion);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--ink);
+      border: 1.5px solid var(--ink);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 500;
+      padding: 0.6rem 1.1rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-outline:hover {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink-3);
+      border: 1px solid var(--rule);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 500;
+      padding: 0.45rem 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-ghost:hover {
+      border-color: var(--ink);
+      color: var(--ink);
+    }
+
+    .input-bare {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--rule);
+      padding: 0.5rem 0;
+      font-family: 'Newsreader', Georgia, serif;
+      font-size: 1rem;
+      color: var(--ink);
+      width: 100%;
+      transition: border-color 0.2s ease;
+    }
+    .input-bare:focus {
+      border-bottom-color: var(--ink);
+    }
+
+    .input-bordered {
+      background: var(--paper);
+      border: 1.5px solid var(--rule);
+      padding: 0.6rem 0.8rem;
+      font-family: 'Newsreader', Georgia, serif;
+      font-size: 1rem;
+      color: var(--ink);
+      width: 100%;
+      transition: border-color 0.2s ease;
+    }
+    .input-bordered:focus {
+      border-color: var(--ink);
+    }
+
+    /* Header links */
+    a { text-decoration: none; color: inherit; }
+  </style>
+</head>
+
+<body class="paper-surface">
+  <div id="reading-progress"></div>
+  <div class="grain-overlay"></div>
+
+  <div id="app" class="relative z-10"></div>
+  <div id="modal-root" class="relative z-30"></div>
+
+  <!-- ====================================================
+       DATA
+       ==================================================== -->
+  <script>
+    const TOPICS = [
+      {
+        id: 'steam-deck-2',
+        name: 'Steam Deck 2',
+        description: 'Hardware, firmware and software news for Valve\u2019s successor handheld.',
+        keywords: ['steam deck 2', 'valve handheld', 'deck successor', 'oled deck 2'],
+        sources: ['theverge.com', 'arstechnica.com', 'rockpapershotgun.com', 'gamingonlinux.com', 'videocardz.com'],
+        found: 14,
+        unread: 3,
+        active: true,
+        lastUpdate: '2 hours ago',
+        created: '2026-02-11',
+      },
+      {
+        id: 'legion-go-2',
+        name: 'Lenovo Legion Go Gen 2 (SteamOS)',
+        description: 'Watching for the SteamOS-powered Legion Go Gen 2 announcement and spec leaks.',
+        keywords: ['legion go gen 2', 'legion go 2', 'legion go steamos', 'lenovo handheld 2026'],
+        sources: ['theverge.com', 'windowscentral.com', 'liliputing.com', 'notebookcheck.net'],
+        found: 8,
+        unread: 2,
+        active: true,
+        lastUpdate: '5 hours ago',
+        created: '2026-03-02',
+      },
+      {
+        id: 'local-first',
+        name: 'Local-first software',
+        description: 'CRDTs, offline-first tooling, and the movement toward user-owned data.',
+        keywords: ['local-first', 'crdt', 'offline-first', 'user-owned data', 'sync engine'],
+        sources: ['inkandswitch.com', 'news.ycombinator.com', 'jamsocket.com', 'rxdb.info'],
+        found: 21,
+        unread: 0,
+        active: true,
+        lastUpdate: '1 day ago',
+        created: '2026-01-18',
+      },
+      {
+        id: 'rust-async',
+        name: 'Rust async runtime',
+        description: 'Tokio, async-std, smol, and the long-running conversation about Rust async ergonomics.',
+        keywords: ['rust async', 'tokio', 'rust runtime', 'async trait'],
+        sources: ['blog.rust-lang.org', 'tokio.rs', 'without.boats', 'fasterthanli.me'],
+        found: 11,
+        unread: 1,
+        active: true,
+        lastUpdate: '3 days ago',
+        created: '2026-01-04',
+      },
+      {
+        id: 'self-hosted',
+        name: 'Self-hosted tooling',
+        description: 'The ongoing renaissance of on-premise tools and the people running them.',
+        keywords: ['self-hosted', 'selfhosted', 'homelab', 'on-premise', 'self hosted'],
+        sources: ['selfh.st', 'reddit.com/r/selfhosted', 'noted.lol'],
+        found: 19,
+        unread: 4,
+        active: true,
+        lastUpdate: '6 hours ago',
+        created: '2026-02-01',
+      },
+      {
+        id: 'ocaml-revival',
+        name: 'OCaml revival',
+        description: 'Dune, Melange, and the slow but real OCaml comeback.',
+        keywords: ['ocaml', 'dune build', 'melange', 'reasonml'],
+        sources: ['ocaml.org', 'discuss.ocaml.org'],
+        found: 3,
+        unread: 0,
+        active: false,
+        lastUpdate: '2 weeks ago',
+        created: '2025-12-14',
+      },
+    ];
+
+    const ITEMS = [
+      {
+        id: 'a1',
+        type: 'news',
+        title: 'Valve Engineers Hint at Steam Deck 2 Timeline in Closed-Door GDC Session',
+        source: 'The Verge',
+        sourceUrl: 'theverge.com',
+        author: 'Sean Hollister',
+        date: '2026-04-09',
+        dateLabel: '2 hours ago',
+        readTime: '7 min',
+        topicId: 'steam-deck-2',
+        excerpt:
+          'During a candid discussion at GDC 2026, two Valve hardware engineers confirmed that the successor to the Steam Deck is "well underway," while cautioning that anything before late 2027 would be surprising given the performance targets the team has set for itself.',
+        imageClass: 'img-1',
+        featured: true,
+        content: `
+          <p>During a candid discussion at GDC 2026, two Valve hardware engineers confirmed that the successor to the Steam Deck is well underway, while cautioning that anything before late 2027 would be surprising given the performance targets the team has set for itself. The admission came during an off-the-record Q&A that was subsequently made on-record at the engineers' own request.</p>
+          <p>The pair, whom Valve has asked us not to name, framed the project as a careful balancing act between three constraints: the battery life that made the original Deck such a loved companion, the thermal envelope of a device that lives in your hands, and the broad software compatibility that has been Valve's long-stated north star.</p>
+          <blockquote>"We do not want to ship a device that is faster but worse. And a lot of the interesting work we\u2019re doing right now is on the worse half of that sentence."</blockquote>
+          <h2>The performance question</h2>
+          <p>On performance, the engineers were careful. They acknowledged AMD's continued progress but emphasized that a generational leap in raw compute isn't the goal. Instead, they described a device that would feel "unmistakably Deck" but one that could carry the next five years of PC games without the feeling of running at the ragged edge.</p>
+          <p>This framing is consistent with what we\u2019ve heard from developer partners over the past year. Multiple studios told The Verge that Valve has been requesting build targets in the 15\u201325W range, with an unusual emphasis on frame-time consistency rather than peak framerate.</p>
+          <h2>SteamOS beyond the Deck</h2>
+          <p>Perhaps more interestingly, the engineers confirmed that Valve is "actively helping" third parties ship SteamOS-native handhelds \u2014 a detail that aligns with the persistent rumors about a Lenovo Legion Go variant running SteamOS. They declined to name partners but did allow that "there will be more than one."</p>
+          <p>That single sentence will likely shape coverage in the handheld PC space for the rest of the year. Until now, Valve\u2019s posture toward third-party SteamOS devices has been cooperative but quiet. Saying it out loud in front of developers is a meaningful shift.</p>
+          <h2>What we still don\u2019t know</h2>
+          <p>Nothing official on price, on release window, on display technology, or on whether the second-generation device will retain its OLED predecessor\u2019s specific panel characteristics. The engineers batted away each of these questions with varying degrees of good humor.</p>
+          <p>But for the first time since the original Deck shipped, there is now an on-record acknowledgment from Valve that the successor exists, is being actively developed, and is not arriving any time soon. For a company that has historically preferred to let its products speak for themselves, that counts as news.</p>
+        `,
+      },
+      {
+        id: 'a2',
+        type: 'news',
+        title: 'Lenovo Legion Go Gen 2 Leaked Spec Sheet Points to SteamOS as Default',
+        source: 'Videocardz',
+        sourceUrl: 'videocardz.com',
+        author: 'WhyCry',
+        date: '2026-04-08',
+        dateLabel: 'Yesterday',
+        readTime: '4 min',
+        topicId: 'legion-go-2',
+        excerpt:
+          'A spec sheet attributed to an early production batch of the Legion Go Gen 2 suggests Lenovo intends to ship the device with SteamOS pre-installed as the default experience, a meaningful shift from the Windows-first approach of the previous generation.',
+        imageClass: 'img-2',
+        content: '<p>Full article content would be rendered here in the production application.</p>',
+      },
+      {
+        id: 'a3',
+        type: 'saved',
+        title: 'Local-First Software: You Own Your Data, In Spite of the Cloud',
+        source: 'Ink & Switch',
+        sourceUrl: 'inkandswitch.com',
+        author: 'Kleppmann, Wiggins, van Hardenberg, McGranaghan',
+        date: '2019-04-01',
+        dateLabel: 'Saved 3 days ago',
+        readTime: '42 min',
+        topicId: 'local-first',
+        excerpt:
+          'Cloud apps like Google Docs and Trello are popular because they enable real-time collaboration with colleagues, and they make it easy for us to access our work from all of our devices. However, by centralizing data storage on servers, cloud apps also take away ownership and agency from users.',
+        imageClass: 'img-3',
+        content: '<p>Full article content would be rendered here in the production application.</p>',
+      },
+      {
+        id: 'a4',
+        type: 'news',
+        title: 'SteamOS 3.7 Brings Experimental AV1 Decode for Video Files',
+        source: 'GamingOnLinux',
+        sourceUrl: 'gamingonlinux.com',
+        author: 'Liam Dawe',
+        date: '2026-04-08',
+        dateLabel: 'Yesterday',
+        readTime: '3 min',
+        topicId: 'steam-deck-2',
+        excerpt:
+          'The latest SteamOS beta channel update brings experimental AV1 hardware decoding support for the Steam Deck OLED, marking one of the first consumer confirmations that the RDNA 3 media engine is being exercised by Valve\u2019s firmware team.',
+        imageClass: 'img-4',
+        content: '<p>Full article content would be rendered here in the production application.</p>',
+      },
+      {
+        id: 'a5',
+        type: 'saved',
+        title: 'Notes on Running Rust async with Three Different Runtimes',
+        source: 'without.boats',
+        sourceUrl: 'without.boats',
+        author: 'boats',
+        date: '2026-03-21',
+        dateLabel: 'Saved 5 days ago',
+        readTime: '18 min',
+        topicId: 'rust-async',
+        excerpt:
+          'A careful and somewhat weary examination of what it actually means to write a piece of library code that can target Tokio, async-std, and smol without locking callers into a runtime they did not choose.',
+        imageClass: 'img-5',
+        content: '<p>Full article content would be rendered here in the production application.</p>',
+      },
+      {
+        id: 'a6',
+        type: 'news',
+        title: 'Jellyfin 10.12 Ships with Built-in Hardware Transcoding Profiler',
+        source: 'selfh.st',
+        sourceUrl: 'selfh.st',
+        author: 'Ethan',
+        date: '2026-04-07',
+        dateLabel: '3 days ago',
+        readTime: '5 min',
+        topicId: 'self-hosted',
+        excerpt:
+          'The long-awaited Jellyfin 10.12 release arrives with a feature that has been requested since the very first 10.x milestone: a profiler that tells you, in plain language, which part of your transcode pipeline is the bottleneck.',
+        imageClass: 'img-6',
+        content: '<p>Full article content would be rendered here in the production application.</p>',
+      },
+      {
+        id: 'a7',
+        type: 'saved',
+        title: 'The Case for Boring Databases in 2026',
+        source: 'Fly.io Blog',
+        sourceUrl: 'fly.io',
+        author: 'Thomas Ptacek',
+        date: '2026-03-15',
+        dateLabel: 'Saved 1 week ago',
+        readTime: '12 min',
+        topicId: null,
+        excerpt:
+          'An argument for boring databases \u2014 the kind with proven track records, well-understood failure modes, and entire libraries of books written about them \u2014 delivered with the characteristic grumpy affection of a Fly.io post.',
+        imageClass: 'img-7',
+        content: '<p>Full article content would be rendered here in the production application.</p>',
+      },
+      {
+        id: 'a8',
+        type: 'news',
+        title: 'A New CRDT Library for Local-First Apps Aims to Keep Payloads Small',
+        source: 'jamsocket.com',
+        sourceUrl: 'jamsocket.com',
+        author: 'Paul Butler',
+        date: '2026-04-06',
+        dateLabel: '4 days ago',
+        readTime: '9 min',
+        topicId: 'local-first',
+        excerpt:
+          'A deep dive into a new open-source CRDT implementation that claims to cut the wire overhead of typical Yjs payloads by nearly half, without losing convergence guarantees, by rethinking how operations are batched on the encoder side.',
+        imageClass: 'img-8',
+        content: '<p>Full article content would be rendered here in the production application.</p>',
+      },
+      {
+        id: 'a9',
+        type: 'saved',
+        title: 'Building a Modest News Reader in Go, One Package at a Time',
+        source: 'noted.lol',
+        sourceUrl: 'noted.lol',
+        author: 'rob',
+        date: '2026-02-28',
+        dateLabel: 'Saved 2 weeks ago',
+        readTime: '22 min',
+        topicId: 'self-hosted',
+        excerpt:
+          'A long-form build log for a hobby news reader written in Go. The author is unhurried, the prose is warm, and the architectural decisions \u2014 each one second-guessed and then defended \u2014 are the real subject of the piece.',
+        imageClass: 'img-9',
+        content: '<p>Full article content would be rendered here in the production application.</p>',
+      },
+      {
+        id: 'a10',
+        type: 'news',
+        title: 'AMD Strix Halo Refresh Rumored for Next-Gen Handhelds in Early 2027',
+        source: 'Notebookcheck',
+        sourceUrl: 'notebookcheck.net',
+        author: 'Allen Ngo',
+        date: '2026-04-05',
+        dateLabel: '5 days ago',
+        readTime: '6 min',
+        topicId: 'legion-go-2',
+        excerpt:
+          'New rumors circulating in the handheld PC community point to an AMD Strix Halo refresh that may ship in early 2027, timed deliberately to overlap with the next generation of enthusiast handhelds from Asus, Lenovo, and Valve.',
+        imageClass: 'img-10',
+        content: '<p>Full article content would be rendered here in the production application.</p>',
+      },
+    ];
+
+    // Mock URL preview result
+    const MOCK_PREVIEW = {
+      title: 'The Long Tail of Self-Hosted: Why On-Premise Software Isn\u2019t Going Anywhere',
+      source: 'selfh.st',
+      image: 'img-6',
+      description:
+        'An essay on the quiet persistence of self-hosted software in a world that has largely moved to SaaS. The author makes the case that the tools which persist are the ones whose authors continue to run them personally.',
+      readTime: '11 min',
+      suggestedTopic: 'self-hosted',
+    };
+  </script>
+
+  <!-- ====================================================
+       STATE + ROUTER + RENDER
+       ==================================================== -->
+  <script>
+    const state = {
+      route: { name: 'home' },
+      filterOpen: false,
+      modal: null, // 'add-link' | 'add-topic' | null
+      previewState: 'idle', // idle | loading | loaded
+      filters: {
+        type: 'all', // all | saved | news
+        topic: 'all',
+        source: 'all',
+      },
+      sidebarMobileOpen: false,
+      searchOpen: false,
+      theme: 'light',
+    };
+
+    const $app = document.getElementById('app');
+    const $modalRoot = document.getElementById('modal-root');
+
+    // ---------- Routing ----------
+    function parseRoute() {
+      const h = window.location.hash || '#/';
+      if (h === '#/' || h === '') return { name: 'home' };
+      if (h === '#/radar') return { name: 'radar' };
+      if (h === '#/settings') return { name: 'settings' };
+      let m;
+      if ((m = h.match(/^#\/article\/(.+)$/))) return { name: 'article', id: m[1] };
+      if ((m = h.match(/^#\/radar\/(.+)$/))) return { name: 'radar-item', id: m[1] };
+      return { name: 'home' };
+    }
+
+    function navigate(hash) {
+      window.location.hash = hash;
+    }
+
+    window.addEventListener('hashchange', () => {
+      state.route = parseRoute();
+      state.filterOpen = false;
+      closeModal();
+      render();
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    });
+
+    // ---------- Render ----------
+    function render() {
+      state.route = parseRoute();
+      $app.innerHTML = layout(pageContent());
+      attachGlobalListeners();
+      updateActiveNav();
+    }
+
+    function layout(inner) {
+      return `
+        ${sidebar()}
+        <main class="main-area lg:ml-[280px] min-h-screen relative">
+          <div class="px-6 md:px-12 lg:px-16 pb-24 pt-10 max-w-[1200px] relative">
+            ${topBar()}
+            ${inner}
+          </div>
+        </main>
+        <button class="mobile-menu-btn fixed top-5 left-5 z-50 w-10 h-10 bg-paper border border-ink items-center justify-center" onclick="toggleSidebar()">
+          ${iconMenu()}
+        </button>
+      `;
+    }
+
+    function sidebar() {
+      const activeName =
+        state.route.name === 'radar-item' ? 'radar' :
+        state.route.name === 'article' ? 'home' :
+        state.route.name;
+
+      return `
+        <aside class="sidebar fixed left-0 top-0 bottom-0 w-[280px] bg-paper-2 border-r border-rule flex flex-col z-20 ${state.sidebarMobileOpen ? 'mobile-open' : ''}">
+          <!-- Masthead -->
+          <div class="px-8 pt-10 pb-8">
+            <div class="label-sc text-muted mb-3">Est. 2026 — Self-hosted</div>
+            <a href="#/" class="block">
+              <div class="display-wonky text-[2.4rem] text-ink leading-[0.85]">Linktheca</div>
+            </a>
+            <div class="mt-3 text-[0.82rem] text-muted italic font-body leading-tight" style="font-feature-settings: 'ss01';">
+              an archive for the<br />careful reader
+            </div>
+          </div>
+
+          <div class="mx-8 rule-double mb-8"></div>
+
+          <!-- Nav -->
+          <div class="px-8 mb-6">
+            <div class="label-sc text-muted mb-5">Navigation</div>
+            <nav class="flex flex-col gap-4">
+              ${navItem('Library', '#/', activeName === 'home')}
+              ${navItem('Radar', '#/radar', activeName === 'radar')}
+              ${navItem('Settings', '#/settings', activeName === 'settings')}
+            </nav>
+          </div>
+
+          <div class="flex-1"></div>
+
+          <!-- Status -->
+          <div class="px-8 pb-10">
+            <div class="rule-dotted mb-5"></div>
+            <div class="label-sc text-muted mb-3">Instance</div>
+            <div class="font-mono text-[0.72rem] text-ink-3 leading-relaxed">
+              <div class="flex items-center gap-2">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping-soft absolute inline-flex h-full w-full rounded-full bg-sage opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-sage"></span>
+                </span>
+                <span>on-premises</span>
+              </div>
+              <div class="mt-1 pl-4 text-muted">localhost:8080</div>
+              <div class="mt-3 pl-4 flex flex-col gap-0.5">
+                <div>127 entries</div>
+                <div>5 topics · 10 unread</div>
+                <div class="text-muted">v0.1.0 · main</div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      `;
+    }
+
+    function navItem(label, href, active) {
+      return `
+        <a href="${href}" class="nav-item ${active ? 'active' : ''} group flex items-center gap-5 pl-5" onclick="state.sidebarMobileOpen=false">
+          <span class="nav-label display-tight text-[1.5rem] text-ink-3 group-hover:text-ink transition-colors">${label}</span>
+        </a>
+      `;
+    }
+
+    function topBar() {
+      return `
+        <div class="absolute top-8 right-6 md:right-12 lg:right-16 z-20 flex items-center gap-3">
+          <div class="search-expandable ${state.searchOpen ? 'open' : ''}">
+            <div class="flex items-center gap-2 border-b border-ink pb-1 w-full">
+              ${iconSearch('text-muted flex-shrink-0')}
+              <input id="top-search-input" type="text" placeholder="Search the archive…" class="flex-1 min-w-0 bg-transparent outline-none font-body text-[0.95rem] text-ink placeholder:text-muted-2" />
+              <span class="label-sc text-muted-2 hide-mobile">\u2318K</span>
+            </div>
+          </div>
+          <button class="icon-btn" title="${state.searchOpen ? 'Close search' : 'Search'}" onclick="toggleSearch()">
+            ${state.searchOpen ? '<span class="text-[1.1rem] leading-none">\u00d7</span>' : iconSearch()}
+          </button>
+          <button class="icon-btn hide-mobile" title="Notifications">
+            ${iconBell()}
+          </button>
+          <div class="hide-mobile w-8 h-8 bg-ink text-paper flex items-center justify-center font-mono text-[0.72rem] font-bold">IS</div>
+          <button class="btn-ink flex items-center gap-2" onclick="openModal('add-link')">
+            <span class="text-[1rem] leading-none">+</span>
+            <span class="hide-mobile">Add link</span>
+          </button>
+        </div>
+      `;
+    }
+
+    // ---------- Page content ----------
+    function pageContent() {
+      switch (state.route.name) {
+        case 'home':
+          return homePage();
+        case 'radar':
+          return topicsPage();
+        case 'radar-item':
+          return topicViewPage(state.route.id);
+        case 'article':
+          return articlePage(state.route.id);
+        case 'settings':
+          return settingsPage();
+        default:
+          return homePage();
+      }
+    }
+
+    // ---------- HOME PAGE ----------
+    function homePage() {
+      const items = filteredItems();
+
+      return `
+        <!-- Page header -->
+        <div class="animate-fade-in mb-10">
+          <div class="flex items-end justify-between gap-6 mb-6">
+            <div>
+              <div class="label-sc-lg text-muted mb-3">
+                Friday, April 10, 2026
+              </div>
+              <h1 class="display-wonky text-[5rem] md:text-[6.5rem] text-ink leading-[0.85] -ml-1">Library</h1>
+              <div class="mt-3 font-body italic text-[1.05rem] text-muted">
+                127 articles saved for later reading.
+              </div>
+            </div>
+            <div class="hide-mobile">
+              <button class="btn-outline flex items-center gap-2" onclick="toggleFilters()">
+                ${iconFilter()}
+                <span>Filters</span>
+                <span id="filter-chev" class="transition-transform ${state.filterOpen ? 'rotate-180' : ''}">${iconChev()}</span>
+              </button>
+            </div>
+          </div>
+          <div class="rule-thick"></div>
+        </div>
+
+        <!-- Filter panel -->
+        <div class="filter-panel ${state.filterOpen ? 'open' : ''} mb-10">
+          <div class="bg-paper-2 border border-rule p-6 md:p-8">
+            <div class="flex items-center justify-between mb-5">
+              <div class="label-sc-lg text-ink">Refine the view</div>
+              <button class="label-sc text-muted hover:text-vermillion transition-colors" onclick="resetFilters()">Clear all</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              ${filterGroup('Topic', 'topic', [
+                { value: 'all', label: 'Any topic' },
+                ...TOPICS.filter((t) => t.active).map((t) => ({ value: t.id, label: t.name })),
+              ])}
+              ${filterGroup('Source', 'source', [
+                { value: 'all', label: 'Any source' },
+                { value: 'inkandswitch.com', label: 'inkandswitch.com' },
+                { value: 'without.boats', label: 'without.boats' },
+                { value: 'fly.io', label: 'fly.io' },
+                { value: 'noted.lol', label: 'noted.lol' },
+              ])}
+              <div>
+                <div class="label-sc text-muted mb-3">Date range</div>
+                <div class="flex flex-col gap-2">
+                  ${radioRow('date', 'week', 'This week', true)}
+                  ${radioRow('date', 'month', 'This month')}
+                  ${radioRow('date', 'year', 'This year')}
+                  ${radioRow('date', 'any', 'All time')}
+                </div>
+              </div>
+            </div>
+            <div class="mt-6 pt-5 border-t border-rule flex items-center gap-3 flex-wrap">
+              <span class="label-sc text-muted">Active filters</span>
+              <span class="chip">topic: ${state.filters.topic}<span class="chip-remove">×</span></span>
+              <span class="chip">source: ${state.filters.source}<span class="chip-remove">×</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile filter button -->
+        <div class="md:hidden mb-8">
+          <button class="btn-outline w-full" onclick="toggleFilters()">Filters</button>
+        </div>
+
+        <!-- Section label -->
+        <div class="flex items-center gap-4 mb-8">
+          <div class="label-sc-lg text-ink">All entries</div>
+          <div class="flex-1 rule-dotted"></div>
+          <div class="label-sc text-muted">${items.length} shown</div>
+        </div>
+
+        <!-- Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-7">
+          ${items.map((it, i) => gridEntry(it, i + 1)).join('')}
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-24 pt-10 border-t border-rule flex items-baseline justify-between text-muted">
+          <div class="font-mono text-[0.7rem] tracking-wide uppercase">End of current view</div>
+          <div class="font-mono text-[0.7rem] tracking-wide">${items.length} / 127 shown</div>
+        </div>
+      `;
+    }
+
+    function filterGroup(label, key, options) {
+      return `
+        <div>
+          <div class="label-sc text-muted mb-3">${label}</div>
+          <div class="flex flex-col gap-2">
+            ${options.map((o) => radioRow(key, o.value, o.label, state.filters[key] === o.value)).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function radioRow(name, value, label, checked) {
+      const isChecked = checked || state.filters[name] === value;
+      return `
+        <label class="flex items-center gap-2.5 cursor-pointer group">
+          <span class="relative w-3 h-3 border-[1.5px] border-ink-3 flex-shrink-0 group-hover:border-ink transition-colors ${isChecked ? 'bg-ink border-ink' : ''}">
+            ${isChecked ? '<span class="absolute inset-[2px] bg-vermillion"></span>' : ''}
+          </span>
+          <span class="font-body text-[0.92rem] text-ink-3 group-hover:text-ink transition-colors">${label}</span>
+        </label>
+      `;
+    }
+
+    function featuredEntry(it) {
+      const topic = TOPICS.find((t) => t.id === it.topicId);
+      return `
+        <a href="#/article/${it.id}" class="feed-card animate-fade-in stagger-1 group block">
+          <article class="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-10 mb-6">
+            <!-- image -->
+            <div class="md:col-span-6 lg:col-span-7 order-2 md:order-1">
+              <div class="mock-image ${it.imageClass} h-[280px] md:h-[360px] relative overflow-hidden">
+                <div class="absolute inset-0 flex items-end p-6">
+                  <div class="img-watermark truncate">${it.source.split(' ')[0]}</div>
+                </div>
+                <div class="absolute top-4 left-4 flex gap-2">
+                  <span class="stamp text-vermillion bg-paper/95 stamp-flat">${it.type}</span>
+                  ${topic ? `<span class="stamp text-paper border-paper stamp-flat">${topic.name}</span>` : ''}
+                </div>
+                <div class="absolute bottom-4 right-4 label-sc text-paper/70">${it.readTime}</div>
+              </div>
+            </div>
+            <!-- content -->
+            <div class="md:col-span-6 lg:col-span-5 order-1 md:order-2 flex flex-col justify-center">
+              <div class="flex items-baseline gap-3 mb-4">
+                <div class="idx-num text-[3.5rem]">01</div>
+                <div class="flex-1">
+                  <div class="label-sc text-muted">${it.source} · ${it.dateLabel}</div>
+                  <div class="label-sc text-vermillion mt-1">Lead entry</div>
+                </div>
+              </div>
+              <h2 class="card-title display-tight text-[2rem] md:text-[2.35rem] text-ink transition-colors leading-[1.05] mb-4">
+                ${it.title}
+              </h2>
+              <p class="font-body text-[1.05rem] text-ink-3 leading-[1.55] mb-5" style="font-feature-settings: 'ss01';">
+                ${it.excerpt}
+              </p>
+              <div class="flex items-center justify-between">
+                <div class="label-sc text-muted">By ${it.author}</div>
+                <div class="label-sc text-ink card-underline inline-block" style="background-size: 0% 1px; background-image: linear-gradient(to right, currentColor 50%, transparent 50%); background-size: 4px 1px; background-repeat: repeat-x; background-position: 0 100%;">
+                  Read →
+                </div>
+              </div>
+            </div>
+          </article>
+        </a>
+      `;
+    }
+
+    function gridEntry(it, idx) {
+      const topic = TOPICS.find((t) => t.id === it.topicId);
+      const staggerClass = `stagger-${Math.min(idx, 8)}`;
+      const isNews = it.type === 'news';
+      return `
+        <a href="#/article/${it.id}" class="feed-card animate-fade-in ${staggerClass} group block">
+          <article class="flex flex-col h-full">
+            <div class="mock-image ${it.imageClass} relative overflow-hidden mb-5" style="aspect-ratio: 16/10;">
+              <div class="absolute inset-0 flex items-center justify-center">
+                <div class="img-watermark text-[3rem] truncate px-4">${it.source.split(' ')[0]}</div>
+              </div>
+              <div class="absolute top-3 left-3">
+                <span class="stamp bg-paper/95 ${isNews ? 'text-vermillion' : 'text-sage'} stamp-flat">
+                  ${isNews ? '\u25c9 found' : '\u2726 saved'}
+                </span>
+              </div>
+              <div class="absolute bottom-3 right-3 label-sc text-paper/80">${it.readTime}</div>
+            </div>
+            <div class="flex items-center gap-2 mb-3 flex-wrap">
+              <span class="label-sc text-muted">${it.source}</span>
+              <span class="label-sc text-muted-2">\u00b7</span>
+              <span class="label-sc text-muted">${it.dateLabel}</span>
+            </div>
+            <h3 class="card-title display-tight text-[1.4rem] text-ink leading-[1.1] mb-3 transition-colors">
+              ${it.title}
+            </h3>
+            <p class="font-body text-[0.95rem] text-muted leading-[1.55] mb-5 flex-1" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+              ${it.excerpt}
+            </p>
+            <div class="pt-4 border-t border-rule flex items-center justify-between">
+              ${
+                topic
+                  ? `<span class="label-sc text-ink-3 truncate">${topic.name}</span>`
+                  : `<span class="label-sc text-muted-2">Unfiled</span>`
+              }
+              <span class="label-sc text-muted-2 group-hover:text-vermillion transition-colors">\u2192</span>
+            </div>
+          </article>
+        </a>
+      `;
+    }
+
+    function feedEntry(it, idx) {
+      const topic = TOPICS.find((t) => t.id === it.topicId);
+      const staggerClass = `stagger-${Math.min(idx - 1, 8)}`;
+      return `
+        <a href="#/article/${it.id}" class="feed-card animate-fade-in ${staggerClass} group block border-t border-rule py-6 md:py-7">
+          <div class="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_auto] gap-5 md:gap-8 items-start">
+            <!-- idx -->
+            <div class="hide-mobile idx-num text-[2.5rem] leading-none pt-1 w-14 text-right">${String(idx).padStart(2, '0')}</div>
+            <!-- image -->
+            <div class="mock-image ${it.imageClass} w-full md:w-[140px] h-[100px] md:h-[100px] relative overflow-hidden flex-shrink-0">
+              <div class="absolute inset-0 flex items-center justify-center">
+                <div class="img-watermark text-[2rem] truncate px-2">${it.source.split(' ')[0]}</div>
+              </div>
+            </div>
+            <!-- content -->
+            <div class="flex flex-col min-w-0">
+              <div class="flex items-center gap-3 mb-2 flex-wrap">
+                <span class="label-sc ${it.type === 'news' ? 'text-vermillion' : 'text-sage'}">${it.type === 'news' ? '◉ found' : '✦ saved'}</span>
+                <span class="label-sc text-muted">${it.source}</span>
+                <span class="label-sc text-muted-2">·</span>
+                <span class="label-sc text-muted">${it.dateLabel}</span>
+                ${topic ? `<span class="label-sc text-muted-2">·</span><span class="label-sc text-ink-3">${topic.name}</span>` : ''}
+              </div>
+              <h3 class="card-title display-tight text-[1.5rem] md:text-[1.75rem] text-ink leading-[1.1] mb-2 transition-colors">
+                ${it.title}
+              </h3>
+              <p class="font-body text-[0.98rem] text-muted leading-[1.55] line-clamp-2">
+                ${it.excerpt}
+              </p>
+            </div>
+            <!-- meta -->
+            <div class="hide-mobile flex flex-col items-end gap-3 pt-1">
+              <div class="label-sc text-muted">${it.readTime}</div>
+              <div class="label-sc text-muted-2 group-hover:text-vermillion transition-colors">→</div>
+            </div>
+          </div>
+        </a>
+      `;
+    }
+
+    function filteredItems() {
+      // Library only shows user-saved articles.
+      // Crawler findings live in their topic views, not here.
+      let items = ITEMS.filter((i) => i.type === 'saved');
+      if (state.filters.topic !== 'all') items = items.filter((i) => i.topicId === state.filters.topic);
+      if (state.filters.source !== 'all') items = items.filter((i) => i.sourceUrl === state.filters.source);
+      return items;
+    }
+
+    // ---------- RADAR PAGE ----------
+    function topicsPage() {
+      const unreadTotal = TOPICS.reduce((a, t) => a + t.unread, 0);
+      return `
+        <div class="animate-fade-in mb-10">
+          <div class="flex items-end justify-between gap-6 mb-6">
+            <div>
+              <div class="label-sc-lg text-muted mb-3">
+                Last sweep · 3 minutes ago
+              </div>
+              <h1 class="display-wonky text-[5rem] md:text-[6.5rem] text-ink leading-[0.85] -ml-1">Radar</h1>
+              <div class="mt-3 font-body italic text-[1.05rem] text-muted">
+                Five topics on your radar. ${unreadTotal} new signals waiting.
+              </div>
+            </div>
+            <div class="hide-mobile">
+              <button class="btn-ink flex items-center gap-2" onclick="openModal('add-topic')">
+                <span>+</span>
+                <span>New topic</span>
+              </button>
+            </div>
+          </div>
+          <div class="rule-thick"></div>
+        </div>
+
+        <div class="md:hidden mb-8">
+          <button class="btn-ink w-full" onclick="openModal('add-topic')">+ New topic</button>
+        </div>
+
+        <!-- Active section -->
+        <div class="flex items-center gap-4 mb-8">
+          <div class="label-sc-lg text-ink">On the radar</div>
+          <div class="flex-1 rule-dotted"></div>
+          <div class="label-sc text-muted">${TOPICS.filter((t) => t.active).length} topics</div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-16">
+          ${TOPICS.filter((t) => t.active)
+            .map((t, i) => topicCard(t, i))
+            .join('')}
+        </div>
+
+        <!-- Inactive section -->
+        ${
+          TOPICS.some((t) => !t.active)
+            ? `
+              <div class="flex items-center gap-4 mb-8">
+                <div class="label-sc-lg text-muted">Paused</div>
+                <div class="flex-1 rule-dotted"></div>
+                <div class="label-sc text-muted">${TOPICS.filter((t) => !t.active).length} topics</div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-5 opacity-60">
+                ${TOPICS.filter((t) => !t.active)
+                  .map((t, i) => topicCard(t, i))
+                  .join('')}
+              </div>
+            `
+            : ''
+        }
+      `;
+    }
+
+    function topicCard(t, i) {
+      const stagger = `stagger-${Math.min(i + 1, 8)}`;
+      return `
+        <a href="#/radar/${t.id}" class="topic-card ${!t.active ? 'inactive' : ''} animate-fade-in ${stagger} block p-6">
+          <div class="flex items-start justify-between mb-3">
+            <div class="label-sc text-muted">Topic · ${String(i + 1).padStart(2, '0')}</div>
+            ${t.unread > 0 ? `<div class="label-sc text-vermillion">${t.unread} new</div>` : '<div class="label-sc text-muted-2">—</div>'}
+          </div>
+          <h3 class="display-tight text-[1.75rem] text-ink leading-[1.05] mb-3">${t.name}</h3>
+          <p class="font-body text-[0.95rem] text-muted leading-[1.5] mb-5 line-clamp-2">${t.description}</p>
+          <div class="flex items-center flex-wrap gap-2 mb-5">
+            ${t.keywords
+              .slice(0, 3)
+              .map((k) => `<span class="tag-pill">${k}</span>`)
+              .join('')}
+            ${t.keywords.length > 3 ? `<span class="label-sc text-muted">+${t.keywords.length - 3}</span>` : ''}
+          </div>
+          <div class="rule-dotted mb-4"></div>
+          <div class="flex items-center justify-between">
+            <div class="label-sc text-muted">${t.found} found · ${t.sources.length} sources</div>
+            <div class="label-sc text-muted">${t.lastUpdate}</div>
+          </div>
+        </a>
+      `;
+    }
+
+    // ---------- TOPIC VIEW ----------
+    function topicViewPage(id) {
+      const topic = TOPICS.find((t) => t.id === id);
+      if (!topic) return notFound();
+      const topicItems = ITEMS.filter((i) => i.topicId === id);
+
+      return `
+        <div class="animate-fade-in mb-10">
+          <a href="#/radar" class="label-sc text-muted hover:text-vermillion transition-colors inline-flex items-center gap-2 mb-8">
+            ← Back to radar
+          </a>
+
+          <!-- Title row -->
+          <div class="flex items-start justify-between gap-6 mb-4">
+            <div class="flex-1 min-w-0">
+              <div class="label-sc-lg text-muted mb-3">
+                Standing watch · Last refresh ${topic.lastUpdate}
+              </div>
+              <h1 class="display-wonky text-[3rem] md:text-[4rem] text-ink leading-[0.9] -ml-1">${topic.name}</h1>
+              <p class="mt-4 font-body text-[1.1rem] text-ink-3 leading-[1.5] max-w-[680px]">${topic.description}</p>
+            </div>
+            <div class="hide-mobile flex gap-2 flex-shrink-0 pt-1">
+              <button class="btn-outline">Edit</button>
+              <button class="btn-ghost">Pause</button>
+            </div>
+          </div>
+
+          <!-- Compact stats line -->
+          <div class="flex flex-wrap items-center gap-x-5 gap-y-1 mt-6 mb-4">
+            <span class="label-sc text-ink"><span class="text-vermillion font-bold">${topic.found}</span> found</span>
+            <span class="label-sc text-muted-2">·</span>
+            <span class="label-sc ${topic.unread > 0 ? 'text-vermillion' : 'text-muted'}">${topic.unread} unread</span>
+            <span class="label-sc text-muted-2">·</span>
+            <span class="label-sc text-ink">${topic.keywords.length} keywords</span>
+            <span class="label-sc text-muted-2">·</span>
+            <span class="label-sc text-ink">${topic.sources.length} sources</span>
+            <span class="label-sc text-muted-2">·</span>
+            <span class="label-sc text-muted">created ${topic.created}</span>
+          </div>
+
+          <!-- Keywords as compact chips -->
+          <div class="flex flex-wrap gap-1.5 mb-8">
+            ${topic.keywords.map((k) => `<span class="tag-pill">${k}</span>`).join('')}
+          </div>
+
+          <div class="rule-thick mb-8"></div>
+
+          <!-- Section label -->
+          <div class="flex items-center gap-4 mb-8">
+            <div class="label-sc-lg text-ink">Found entries</div>
+            <div class="flex-1 rule-dotted"></div>
+            <div class="label-sc text-muted">${topicItems.length} shown</div>
+          </div>
+
+          <!-- Articles grid (now high on the page) -->
+          ${
+            topicItems.length === 0
+              ? emptyStateTopicItems()
+              : `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-7 mb-16">${topicItems.map((it, i) => gridEntry(it, i + 1)).join('')}</div>`
+          }
+
+          <!-- Collapsible sources -->
+          <div class="collapsible-section mt-16 border-t border-rule pt-8">
+            <button class="w-full flex items-center justify-between gap-4 group" onclick="this.parentElement.classList.toggle('expanded')">
+              <div class="flex items-baseline gap-3">
+                <span class="label-sc-lg text-ink group-hover:text-vermillion transition-colors">Sources being watched</span>
+                <span class="label-sc text-muted">${topic.sources.length}</span>
+              </div>
+              <span class="chev text-muted">${iconChev()}</span>
+            </button>
+            <div class="collapsible-content">
+              <div class="bg-paper-2 border border-rule mt-6">
+                ${topic.sources
+                  .map(
+                    (s, i) => `
+                  <div class="source-list-item flex items-center justify-between px-5 py-3">
+                    <div class="flex items-center gap-4">
+                      <div class="idx-num text-[1.1rem]">${String(i + 1).padStart(2, '0')}</div>
+                      <div class="font-mono text-[0.85rem] text-ink">${s}</div>
+                    </div>
+                    <div class="label-sc text-muted">active</div>
+                  </div>
+                `
+                  )
+                  .join('')}
+                <div class="px-5 py-3 border-t border-rule">
+                  <button class="label-sc text-muted hover:text-vermillion transition-colors">+ Add source</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function emptyStateTopicItems() {
+      return `
+        <div class="text-center py-16 border border-dashed border-rule">
+          <div class="label-sc text-muted mb-3">Nothing yet</div>
+          <div class="font-body text-ink-3 italic">The watch is active. New entries will appear here as they are found.</div>
+        </div>
+      `;
+    }
+
+    // ---------- ARTICLE READER ----------
+    function articlePage(id) {
+      const it = ITEMS.find((i) => i.id === id);
+      if (!it) return notFound();
+      const topic = TOPICS.find((t) => t.id === it.topicId);
+
+      return `
+        <article class="animate-fade-in max-w-[680px] mx-auto">
+          <a href="#/" class="label-sc text-muted hover:text-vermillion transition-colors inline-flex items-center gap-2 mb-10">
+            ← Back to library
+          </a>
+
+          <!-- Metadata -->
+          <div class="mb-8">
+            <div class="flex items-center gap-3 mb-6 flex-wrap">
+              <span class="stamp text-vermillion">${it.type}</span>
+              ${topic ? `<a href="#/radar/${topic.id}" class="stamp text-ink hover:text-vermillion transition-colors">${topic.name}</a>` : ''}
+            </div>
+            <h1 class="display-wonky text-[2.5rem] md:text-[3.5rem] text-ink leading-[1] mb-6">${it.title}</h1>
+            <div class="flex flex-wrap items-center gap-x-5 gap-y-2 font-body italic text-[1.05rem] text-muted">
+              <span>by <span class="text-ink not-italic font-normal">${it.author}</span></span>
+              <span class="rule-dotted-v h-4 inline-block"></span>
+              <span>${it.source}</span>
+              <span class="rule-dotted-v h-4 inline-block"></span>
+              <span>${it.date}</span>
+              <span class="rule-dotted-v h-4 inline-block"></span>
+              <span>${it.readTime} read</span>
+            </div>
+          </div>
+
+          <!-- Hero image -->
+          <div class="mock-image ${it.imageClass} w-full h-[380px] mb-10 relative overflow-hidden">
+            <div class="absolute inset-0 flex items-end p-8">
+              <div class="img-watermark">${it.source.split(' ')[0]}</div>
+            </div>
+            <div class="absolute top-4 right-4 label-sc text-paper/60">Original imagery not loaded — preview</div>
+          </div>
+
+          <!-- Body -->
+          <div class="prose-reader drop-cap">
+            ${it.content}
+          </div>
+
+          <!-- Actions footer -->
+          <div class="mt-16 pt-10 border-t-2 border-ink">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div class="flex gap-3">
+                <button class="btn-outline">✦ Archive</button>
+                <button class="btn-ghost">Share</button>
+                <button class="btn-ghost">View original</button>
+              </div>
+              <a href="#/" class="label-sc text-muted hover:text-vermillion transition-colors">
+                Return to library →
+              </a>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    // ---------- SETTINGS ----------
+    function settingsPage() {
+      return `
+        <div class="animate-fade-in mb-10">
+          <div class="mb-6">
+            <div class="label-sc-lg text-muted mb-3">Instance configuration</div>
+            <h1 class="display-wonky text-[5rem] md:text-[6.5rem] text-ink leading-[0.85] -ml-1">Settings</h1>
+            <div class="mt-3 font-body italic text-[1.05rem] text-muted">Linktheca v0.1.0 · single-user instance</div>
+          </div>
+          <div class="rule-thick"></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-8 lg:gap-16 mt-12">
+          <!-- Left nav -->
+          <aside class="lg:sticky lg:top-24 lg:self-start">
+            <div class="label-sc text-muted mb-4">Sections</div>
+            <nav class="flex lg:flex-col gap-1">
+              ${settingsNavItem('Account', true)}
+              ${settingsNavItem('Appearance', false)}
+              ${settingsNavItem('Notifications', false)}
+              ${settingsNavItem('Monitoring', false)}
+              ${settingsNavItem('Parsing', false)}
+              ${settingsNavItem('Instance', false)}
+            </nav>
+          </aside>
+
+          <!-- Content -->
+          <div class="flex flex-col gap-16">
+            ${settingsSection(
+              'Account',
+              'Who you are to this instance.',
+              `
+              <div class="flex flex-col gap-6">
+                <div class="flex items-center gap-5">
+                  <div class="w-16 h-16 bg-ink text-paper flex items-center justify-center font-mono text-[1.2rem] font-bold">IS</div>
+                  <div>
+                    <div class="display-tight text-[1.5rem] text-ink">ismd</div>
+                    <div class="label-sc text-muted mt-1">Owner · single-user mode</div>
+                  </div>
+                  <div class="flex-1"></div>
+                  <button class="btn-ghost">Edit</button>
+                </div>
+                <div class="rule-dotted"></div>
+                ${settingRow('Email', 'ismd@localhost', true)}
+                ${settingRow('Password', '●●●●●●●●●●●', true)}
+                ${settingRow('API token', '••••••••••••••••', true)}
+              </div>
+            `
+            )}
+
+            ${settingsSection(
+              'Appearance',
+              'The look of the reading space.',
+              `
+              <div class="flex flex-col gap-6">
+                ${toggleRow('Theme', 'Paper', 'A warm, high-contrast reading surface.', true)}
+                ${toggleRow('Drop caps in articles', 'On', 'A small editorial flourish at the start of every article.', true)}
+                ${toggleRow('Paper grain overlay', 'On', 'Subtle texture. Can be disabled for lower-end displays.', true)}
+                ${toggleRow('Reading progress bar', 'On', 'A thin vermillion rule that fills as you read.', true)}
+              </div>
+            `
+            )}
+
+            ${settingsSection(
+              'Notifications',
+              'How this instance reaches you when topics find something.',
+              `
+              <div class="flex flex-col gap-6">
+                ${toggleRow('Browser notifications', 'Off', 'Desktop alerts when a new entry is found.', false)}
+                ${toggleRow('Email digest', 'Daily at 08:00', 'A compiled digest of the day\u2019s findings.', true)}
+                ${toggleRow('ntfy topic', 'linktheca-ismd', 'Push to a self-hosted ntfy endpoint.', true)}
+              </div>
+            `
+            )}
+
+            ${settingsSection(
+              'Monitoring',
+              'How topics are watched and matched.',
+              `
+              <div class="flex flex-col gap-6">
+                ${settingRow('Refresh interval', 'Every 15 minutes', true)}
+                ${settingRow('Embedding model', 'nomic-embed-text · local', true)}
+                ${settingRow('Similarity threshold', '0.72', true)}
+                ${settingRow('Max sources per topic', '20', true)}
+              </div>
+            `
+            )}
+
+            ${settingsSection(
+              'Parsing',
+              'Rules for extracting the text of a page.',
+              `
+              <div class="flex flex-col gap-6">
+                ${toggleRow('Prefer Readability heuristics', 'On', 'Mercury-style content extraction.', true)}
+                ${toggleRow('Fall back to headless browser', 'On', 'For JavaScript-heavy pages.', true)}
+                ${settingRow('User-Agent', 'Linktheca/0.1 (+self-hosted)', true)}
+              </div>
+            `
+            )}
+
+            ${settingsSection(
+              'Instance',
+              'Read-only information about this instance.',
+              `
+              <div class="flex flex-col gap-5">
+                ${settingRow('Hostname', 'localhost:8080', false)}
+                ${settingRow('Version', 'v0.1.0 · commit a3f2c91', false)}
+                ${settingRow('Uptime', '4 days, 11 hours', false)}
+                ${settingRow('Database size', '148 MB (SQLite)', false)}
+                ${settingRow('Storage', '2.3 GB (content + images)', false)}
+                <div class="pt-5 mt-2 border-t border-rule flex gap-3">
+                  <button class="btn-ghost">Export archive</button>
+                  <button class="btn-ghost">View logs</button>
+                </div>
+              </div>
+            `
+            )}
+          </div>
+        </div>
+      `;
+    }
+
+    function settingsNavItem(label, active) {
+      return `
+        <a href="#" class="nav-item ${active ? 'active' : ''} flex items-center gap-4 py-2 pl-5 font-body text-[1.05rem] ${active ? 'text-ink' : 'text-muted'} hover:text-ink transition-colors">
+          ${label}
+        </a>
+      `;
+    }
+
+    function settingsSection(title, subtitle, inner) {
+      return `
+        <section>
+          <div class="mb-6">
+            <h2 class="display-tight text-[2rem] text-ink mb-1">${title}</h2>
+            <div class="font-body italic text-[0.95rem] text-muted">${subtitle}</div>
+          </div>
+          <div class="bg-paper-2 border border-rule p-6 md:p-8">
+            ${inner}
+          </div>
+        </section>
+      `;
+    }
+
+    function settingRow(label, value, editable) {
+      return `
+        <div class="flex items-center justify-between gap-6">
+          <div class="flex-1">
+            <div class="label-sc text-muted mb-1">${label}</div>
+            <div class="font-body text-[1rem] text-ink">${value}</div>
+          </div>
+          ${editable ? '<button class="btn-ghost">Change</button>' : '<div class="label-sc text-muted-2">read-only</div>'}
+        </div>
+      `;
+    }
+
+    function toggleRow(label, value, description, on) {
+      return `
+        <div class="flex items-start justify-between gap-6">
+          <div class="flex-1">
+            <div class="flex items-center gap-3 mb-1">
+              <div class="font-body text-[1.05rem] text-ink">${label}</div>
+              <div class="label-sc ${on ? 'text-sage' : 'text-muted'}">${value}</div>
+            </div>
+            <div class="font-body italic text-[0.88rem] text-muted">${description}</div>
+          </div>
+          <div class="toggle ${on ? 'on' : ''} mt-1" onclick="this.classList.toggle('on')"></div>
+        </div>
+      `;
+    }
+
+    function notFound() {
+      return `
+        <div class="py-32 text-center">
+          <div class="label-sc text-muted mb-4">404 · Not in the archive</div>
+          <h1 class="display-wonky text-[4rem] text-ink mb-6">Not found</h1>
+          <a href="#/" class="btn-ink inline-block">Return to library</a>
+        </div>
+      `;
+    }
+
+    // ---------- MODALS ----------
+    function openModal(name) {
+      state.modal = name;
+      if (name === 'add-link') state.previewState = 'idle';
+      renderModal();
+    }
+
+    function closeModal() {
+      state.modal = null;
+      renderModal();
+    }
+
+    function renderModal() {
+      if (!state.modal) {
+        $modalRoot.innerHTML = '';
+        document.body.style.overflow = '';
+        return;
+      }
+      document.body.style.overflow = 'hidden';
+      if (state.modal === 'add-link') $modalRoot.innerHTML = addLinkModal();
+      if (state.modal === 'add-topic') $modalRoot.innerHTML = addTopicModal();
+    }
+
+    function addLinkModal() {
+      return `
+        <div class="fixed inset-0 modal-backdrop animate-overlay-fade flex items-start justify-center p-4 md:p-10 overflow-y-auto" onclick="if(event.target===this)closeModal()">
+          <div class="animate-scale-in bg-paper border border-ink w-full max-w-[680px] mt-[5vh]" onclick="event.stopPropagation()">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-8 pt-7 pb-5 border-b border-rule">
+              <div>
+                <div class="label-sc text-muted mb-1">New entry</div>
+                <h2 class="display-tight text-[1.75rem] text-ink leading-tight">Add to the archive</h2>
+              </div>
+              <button class="w-9 h-9 border border-rule hover:border-ink transition-colors flex items-center justify-center text-[1.1rem]" onclick="closeModal()">×</button>
+            </div>
+
+            <!-- Body -->
+            <div class="px-8 py-7">
+              <div class="mb-6">
+                <label class="label-sc text-muted mb-3 block">URL</label>
+                <div class="flex gap-3">
+                  <input id="url-input" type="text" placeholder="https://…" class="input-bordered flex-1 font-mono text-[0.9rem]" onkeydown="if(event.key==='Enter')simulateFetch()" />
+                  <button class="btn-ink" onclick="simulateFetch()">${state.previewState === 'loading' ? 'Fetching…' : 'Fetch'}</button>
+                </div>
+                <div class="label-sc text-muted-2 mt-2">Paste any URL. Linktheca will extract the readable text and attempt to match against your topics.</div>
+              </div>
+
+              ${
+                state.previewState === 'idle'
+                  ? `
+                <div class="border border-dashed border-rule py-12 px-6 text-center">
+                  <div class="label-sc text-muted-2 mb-2">Preview</div>
+                  <div class="font-body italic text-muted">No URL entered yet. The preview will appear here.</div>
+                </div>
+              `
+                  : ''
+              }
+
+              ${state.previewState === 'loading' ? previewSkeleton() : ''}
+              ${state.previewState === 'loaded' ? previewLoaded() : ''}
+            </div>
+
+            <!-- Footer -->
+            <div class="px-8 py-5 bg-paper-2 border-t border-rule flex items-center justify-between gap-4 flex-wrap">
+              <div class="label-sc text-muted">Will be added to Library · ${state.previewState === 'loaded' ? 'matched: self-hosted' : 'unmatched'}</div>
+              <div class="flex gap-3">
+                <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+                <button class="btn-ink ${state.previewState !== 'loaded' ? 'opacity-40 cursor-not-allowed' : ''}" onclick="closeModal()">
+                  Save entry
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function previewSkeleton() {
+      return `
+        <div class="border border-rule bg-paper-2 overflow-hidden animate-fade-in">
+          <div class="flex gap-5 p-5">
+            <div class="skeleton w-[160px] h-[110px] flex-shrink-0"></div>
+            <div class="flex-1 flex flex-col gap-3 pt-1">
+              <div class="skeleton h-3 w-24"></div>
+              <div class="skeleton h-5 w-full"></div>
+              <div class="skeleton h-5 w-4/5"></div>
+              <div class="skeleton h-3 w-full mt-1"></div>
+              <div class="skeleton h-3 w-2/3"></div>
+            </div>
+          </div>
+          <div class="px-5 py-3 border-t border-rule flex items-center gap-3">
+            <div class="skeleton h-3 w-20"></div>
+            <div class="skeleton h-3 w-28"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function previewLoaded() {
+      return `
+        <div class="border border-rule bg-paper-2 overflow-hidden animate-fade-in">
+          <div class="flex gap-5 p-5">
+            <div class="mock-image ${MOCK_PREVIEW.image} w-[160px] h-[110px] flex-shrink-0 relative overflow-hidden">
+              <div class="absolute inset-0 flex items-center justify-center">
+                <div class="img-watermark text-[1.75rem]">${MOCK_PREVIEW.source.split('.')[0]}</div>
+              </div>
+            </div>
+            <div class="flex-1 pt-1">
+              <div class="label-sc text-muted mb-2">${MOCK_PREVIEW.source} · ${MOCK_PREVIEW.readTime}</div>
+              <h3 class="display-tight text-[1.2rem] text-ink leading-[1.2] mb-2">${MOCK_PREVIEW.title}</h3>
+              <p class="font-body text-[0.88rem] text-muted leading-[1.5] line-clamp-2">${MOCK_PREVIEW.description}</p>
+            </div>
+          </div>
+          <div class="px-5 py-3 border-t border-rule flex items-center gap-3 flex-wrap">
+            <span class="label-sc text-muted">Matched topic</span>
+            <span class="tag-pill" style="background: var(--ink); color: var(--paper); border-color: var(--ink);">self-hosted tooling</span>
+            <span class="label-sc text-muted">· confidence 0.87</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function addTopicModal() {
+      return `
+        <div class="fixed inset-0 modal-backdrop animate-overlay-fade flex items-start justify-center p-4 md:p-10 overflow-y-auto" onclick="if(event.target===this)closeModal()">
+          <div class="animate-scale-in bg-paper border border-ink w-full max-w-[680px] mt-[5vh]" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between px-8 pt-7 pb-5 border-b border-rule">
+              <div>
+                <div class="label-sc text-muted mb-1">New topic</div>
+                <h2 class="display-tight text-[1.75rem] text-ink leading-tight">Set a standing watch</h2>
+              </div>
+              <button class="w-9 h-9 border border-rule hover:border-ink transition-colors flex items-center justify-center text-[1.1rem]" onclick="closeModal()">×</button>
+            </div>
+
+            <div class="px-8 py-7 flex flex-col gap-6">
+              <div>
+                <label class="label-sc text-muted mb-3 block">Topic name</label>
+                <input type="text" placeholder="e.g. Framework laptop mainboards" class="input-bordered" />
+              </div>
+
+              <div>
+                <label class="label-sc text-muted mb-3 block">Description</label>
+                <textarea rows="2" placeholder="What is this topic about? One or two sentences." class="input-bordered resize-none"></textarea>
+              </div>
+
+              <div>
+                <label class="label-sc text-muted mb-3 block">Keywords</label>
+                <input type="text" placeholder="Comma-separated. These will seed the semantic search." class="input-bordered" />
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <span class="chip">framework laptop <span class="chip-remove">×</span></span>
+                  <span class="chip">mainboard upgrade <span class="chip-remove">×</span></span>
+                  <span class="chip">repairable laptops <span class="chip-remove">×</span></span>
+                </div>
+              </div>
+
+              <div>
+                <label class="label-sc text-muted mb-3 block">Sources to watch</label>
+                <input type="text" placeholder="Add a domain, RSS feed, or sitemap URL" class="input-bordered" />
+                <div class="mt-4 bg-paper-2 border border-rule">
+                  ${[
+                    'frame.work',
+                    'notebookcheck.net',
+                    'liliputing.com',
+                    'lowendmac.com',
+                  ]
+                    .map(
+                      (s, i) => `
+                    <div class="source-list-item flex items-center justify-between px-4 py-2.5">
+                      <div class="flex items-center gap-3">
+                        <input type="checkbox" class="checkbox-custom" ${i < 3 ? 'checked' : ''} />
+                        <div class="font-mono text-[0.82rem]">${s}</div>
+                      </div>
+                      <div class="label-sc text-muted">${i < 3 ? 'selected' : ''}</div>
+                    </div>
+                  `
+                    )
+                    .join('')}
+                </div>
+              </div>
+
+              <div>
+                <label class="label-sc text-muted mb-3 block">Notifications for this topic</label>
+                <div class="flex gap-3 flex-wrap">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" class="checkbox-custom" checked />
+                    <span class="font-body text-[0.9rem]">Email digest</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" class="checkbox-custom" />
+                    <span class="font-body text-[0.9rem]">Browser push</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" class="checkbox-custom" checked />
+                    <span class="font-body text-[0.9rem]">ntfy</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="px-8 py-5 bg-paper-2 border-t border-rule flex items-center justify-between gap-4 flex-wrap">
+              <div class="label-sc text-muted">Refresh every 15 minutes · 3 sources selected</div>
+              <div class="flex gap-3">
+                <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+                <button class="btn-ink" onclick="closeModal()">Create topic</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ---------- Icons ----------
+    function iconSearch(c = '') {
+      return `<svg class="${c}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>`;
+    }
+    function iconFilter() {
+      return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M6 12h12M10 18h4"/></svg>`;
+    }
+    function iconChev() {
+      return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
+    }
+    function iconBell() {
+      return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>`;
+    }
+    function iconMenu() {
+      return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>`;
+    }
+
+    // ---------- Global handlers ----------
+    function toggleFilters() {
+      state.filterOpen = !state.filterOpen;
+      render();
+    }
+
+    function resetFilters() {
+      state.filters = { type: 'all', topic: 'all', source: 'all' };
+      render();
+    }
+
+    function toggleSidebar() {
+      state.sidebarMobileOpen = !state.sidebarMobileOpen;
+      render();
+    }
+
+    function toggleSearch() {
+      state.searchOpen = !state.searchOpen;
+      render();
+      if (state.searchOpen) {
+        setTimeout(() => {
+          const i = document.getElementById('top-search-input');
+          if (i) i.focus();
+        }, 20);
+      }
+    }
+
+    function simulateFetch() {
+      if (state.previewState === 'loading') return;
+      state.previewState = 'loading';
+      renderModal();
+      setTimeout(() => {
+        state.previewState = 'loaded';
+        renderModal();
+      }, 1400);
+    }
+
+    function attachGlobalListeners() {
+      // reading progress
+      if (state.route.name === 'article') {
+        const bar = document.getElementById('reading-progress');
+        const onScroll = () => {
+          const h = document.documentElement;
+          const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
+          bar.style.width = pct + '%';
+        };
+        window.onscroll = onScroll;
+        onScroll();
+      } else {
+        window.onscroll = null;
+        const bar = document.getElementById('reading-progress');
+        if (bar) bar.style.width = '0%';
+      }
+    }
+
+    function updateActiveNav() {
+      // no-op; handled in sidebar() render
+    }
+
+    // Esc closes modal or search
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (state.modal) {
+          closeModal();
+        } else if (state.searchOpen) {
+          state.searchOpen = false;
+          render();
+        }
+      }
+    });
+
+    // Kickoff
+    state.route = parseRoute();
+    render();
+  </script>
+</body>
+</html>
