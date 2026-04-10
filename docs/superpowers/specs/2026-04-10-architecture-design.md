@@ -129,7 +129,7 @@ linktheca/
 | HTTP роутинг | `go-chi/chi/v5` | Тонкий слой над `net/http` |
 | Postgres driver | `jackc/pgx/v5` | Pool, типы, нативная поддержка pgvector |
 | Векторы в pgx | `pgvector/pgvector-go` | `vector` type для pgx |
-| SQL | raw SQL, опционально `sqlc` | Никаких ORM |
+| SQL | raw SQL через pgx | Никаких ORM, никакой кодогенерации на MVP. Если SQL станет многословным — введём `sqlc` позже отдельным решением |
 | Миграции | `pressly/goose` | `.sql` файлы, запуск из embed при старте |
 | Job queue | `riverqueue/river` | Postgres-backed, для crawler/embed/match |
 | Валидация | `go-playground/validator/v10` | Теги на структурах |
@@ -143,7 +143,7 @@ linktheca/
 | CORS | `go-chi/cors` | CORS middleware |
 | Тесты: контейнеры | `testcontainers-go` | Реальный Postgres для integration-тестов |
 | Тесты: assertions | `stretchr/testify` | `assert`, `require` |
-| Auto-reload (dev) | `cosmtrek/air` | Пересборка бинаря на изменения |
+| Auto-reload (dev) | `air-verse/air` | Пересборка бинаря на изменения |
 
 **Намеренно не используем:** GORM/ent (ORM скрывает SQL), Gin/Echo/Fiber (больше магии), viper (env достаточно), Redis/asynq (River покрывает через Postgres).
 
@@ -631,16 +631,32 @@ make build        # полный прод-билд
 
 ### Конфиг
 
-Через env vars, парсятся `caarlos0/env` в структуру `Config`:
+Через env vars, парсятся `caarlos0/env` в структуру `Config`. Полный список MVP-настроек:
 
 ```
-LINKTHECA_DB_DSN=postgres://...
-LINKTHECA_JWT_SECRET=...
+# Сервер
+LINKTHECA_HTTP_ADDR=:8080
+LINKTHECA_LOG_LEVEL=info              # debug | info | warn | error
+LINKTHECA_LOG_FORMAT=text              # text | json
+
+# База данных
+LINKTHECA_DB_DSN=postgres://linktheca:linktheca@postgres:5432/linktheca?sslmode=disable
+
+# Auth
+LINKTHECA_JWT_SECRET=<32+ bytes random>
+LINKTHECA_JWT_ACCESS_TTL=15m
+LINKTHECA_JWT_REFRESH_TTL=720h         # 30 дней
+LINKTHECA_REGISTRATION_ENABLED=true    # управляет POST /auth/register
+
+# CORS (для dev — пустой, т.к. Vite проксирует через /api)
+LINKTHECA_CORS_ORIGINS=
+
+# Ollama / embeddings
 LINKTHECA_OLLAMA_URL=http://ollama:11434
-LINKTHECA_REGISTRATION_ENABLED=true
-LINKTHECA_CORS_ORIGINS=https://linktheca.example.com
-LINKTHECA_LOG_LEVEL=info
-...
+LINKTHECA_EMBEDDING_MODEL=bge-m3
+
+# Radar
+LINKTHECA_RADAR_SCHEDULER_INTERVAL=5m  # как часто сканируем radar_feeds
 ```
 
 Файлы:
