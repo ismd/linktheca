@@ -1,0 +1,21 @@
+# Go
+/bin/
+/tmp/
+*.test
+*.out
+coverage.out
+
+# Env and secrets
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Air
+tmp/
