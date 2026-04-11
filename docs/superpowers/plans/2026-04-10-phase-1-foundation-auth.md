@@ -4,7 +4,7 @@
 
 **Goal:** Build the foundational backend for Linktheca — a working Go HTTP service with Postgres, migrations, configuration, logging, CI, and a complete authentication flow (register, login, refresh rotation, logout, me). End state: you can register the first admin user, log in, call `/auth/me`, and refresh tokens — all via curl or Postman.
 
-**Architecture:** Single Go module with `cmd/linktheca` as the only binary. `internal/core/*` holds cross-cutting primitives (config, db, logging, httpx, auth primitives). `internal/auth/` is the first feature module (parallel to future library/radar), following the `store → service → http` pattern. Postgres 16 + pgvector runs in Docker Compose. Integration tests use testcontainers-go for real Postgres.
+**Architecture:** Single Go module with `cmd/linktheca` as the only binary. `internal/core/*` holds cross-cutting primitives (config, db, logging, httpx, auth primitives). `internal/auth/` is the first feature module (parallel to future library/radar), following the `store → service → http` pattern. Postgres 18 + pgvector runs in Docker Compose. Integration tests use testcontainers-go for real Postgres.
 
 **Tech Stack:** Go 1.26+, `go-chi/chi/v5`, `jackc/pgx/v5`, `pressly/goose/v3`, `caarlos0/env/v11`, `golang-jwt/jwt/v5`, `alexedwards/argon2id`, `go-chi/httprate`, `go-chi/cors`, `testcontainers-go`, `stretchr/testify`. Frontend is NOT part of this phase.
 
@@ -21,7 +21,7 @@ linktheca/
 ├── .github/workflows/ci.yml
 ├── .gitignore
 ├── Makefile
-├── docker-compose.dev.yml
+├── compose.dev.yaml
 ├── go.mod
 ├── go.sum
 │
@@ -148,15 +148,15 @@ git commit -m "chore: initialize Go module and gitignore"
 ### Task 2: Docker Compose for dev (Postgres + pgvector)
 
 **Files:**
-- Create: `docker-compose.dev.yml`
+- Create: `compose.dev.yaml`
 
-- [ ] **Step 1: Create docker-compose.dev.yml**
+- [ ] **Step 1: Create compose.dev.yaml**
 
-Create `docker-compose.dev.yml`:
+Create `compose.dev.yaml`:
 ```yaml
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:0.8.2-pg18-trixie
     restart: unless-stopped
     environment:
       POSTGRES_USER: linktheca
@@ -165,7 +165,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - linktheca_pg_data:/var/lib/postgresql/data
+      - linktheca_pg_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U linktheca -d linktheca"]
       interval: 5s
@@ -179,8 +179,8 @@ volumes:
 - [ ] **Step 2: Start Postgres and verify it's alive**
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d
-docker compose -f docker-compose.dev.yml ps
+docker compose -f compose.dev.yaml up -d
+docker compose -f compose.dev.yaml ps
 ```
 
 Expected: `postgres` service running, health: `healthy` (may take ~10 seconds to become healthy).
@@ -188,7 +188,7 @@ Expected: `postgres` service running, health: `healthy` (may take ~10 seconds to
 - [ ] **Step 3: Verify pgvector extension is available**
 
 ```bash
-docker compose -f docker-compose.dev.yml exec postgres psql -U linktheca -d linktheca -c "CREATE EXTENSION IF NOT EXISTS vector; SELECT extversion FROM pg_extension WHERE extname='vector';"
+docker compose -f compose.dev.yaml exec postgres psql -U linktheca -d linktheca -c "CREATE EXTENSION IF NOT EXISTS vector; SELECT extversion FROM pg_extension WHERE extname='vector';"
 ```
 
 Expected: prints the vector extension version (e.g., `0.7.4`).
@@ -196,13 +196,13 @@ Expected: prints the vector extension version (e.g., `0.7.4`).
 - [ ] **Step 4: Stop Postgres (we'll restart when we need it)**
 
 ```bash
-docker compose -f docker-compose.dev.yml down
+docker compose -f compose.dev.yaml down
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add docker-compose.dev.yml
+git add compose.dev.yaml
 git commit -m "chore: add dev docker compose with postgres + pgvector"
 ```
 
@@ -234,13 +234,13 @@ help:
 	@echo "  clean           - remove build artifacts"
 
 dev-db:
-	docker compose -f docker-compose.dev.yml up -d
+	docker compose -f compose.dev.yaml up -d
 
 dev-db-down:
-	docker compose -f docker-compose.dev.yml down
+	docker compose -f compose.dev.yaml down
 
 dev-db-logs:
-	docker compose -f docker-compose.dev.yml logs -f postgres
+	docker compose -f compose.dev.yaml logs -f postgres
 
 run:
 	go run ./cmd/linktheca
@@ -940,7 +940,7 @@ Expected: log lines include `migrations applied` and curl prints `ok`.
 
 Verify extension was installed:
 ```bash
-docker compose -f docker-compose.dev.yml exec postgres psql -U linktheca -d linktheca -c "\dx"
+docker compose -f compose.dev.yaml exec postgres psql -U linktheca -d linktheca -c "\dx"
 ```
 
 Expected: table includes `vector`.
@@ -1055,7 +1055,7 @@ func New(t *testing.T) *pgxpool.Pool {
 func startContainer() (string, error) {
 	ctx := context.Background()
 	container, err := tcpostgres.Run(ctx,
-		"pgvector/pgvector:pg16",
+		"pgvector/pgvector:0.8.2-pg18-trixie",
 		tcpostgres.WithDatabase("linktheca_test"),
 		tcpostgres.WithUsername("linktheca"),
 		tcpostgres.WithPassword("linktheca"),
@@ -1085,7 +1085,7 @@ func randHex(n int) string {
 }
 ```
 
-**Note:** The `tcpostgres.Run` signature varies by testcontainers-go version. If the exact shape above fails to compile, adjust to the signatures listed in your installed version (`go doc github.com/testcontainers/testcontainers-go/modules/postgres`). The key requirement is: start a `pgvector/pgvector:pg16` container, wait until ready, return the DSN.
+**Note:** The `tcpostgres.Run` signature varies by testcontainers-go version. If the exact shape above fails to compile, adjust to the signatures listed in your installed version (`go doc github.com/testcontainers/testcontainers-go/modules/postgres`). The key requirement is: start a `pgvector/pgvector:0.8.2-pg18-trixie` container, wait until ready, return the DSN.
 
 - [ ] **Step 3: Write a smoke test that uses testdb**
 

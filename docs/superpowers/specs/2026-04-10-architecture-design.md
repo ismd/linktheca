@@ -37,7 +37,7 @@ Linktheca — open source self-hosted read-it-later сервис с монито
 docker compose
 ├── web          nginx со статикой собранного React
 ├── backend      Go бинарь: HTTP API + workers (River) в одном процессе
-├── postgres     Postgres 16 + pgvector (данные, векторы, River queue, FTS)
+├── postgres     Postgres 18 + pgvector (данные, векторы, River queue, FTS)
 └── ollama       embedding-сервер, bge-m3 модель
 ```
 
