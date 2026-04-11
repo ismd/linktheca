@@ -86,7 +86,7 @@ linktheca/
 - Create: `go.mod` (via `go mod init`)
 - Create: `.gitignore`
 
-- [ ] **Step 1: Initialize Go module**
+- [x] **Step 1: Initialize Go module**
 
 Run from repo root:
 ```bash
@@ -100,7 +100,7 @@ module github.com/ismd/linktheca
 go 1.26
 ```
 
-- [ ] **Step 2: Create .gitignore**
+- [x] **Step 2: Create .gitignore**
 
 Create `.gitignore` with:
 ```gitignore
@@ -127,7 +127,7 @@ coverage.out
 tmp/
 ```
 
-- [ ] **Step 3: Verify no extra files**
+- [x] **Step 3: Verify no extra files**
 
 Run:
 ```bash
@@ -136,7 +136,7 @@ git status
 
 Expected: shows `.gitignore` and `go.mod` as new files, nothing else.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add .gitignore go.mod
@@ -150,7 +150,7 @@ git commit -m "chore: initialize Go module and gitignore"
 **Files:**
 - Create: `compose.dev.yaml`
 
-- [ ] **Step 1: Create compose.dev.yaml**
+- [x] **Step 1: Create compose.dev.yaml**
 
 Create `compose.dev.yaml`:
 ```yaml
@@ -176,7 +176,7 @@ volumes:
   linktheca_pg_data:
 ```
 
-- [ ] **Step 2: Start Postgres and verify it's alive**
+- [x] **Step 2: Start Postgres and verify it's alive**
 
 ```bash
 docker compose -f compose.dev.yaml up -d
@@ -185,7 +185,7 @@ docker compose -f compose.dev.yaml ps
 
 Expected: `postgres` service running, health: `healthy` (may take ~10 seconds to become healthy).
 
-- [ ] **Step 3: Verify pgvector extension is available**
+- [x] **Step 3: Verify pgvector extension is available**
 
 ```bash
 docker compose -f compose.dev.yaml exec postgres psql -U linktheca -d linktheca -c "CREATE EXTENSION IF NOT EXISTS vector; SELECT extversion FROM pg_extension WHERE extname='vector';"
@@ -193,13 +193,13 @@ docker compose -f compose.dev.yaml exec postgres psql -U linktheca -d linktheca 
 
 Expected: prints the vector extension version (e.g., `0.7.4`).
 
-- [ ] **Step 4: Stop Postgres (we'll restart when we need it)**
+- [x] **Step 4: Stop Postgres (we'll restart when we need it)**
 
 ```bash
 docker compose -f compose.dev.yaml down
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add compose.dev.yaml
