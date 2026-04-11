@@ -276,7 +276,7 @@ make help
 
 Expected: prints the list of targets.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Makefile
