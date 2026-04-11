@@ -6,7 +6,7 @@
 
 **Architecture:** Single Go module with `cmd/linktheca` as the only binary. `internal/core/*` holds cross-cutting primitives (config, db, logging, httpx, auth primitives). `internal/auth/` is the first feature module (parallel to future library/radar), following the `store → service → http` pattern. Postgres 16 + pgvector runs in Docker Compose. Integration tests use testcontainers-go for real Postgres.
 
-**Tech Stack:** Go 1.23+, `go-chi/chi/v5`, `jackc/pgx/v5`, `pressly/goose/v3`, `caarlos0/env/v11`, `golang-jwt/jwt/v5`, `alexedwards/argon2id`, `go-chi/httprate`, `go-chi/cors`, `testcontainers-go`, `stretchr/testify`. Frontend is NOT part of this phase.
+**Tech Stack:** Go 1.26+, `go-chi/chi/v5`, `jackc/pgx/v5`, `pressly/goose/v3`, `caarlos0/env/v11`, `golang-jwt/jwt/v5`, `alexedwards/argon2id`, `go-chi/httprate`, `go-chi/cors`, `testcontainers-go`, `stretchr/testify`. Frontend is NOT part of this phase.
 
 **Module path:** `github.com/ismd/linktheca` (change in `go.mod` if you prefer a different path; all imports will follow).
 
@@ -74,7 +74,7 @@ linktheca/
 - **Run from the repo root** (`/home/ismd/coding/linktheca`) unless otherwise noted.
 - **Do not use `git add .`** — stage files explicitly to avoid accidentally including secrets or build artifacts.
 - **Commit messages** follow `<type>: <subject>` (e.g., `feat: add users table migration`). No `Co-Authored-By` lines unless you want them.
-- **Go version:** Go 1.23 or later. Check with `go version`.
+- **Go version:** Go 1.26 or later. Check with `go version`.
 
 ---
 
@@ -97,7 +97,7 @@ Expected: creates `go.mod` with content like:
 ```
 module github.com/ismd/linktheca
 
-go 1.23
+go 1.26
 ```
 
 - [ ] **Step 2: Create .gitignore**
@@ -3924,7 +3924,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.26'
           cache: true
 
       - name: go vet
