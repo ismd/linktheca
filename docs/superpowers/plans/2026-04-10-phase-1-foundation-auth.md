@@ -213,7 +213,7 @@ git commit -m "chore: add dev docker compose with postgres + pgvector"
 **Files:**
 - Create: `Makefile`
 
-- [ ] **Step 1: Create Makefile**
+- [x] **Step 1: Create Makefile**
 
 Create `Makefile`:
 ```makefile
@@ -268,7 +268,7 @@ clean:
 	rm -rf bin tmp
 ```
 
-- [ ] **Step 2: Verify Makefile parses**
+- [x] **Step 2: Verify Makefile parses**
 
 ```bash
 make help
