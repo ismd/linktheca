@@ -715,13 +715,13 @@ git commit -m "feat(db): pgx pool factory with ping verification"
 - Create: `internal/core/db/migrate.go`
 - Modify: `cmd/linktheca/main.go` (wire migrations into startup)
 
-- [ ] **Step 1: Add goose dependency**
+- [x] **Step 1: Add goose dependency**
 
 ```bash
 go get github.com/pressly/goose/v3
 ```
 
-- [ ] **Step 2: Create migrate.go with embedded FS**
+- [x] **Step 2: Create migrate.go with embedded FS**
 
 Create `internal/core/db/migrate.go`:
 ```go
@@ -762,7 +762,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 
 **Note on the embed path:** `//go:embed` paths are relative to the package file. From `internal/core/db/migrate.go`, the migrations directory is at `../../../migrations`. Go's embed **does not support `..` in the path** — it only walks downward. We need to move or symlink.
 
-- [ ] **Step 3: Fix the embed path — use a top-level loader**
+- [x] **Step 3: Fix the embed path — use a top-level loader**
 
 Replace the file at `internal/core/db/migrate.go` — we'll use a different approach: embed from an `embeds.go` file located at the module root so the path walks downward.
 
@@ -810,7 +810,7 @@ sqlDB := stdlib.OpenDB(*pool.Config().ConnConfig)
 
 Use whichever compiles. Both create an independent `sql.DB` handle from the pool's config.
 
-- [ ] **Step 4: Create the embeds file at the module root**
+- [x] **Step 4: Create the embeds file at the module root**
 
 Create `embeds.go` at the repo root (`/home/ismd/coding/linktheca/embeds.go`):
 
@@ -825,7 +825,7 @@ import "embed"
 var MigrationsFS embed.FS
 ```
 
-- [ ] **Step 5: Verify compilation**
+- [x] **Step 5: Verify compilation**
 
 ```bash
 go mod tidy
@@ -834,7 +834,7 @@ go build ./...
 
 Expected: no errors. (If `OpenDBFromPool` does not exist, swap to `stdlib.OpenDB(*pool.Config().ConnConfig)` in `migrate.go`.)
 
-- [ ] **Step 6: Wire migrations into main.go**
+- [x] **Step 6: Wire migrations into main.go**
 
 Modify `cmd/linktheca/main.go`. Add imports:
 
@@ -922,7 +922,7 @@ func run() error {
 }
 ```
 
-- [ ] **Step 7: Run Postgres and start the backend to verify migrations apply**
+- [x] **Step 7: Run Postgres and start the backend to verify migrations apply**
 
 ```bash
 make dev-db
@@ -945,7 +945,7 @@ docker compose -f compose.dev.yaml exec postgres psql -U linktheca -d linktheca 
 
 Expected: table includes `vector`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add go.mod go.sum embeds.go internal/core/db/migrate.go cmd/linktheca/main.go

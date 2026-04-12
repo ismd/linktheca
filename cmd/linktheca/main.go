@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	linktheca "github.com/ismd/linktheca"
 	"github.com/ismd/linktheca/internal/core/config"
+	"github.com/ismd/linktheca/internal/core/db"
 	"github.com/ismd/linktheca/internal/core/logging"
 )
 
@@ -32,6 +34,20 @@ func run() error {
 	logger := logging.New(os.Stdout, cfg.LogFormat, cfg.LogLevel)
 	slog.SetDefault(logger)
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	pool, err := db.NewPool(ctx, cfg.DBDSN)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	if err := db.Migrate(ctx, pool, linktheca.MigrationsFS, "migrations"); err != nil {
+		return err
+	}
+	logger.Info("migrations applied")
+
 	r := chi.NewRouter()
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -43,10 +59,6 @@ func run() error {
 		Handler:           r,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-
-	// Graceful shutdown on SIGINT/SIGTERM.
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	errCh := make(chan error, 1)
 	go func() {
