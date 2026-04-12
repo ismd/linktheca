@@ -437,7 +437,7 @@ git commit -m "feat(config): env-based config loader with validation"
 **Files:**
 - Create: `internal/core/logging/slog.go`
 
-- [ ] **Step 1: Create logging package**
+- [x] **Step 1: Create logging package**
 
 Create `internal/core/logging/slog.go`:
 ```go
@@ -481,7 +481,7 @@ func parseLevel(s string) slog.Level {
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [x] **Step 2: Verify it compiles**
 
 ```bash
 go build ./internal/core/logging/...
@@ -489,7 +489,7 @@ go build ./internal/core/logging/...
 
 Expected: no output, no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/core/logging/
