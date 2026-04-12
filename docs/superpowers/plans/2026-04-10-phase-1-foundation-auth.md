@@ -644,14 +644,14 @@ git commit -m "feat(db): initial migration with pgvector extension"
 **Files:**
 - Create: `internal/core/db/pool.go`
 
-- [ ] **Step 1: Add pgx dependency**
+- [x] **Step 1: Add pgx dependency**
 
 ```bash
 go get github.com/jackc/pgx/v5
 go get github.com/jackc/pgx/v5/pgxpool
 ```
 
-- [ ] **Step 2: Create pool.go**
+- [x] **Step 2: Create pool.go**
 
 Create `internal/core/db/pool.go`:
 ```go
@@ -691,7 +691,7 @@ func NewPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 }
 ```
 
-- [ ] **Step 3: Verify it compiles**
+- [x] **Step 3: Verify it compiles**
 
 ```bash
 go build ./internal/core/db/...
@@ -699,7 +699,7 @@ go build ./internal/core/db/...
 
 Expected: no errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 go mod tidy
