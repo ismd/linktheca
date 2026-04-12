@@ -291,7 +291,7 @@ git commit -m "chore: add Makefile with common dev targets"
 - Create: `internal/core/config/config.go`
 - Test: `internal/core/config/config_test.go`
 
-- [ ] **Step 1: Add dependencies**
+- [x] **Step 1: Add dependencies**
 
 ```bash
 go get github.com/caarlos0/env/v11
@@ -300,7 +300,7 @@ go get github.com/stretchr/testify/require
 
 Expected: downloads are added to `go.sum`.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `internal/core/config/config_test.go`:
 ```go
@@ -362,7 +362,7 @@ func TestLoadDefaults(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run the test to verify it fails**
+- [x] **Step 3: Run the test to verify it fails**
 
 ```bash
 go test ./internal/core/config/...
@@ -370,7 +370,7 @@ go test ./internal/core/config/...
 
 Expected: FAIL — `package config` does not exist.
 
-- [ ] **Step 4: Implement config.Load**
+- [x] **Step 4: Implement config.Load**
 
 Create `internal/core/config/config.go`:
 ```go
@@ -414,7 +414,7 @@ func Load() (*Config, error) {
 }
 ```
 
-- [ ] **Step 5: Run tests to verify pass**
+- [x] **Step 5: Run tests to verify pass**
 
 ```bash
 go test ./internal/core/config/... -v
@@ -422,7 +422,7 @@ go test ./internal/core/config/... -v
 
 Expected: `PASS` for all three tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 go mod tidy
