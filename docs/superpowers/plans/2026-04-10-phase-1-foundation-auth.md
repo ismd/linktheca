@@ -619,7 +619,7 @@ git commit -m "feat(cmd): main with chi router, config, logging, graceful shutdo
 **Files:**
 - Create: `migrations/001_init.sql`
 
-- [ ] **Step 1: Create migration file**
+- [x] **Step 1: Create migration file**
 
 Create `migrations/001_init.sql`:
 ```sql
@@ -630,7 +630,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 DROP EXTENSION IF EXISTS vector;
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add migrations/001_init.sql
