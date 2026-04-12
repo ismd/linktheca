@@ -503,13 +503,13 @@ git commit -m "feat(logging): slog-based logger factory"
 **Files:**
 - Create: `cmd/linktheca/main.go`
 
-- [ ] **Step 1: Add chi dependency**
+- [x] **Step 1: Add chi dependency**
 
 ```bash
 go get github.com/go-chi/chi/v5
 ```
 
-- [ ] **Step 2: Create main.go**
+- [x] **Step 2: Create main.go**
 
 Create `cmd/linktheca/main.go`:
 ```go
@@ -588,7 +588,7 @@ func run() error {
 }
 ```
 
-- [ ] **Step 3: Build and run manually**
+- [x] **Step 3: Build and run manually**
 
 ```bash
 go mod tidy
@@ -603,7 +603,7 @@ wait 2>/dev/null
 
 Expected: prints `ok`, then server shuts down cleanly.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add go.mod go.sum cmd/linktheca/
