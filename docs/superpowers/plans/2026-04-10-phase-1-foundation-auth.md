@@ -3737,7 +3737,7 @@ git commit -m "feat(server): wire deps, apply rate limit, expose handler accesso
 **Files:**
 - Create: `internal/server/server_test.go`
 
-- [ ] **Step 1: Write integration test**
+- [x] **Step 1: Write integration test**
 
 Create `internal/server/server_test.go`:
 ```go
@@ -3873,7 +3873,7 @@ func TestIntegrationRegistrationDisabled(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run the integration test**
+- [x] **Step 2: Run the integration test**
 
 ```bash
 go test ./internal/server/... -v -count=1
@@ -3881,7 +3881,7 @@ go test ./internal/server/... -v -count=1
 
 Expected: both integration tests pass. Container startup may take 20-30 seconds on first run.
 
-- [ ] **Step 3: Run the full test suite once to confirm no regressions**
+- [x] **Step 3: Run the full test suite once to confirm no regressions**
 
 ```bash
 go test ./... -race -count=1
@@ -3889,7 +3889,7 @@ go test ./... -race -count=1
 
 Expected: all tests pass.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/server/server_test.go
