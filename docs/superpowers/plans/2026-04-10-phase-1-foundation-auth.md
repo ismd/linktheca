@@ -3953,14 +3953,14 @@ git commit -m "ci: GitHub Actions for go vet + unit + integration tests"
 
 **Files:** (none — manual verification)
 
-- [ ] **Step 1: Start Postgres**
+- [x] **Step 1: Start Postgres**
 
 ```bash
 make dev-db
 sleep 3
 ```
 
-- [ ] **Step 2: Start backend**
+- [x] **Step 2: Start backend**
 
 ```bash
 LINKTHECA_DB_DSN="postgres://linktheca:linktheca@localhost:5432/linktheca?sslmode=disable" \
@@ -3969,7 +3969,7 @@ go run ./cmd/linktheca &
 sleep 2
 ```
 
-- [ ] **Step 3: Register the first user**
+- [x] **Step 3: Register the first user**
 
 ```bash
 curl -s -X POST http://localhost:8080/auth/register \
@@ -3979,7 +3979,7 @@ curl -s -X POST http://localhost:8080/auth/register \
 
 Expected: JSON response with `"is_admin":true` and a `tokens` object.
 
-- [ ] **Step 4: Extract the access token and call /auth/me**
+- [x] **Step 4: Extract the access token and call /auth/me**
 
 ```bash
 ACCESS=$(jq -r '.tokens.access_token' /tmp/register.json)
@@ -3988,7 +3988,7 @@ curl -s -H "Authorization: Bearer $ACCESS" http://localhost:8080/auth/me
 
 Expected: JSON with the registered user details.
 
-- [ ] **Step 5: Log in with the same credentials**
+- [x] **Step 5: Log in with the same credentials**
 
 ```bash
 curl -s -X POST http://localhost:8080/auth/login \
@@ -3998,7 +3998,7 @@ curl -s -X POST http://localhost:8080/auth/login \
 
 Expected: 200 with new token pair.
 
-- [ ] **Step 6: Stop backend and DB**
+- [x] **Step 6: Stop backend and DB**
 
 ```bash
 kill %1
@@ -4006,7 +4006,7 @@ wait 2>/dev/null
 make dev-db-down
 ```
 
-- [ ] **Step 7: No commit needed — this was manual verification only**
+- [x] **Step 7: No commit needed — this was manual verification only**
 
 If any step failed, fix the issue, commit the fix, and re-run this task.
 
