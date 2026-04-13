@@ -76,6 +76,50 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest, userAgent s
 	return &AuthResponse{User: *user, Tokens: *tokens}, nil
 }
 
+// Refresh exchanges a valid refresh token for a new access+refresh pair
+// Implements rotation: the old refresh is revoked immediately
+func (s *Service) Refresh(ctx context.Context, req RefreshRequest, userAgent string) (*AuthResponse, error) {
+	hash := coreauth.HashRefreshToken(req.RefreshToken)
+	existing, err := s.store.FindActiveRefreshToken(ctx, hash)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, ErrInvalidCredentials
+		}
+		return nil, err
+	}
+
+	user, err := s.store.GetUserByID(ctx, existing.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("load user: %w", err)
+	}
+
+	// Revoke the old token first. Even if token issuance fails, the old one is dead.
+	if err := s.store.RevokeRefreshToken(ctx, existing.ID); err != nil {
+		return nil, fmt.Errorf("revoke previous: %w", err)
+	}
+
+	tokens, err := s.issueTokens(ctx, user, userAgent)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AuthResponse{User: *user, Tokens: *tokens}, nil
+}
+
+// Logout revokes the provided refresh token. Idempotent: unknown or already-revoked tokens return nil (we do not leak whether the token existed)
+func (s *Service) Logout(ctx context.Context, req RefreshRequest) error {
+	hash := coreauth.HashRefreshToken(req.RefreshToken)
+	existing, err := s.store.FindActiveRefreshToken(ctx, hash)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+
+	return s.store.RevokeRefreshToken(ctx, existing.ID)
+}
+
 // issueTokens creates an access token and a refresh token record
 func (s *Service) issueTokens(ctx context.Context, user *User, userAgent string) (*TokenPair, error) {
 	access, err := s.jwt.Issue(user.ID, user.IsAdmin)

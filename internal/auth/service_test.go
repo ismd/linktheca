@@ -232,6 +232,62 @@ func TestLoginUnknownUser(t *testing.T) {
 	require.ErrorIs(t, err, auth.ErrInvalidCredentials)
 }
 
+func TestRefreshRotatesToken(t *testing.T) {
+	store := newMockStore()
+	svc := newTestService(t, store, true)
+
+	reg, err := svc.Register(context.Background(), auth.RegisterRequest{
+		Email: "r@example.com", Password: "a-strong-password", DisplayName: "R",
+	}, "ua")
+	require.NoError(t, err)
+
+	// Use the refresh token to obtain a new pair
+	resp, err := svc.Refresh(context.Background(), auth.RefreshRequest{
+		RefreshToken: reg.Tokens.RefreshToken,
+	}, "ua")
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Tokens.AccessToken)
+	require.NotEqual(t, reg.Tokens.RefreshToken, resp.Tokens.RefreshToken, "rotation must produce a new refresh")
+
+	// The old refresh token must now be invalid
+	_, err = svc.Refresh(context.Background(), auth.RefreshRequest{
+		RefreshToken: reg.Tokens.RefreshToken,
+	}, "ua")
+
+	require.ErrorIs(t, err, auth.ErrInvalidCredentials)
+}
+
+func TestRefreshUnknownToken(t *testing.T) {
+	store := newMockStore()
+	svc := newTestService(t, store, true)
+
+	_, err := svc.Refresh(context.Background(), auth.RefreshRequest{
+		RefreshToken: "definitely-not-a-valid-token",
+	}, "ua")
+
+	require.ErrorIs(t, err, auth.ErrInvalidCredentials)
+}
+
+func TestLogoutRevokesRefreshToken(t *testing.T) {
+	store := newMockStore()
+	svc := newTestService(t, store, true)
+
+	reg, err := svc.Register(context.Background(), auth.RegisterRequest{
+		Email: "lo@example.com", Password: "a-strong-password", DisplayName: "LO",
+	}, "ua")
+	require.NoError(t, err)
+
+	err = svc.Logout(context.Background(), auth.RefreshRequest{
+		RefreshToken: reg.Tokens.RefreshToken,
+	})
+	require.NoError(t, err)
+
+	_, err = svc.Refresh(context.Background(), auth.RefreshRequest{
+		RefreshToken: reg.Tokens.RefreshToken,
+	}, "ua")
+	require.ErrorIs(t, err, auth.ErrInvalidCredentials)
+}
+
 // Sanity: interface compile-time check
 var _ auth.StoreAPI = (*mockStore)(nil)
 var _ = errors.New

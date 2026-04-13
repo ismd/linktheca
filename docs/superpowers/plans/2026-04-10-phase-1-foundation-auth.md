@@ -2554,7 +2554,7 @@ git commit -m "feat(auth): service Login with uniform invalid-credentials error"
 - Modify: `internal/auth/service.go`
 - Modify: `internal/auth/service_test.go`
 
-- [ ] **Step 1: Add failing tests**
+- [x] **Step 1: Add failing tests**
 
 Append to `internal/auth/service_test.go`:
 ```go
@@ -2613,7 +2613,7 @@ func TestLogoutRevokesRefreshToken(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to confirm failure**
+- [x] **Step 2: Run to confirm failure**
 
 ```bash
 go test ./internal/auth/... -short -run "Refresh|Logout"
@@ -2621,7 +2621,7 @@ go test ./internal/auth/... -short -run "Refresh|Logout"
 
 Expected: FAIL — methods not defined.
 
-- [ ] **Step 3: Implement Refresh and Logout**
+- [x] **Step 3: Implement Refresh and Logout**
 
 Append to `internal/auth/service.go`:
 ```go
@@ -2669,7 +2669,7 @@ func (s *Service) Logout(ctx context.Context, req RefreshRequest) error {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 go test ./internal/auth/... -short -v
@@ -2677,7 +2677,7 @@ go test ./internal/auth/... -short -v
 
 Expected: all service tests (Register, Login, Refresh, Logout) pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/auth/service.go internal/auth/service_test.go
