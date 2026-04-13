@@ -1849,7 +1849,7 @@ git commit -m "feat(db): refresh_tokens table migration"
 - Create: `internal/core/auth/refresh.go`
 - Test: `internal/core/auth/refresh_test.go`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 Create `internal/core/auth/refresh_test.go`:
 ```go
@@ -1887,7 +1887,7 @@ func TestHashRefreshTokenDifferentInputs(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to confirm failure**
+- [x] **Step 2: Run to confirm failure**
 
 ```bash
 go test ./internal/core/auth/...
@@ -1895,7 +1895,7 @@ go test ./internal/core/auth/...
 
 Expected: FAIL — `auth.GenerateRefreshToken` does not exist.
 
-- [ ] **Step 3: Implement refresh.go**
+- [x] **Step 3: Implement refresh.go**
 
 Create `internal/core/auth/refresh.go`:
 ```go
@@ -1927,7 +1927,7 @@ func HashRefreshToken(token string) string {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 go test ./internal/core/auth/... -v
@@ -1935,7 +1935,7 @@ go test ./internal/core/auth/... -v
 
 Expected: all tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/core/auth/refresh.go internal/core/auth/refresh_test.go
