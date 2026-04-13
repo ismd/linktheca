@@ -288,6 +288,21 @@ func TestLogoutRevokesRefreshToken(t *testing.T) {
 	require.ErrorIs(t, err, auth.ErrInvalidCredentials)
 }
 
+func TestMeReturnsCurrentUser(t *testing.T) {
+	store := newMockStore()
+	svc := newTestService(t, store, true)
+
+	reg, err := svc.Register(context.Background(), auth.RegisterRequest{
+		Email: "me@example.com", Password: "a-strong-password", DisplayName: "Me",
+	}, "ua")
+	require.NoError(t, err)
+
+	got, err := svc.Me(context.Background(), reg.User.ID)
+	require.NoError(t, err)
+	require.Equal(t, "me@example.com", got.Email)
+	require.Equal(t, "Me", got.DisplayName)
+}
+
 // Sanity: interface compile-time check
 var _ auth.StoreAPI = (*mockStore)(nil)
 var _ = errors.New

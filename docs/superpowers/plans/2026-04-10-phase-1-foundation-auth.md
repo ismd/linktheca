@@ -2692,7 +2692,7 @@ git commit -m "feat(auth): service Refresh with rotation and Logout"
 - Modify: `internal/auth/service.go`
 - Modify: `internal/auth/service_test.go`
 
-- [ ] **Step 1: Add failing test**
+- [x] **Step 1: Add failing test**
 
 Append to `internal/auth/service_test.go`:
 ```go
@@ -2712,7 +2712,7 @@ func TestMeReturnsCurrentUser(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to confirm failure**
+- [x] **Step 2: Run to confirm failure**
 
 ```bash
 go test ./internal/auth/... -short -run TestMe
@@ -2720,7 +2720,7 @@ go test ./internal/auth/... -short -run TestMe
 
 Expected: FAIL — `svc.Me` not defined.
 
-- [ ] **Step 3: Implement Me**
+- [x] **Step 3: Implement Me**
 
 Append to `internal/auth/service.go`:
 ```go
@@ -2731,7 +2731,7 @@ func (s *Service) Me(ctx context.Context, userID int64) (*User, error) {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 go test ./internal/auth/... -short -v
@@ -2739,7 +2739,7 @@ go test ./internal/auth/... -short -v
 
 Expected: all tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/auth/service.go internal/auth/service_test.go

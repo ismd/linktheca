@@ -168,3 +168,8 @@ func (s *Service) Login(ctx context.Context, req LoginRequest, userAgent string)
 
 	return &AuthResponse{User: *user, Tokens: *tokens}, nil
 }
+
+// Me returns the user identified by userID, typically extracted from the context by the RequireUser middleware
+func (s *Service) Me(ctx context.Context, userID int64) (*User, error) {
+	return s.store.GetUserByID(ctx, userID)
+}
