@@ -2446,7 +2446,7 @@ git commit -m "feat(auth): service with Register (first user = admin, validation
 - Modify: `internal/auth/service.go`
 - Modify: `internal/auth/service_test.go`
 
-- [ ] **Step 1: Add failing tests**
+- [x] **Step 1: Add failing tests**
 
 Append to `internal/auth/service_test.go`:
 ```go
@@ -2494,7 +2494,7 @@ func TestLoginUnknownUser(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to confirm failure**
+- [x] **Step 2: Run to confirm failure**
 
 ```bash
 go test ./internal/auth/... -short -run Login
@@ -2502,7 +2502,7 @@ go test ./internal/auth/... -short -run Login
 
 Expected: FAIL — `svc.Login` not defined.
 
-- [ ] **Step 3: Implement Login**
+- [x] **Step 3: Implement Login**
 
 Append to `internal/auth/service.go`:
 ```go
@@ -2531,7 +2531,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest, userAgent string)
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 go test ./internal/auth/... -short -v
@@ -2539,7 +2539,7 @@ go test ./internal/auth/... -short -v
 
 Expected: all service tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/auth/service.go internal/auth/service_test.go

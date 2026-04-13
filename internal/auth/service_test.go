@@ -188,6 +188,50 @@ func TestRegisterDuplicateEmail(t *testing.T) {
 	require.ErrorIs(t, err, auth.ErrEmailTaken)
 }
 
+func TestLoginSuccess(t *testing.T) {
+	store := newMockStore()
+	svc := newTestService(t, store, true)
+
+	_, err := svc.Register(context.Background(), auth.RegisterRequest{
+		Email: "a@example.com", Password: "a-strong-password", DisplayName: "A",
+	}, "ua")
+	require.NoError(t, err)
+
+	resp, err := svc.Login(context.Background(), auth.LoginRequest{
+		Email: "a@example.com", Password: "a-strong-password",
+	}, "ua")
+
+	require.NoError(t, err)
+	require.Equal(t, "a@example.com", resp.User.Email)
+	require.NotEmpty(t, resp.Tokens.AccessToken)
+	require.NotEmpty(t, resp.Tokens.RefreshToken)
+}
+
+func TestLoginWrongPassword(t *testing.T) {
+	store := newMockStore()
+	svc := newTestService(t, store, true)
+
+	_, err := svc.Register(context.Background(), auth.RegisterRequest{
+		Email: "a@example.com", Password: "a-strong-password", DisplayName: "A",
+	}, "ua")
+	require.NoError(t, err)
+
+	_, err = svc.Login(context.Background(), auth.LoginRequest{
+		Email: "a@example.com", Password: "wrong-password",
+	}, "ua")
+	require.ErrorIs(t, err, auth.ErrInvalidCredentials)
+}
+
+func TestLoginUnknownUser(t *testing.T) {
+	store := newMockStore()
+	svc := newTestService(t, store, true)
+
+	_, err := svc.Login(context.Background(), auth.LoginRequest{
+		Email: "nobody@example.com", Password: "a-strong-password",
+	}, "ua")
+	require.ErrorIs(t, err, auth.ErrInvalidCredentials)
+}
+
 // Sanity: interface compile-time check
 var _ auth.StoreAPI = (*mockStore)(nil)
 var _ = errors.New

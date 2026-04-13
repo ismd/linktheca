@@ -100,3 +100,27 @@ func (s *Service) issueTokens(ctx context.Context, user *User, userAgent string)
 
 	return &TokenPair{AccessToken: access, RefreshToken: refresh}, nil
 }
+
+// Login authenticates a user by email and password
+// Returns ErrInvalidCredentials for any authentication failure (do not leak whether the email exists)
+func (s *Service) Login(ctx context.Context, req LoginRequest, userAgent string) (*AuthResponse, error) {
+	user, err := s.store.GetUserByEmail(ctx, req.Email)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, ErrInvalidCredentials
+		}
+		return nil, err
+	}
+
+	ok, err := coreauth.VerifyPassword(req.Password, user.PasswordHash)
+	if err != nil || !ok {
+		return nil, ErrInvalidCredentials
+	}
+
+	tokens, err := s.issueTokens(ctx, user, userAgent)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AuthResponse{User: *user, Tokens: *tokens}, nil
+}
