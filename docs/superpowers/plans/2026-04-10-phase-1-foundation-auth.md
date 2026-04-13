@@ -3905,7 +3905,7 @@ git commit -m "test(server): full auth flow integration test against real Postgr
 **Files:**
 - Create: `.github/workflows/ci.yml`
 
-- [ ] **Step 1: Create workflow**
+- [x] **Step 1: Create workflow**
 
 Create `.github/workflows/ci.yml`:
 ```yaml
@@ -3939,7 +3939,7 @@ jobs:
 
 **Note:** Integration tests need Docker on the runner. GitHub's `ubuntu-latest` runners have Docker available out of the box.
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 mkdir -p .github/workflows
