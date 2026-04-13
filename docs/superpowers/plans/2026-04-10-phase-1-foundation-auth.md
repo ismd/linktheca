@@ -1814,7 +1814,7 @@ git commit -m "feat(auth): JWT issuer/parser with HS256 and Claims type"
 **Files:**
 - Create: `migrations/003_refresh_tokens.sql`
 
-- [ ] **Step 1: Create migration**
+- [x] **Step 1: Create migration**
 
 Create `migrations/003_refresh_tokens.sql`:
 ```sql
@@ -1834,7 +1834,7 @@ CREATE INDEX refresh_tokens_user_active_idx ON refresh_tokens (user_id) WHERE re
 DROP TABLE refresh_tokens;
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add migrations/003_refresh_tokens.sql
