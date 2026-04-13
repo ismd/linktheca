@@ -1185,7 +1185,7 @@ git commit -m "feat(db): users table migration"
 **Files:**
 - Create: `internal/auth/types.go`
 
-- [ ] **Step 1: Create types**
+- [x] **Step 1: Create types**
 
 Create `internal/auth/types.go`:
 ```go
@@ -1246,7 +1246,7 @@ type RefreshToken struct {
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [x] **Step 2: Verify it compiles**
 
 ```bash
 go build ./internal/auth/...
@@ -1254,7 +1254,7 @@ go build ./internal/auth/...
 
 Expected: no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/auth/
