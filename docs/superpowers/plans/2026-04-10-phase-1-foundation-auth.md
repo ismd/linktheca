@@ -1269,7 +1269,7 @@ git commit -m "feat(auth): domain types (User, TokenPair, RefreshToken)"
 - Create: `internal/auth/store.go`
 - Test: `internal/auth/store_test.go`
 
-- [ ] **Step 1: Write failing integration tests**
+- [x] **Step 1: Write failing integration tests**
 
 Create `internal/auth/store_test.go`:
 ```go
@@ -1359,7 +1359,7 @@ func TestIntegrationUsersStoreGetUnknownEmail(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to confirm failure**
+- [x] **Step 2: Run to confirm failure**
 
 ```bash
 go test ./internal/auth/... -v
@@ -1367,7 +1367,7 @@ go test ./internal/auth/... -v
 
 Expected: FAIL — `auth.NewStore` does not exist.
 
-- [ ] **Step 3: Implement the store**
+- [x] **Step 3: Implement the store**
 
 Create `internal/auth/store.go`:
 ```go
@@ -1471,7 +1471,7 @@ func scanUser(row pgx.Row) (*User, error) {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify pass**
+- [x] **Step 4: Run tests to verify pass**
 
 ```bash
 go test ./internal/auth/... -v -count=1
@@ -1479,7 +1479,7 @@ go test ./internal/auth/... -v -count=1
 
 Expected: all four integration tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add go.mod go.sum internal/auth/store.go internal/auth/store_test.go
