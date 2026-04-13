@@ -3334,7 +3334,7 @@ git commit -m "feat(auth): HTTP handlers for Register and Login"
 - Modify: `internal/auth/http.go`
 - Modify: `internal/auth/http_test.go`
 
-- [ ] **Step 1: Add failing tests**
+- [x] **Step 1: Add failing tests**
 
 Append to `internal/auth/http_test.go`:
 ```go
@@ -3405,7 +3405,7 @@ func TestHTTPMeRejectsUnauthenticated(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to confirm failure**
+- [x] **Step 2: Run to confirm failure**
 
 ```bash
 go test ./internal/auth/... -short -run "Refresh|Logout|Me" -v
@@ -3413,7 +3413,7 @@ go test ./internal/auth/... -short -run "Refresh|Logout|Me" -v
 
 Expected: all four new tests FAIL with 501 Not Implemented or similar.
 
-- [ ] **Step 3: Implement the handlers**
+- [x] **Step 3: Implement the handlers**
 
 In `internal/auth/http.go`, replace the three stub functions with:
 
@@ -3457,7 +3457,7 @@ func (h *HTTP) me(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 go test ./internal/auth/... -short -v
@@ -3465,7 +3465,7 @@ go test ./internal/auth/... -short -v
 
 Expected: all HTTP tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/auth/http.go internal/auth/http_test.go

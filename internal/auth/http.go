@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
 	coreauth "github.com/ismd/linktheca/internal/core/auth"
 	"github.com/ismd/linktheca/internal/core/httpx"
 )
@@ -19,19 +18,21 @@ func NewHTTP(svc *Service, issuer *coreauth.JWTIssuer) *HTTP {
 	return &HTTP{svc: svc, issuer: issuer}
 }
 
-func (h *HTTP) Routes(r chi.Router) {
-	r.Route("/auth", func(r chi.Router) {
-		r.Post("/register", h.register)
-		r.Post("/login", h.login)
-		r.Post("/refresh", h.refresh)
 
-		r.Group(func(r chi.Router) {
-			r.Use(coreauth.RequireUser(h.issuer))
-			r.Post("/logout", h.logout)
-			r.Get("/me", h.me)
-		})
-	})
-}
+// RegisterHandler returns the http.HandlerFunc for POST /auth/register.
+func (h *HTTP) RegisterHandler() http.HandlerFunc { return h.register }
+
+// LoginHandler returns the http.HandlerFunc for POST /auth/login.
+func (h *HTTP) LoginHandler() http.HandlerFunc { return h.login }
+
+// RefreshHandler returns the http.HandlerFunc for POST /auth/refresh.
+func (h *HTTP) RefreshHandler() http.HandlerFunc { return h.refresh }
+
+// LogoutHandler returns the http.HandlerFunc for POST /auth/logout.
+func (h *HTTP) LogoutHandler() http.HandlerFunc { return h.logout }
+
+// MeHandler returns the http.HandlerFunc for GET /auth/me.
+func (h *HTTP) MeHandler() http.HandlerFunc { return h.me }
 
 func (h *HTTP) register(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest

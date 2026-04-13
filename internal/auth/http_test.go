@@ -25,10 +25,17 @@ func newTestHTTP(t *testing.T, registration bool) (*chi.Mux, *auth.Service, *moc
 		RefreshTTL:          720 * time.Hour,
 		RegistrationEnabled: registration,
 	})
+	h := auth.NewHTTP(svc, issuer)
 
 	r := chi.NewRouter()
-	h := auth.NewHTTP(svc, issuer)
-	h.Routes(r)
+	r.Post("/auth/register", h.RegisterHandler())
+	r.Post("/auth/login", h.LoginHandler())
+	r.Post("/auth/refresh", h.RefreshHandler())
+	r.Group(func(r chi.Router) {
+		r.Use(coreauth.RequireUser(issuer))
+		r.Post("/auth/logout", h.LogoutHandler())
+		r.Get("/auth/me", h.MeHandler())
+	})
 	return r, svc, store
 }
 
