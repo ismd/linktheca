@@ -3095,7 +3095,7 @@ git commit -m "feat(auth): RequireUser and RequireAdmin middleware"
 - Create: `internal/auth/http.go`
 - Create: `internal/auth/http_test.go`
 
-- [ ] **Step 1: Write failing handler test**
+- [x] **Step 1: Write failing handler test**
 
 Create `internal/auth/http_test.go`:
 ```go
@@ -3203,7 +3203,7 @@ func TestHTTPLoginWrongPassword(t *testing.T) {
 
 Add `"context"` to the top imports of `http_test.go` if not already present.
 
-- [ ] **Step 2: Run to confirm failure**
+- [x] **Step 2: Run to confirm failure**
 
 ```bash
 go test ./internal/auth/... -short -run HTTP
@@ -3211,7 +3211,7 @@ go test ./internal/auth/... -short -run HTTP
 
 Expected: FAIL — `auth.NewHTTP`, `h.Routes` not defined.
 
-- [ ] **Step 3: Implement http.go — Register and Login**
+- [x] **Step 3: Implement http.go — Register and Login**
 
 Create `internal/auth/http.go`:
 ```go
@@ -3311,7 +3311,7 @@ func writeServiceError(w http.ResponseWriter, err error) {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 go test ./internal/auth/... -short -v -run HTTP
@@ -3319,7 +3319,7 @@ go test ./internal/auth/... -short -v -run HTTP
 
 Expected: Register and Login HTTP tests pass. (Refresh/logout/me tests do not exist yet.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/auth/http.go internal/auth/http_test.go
