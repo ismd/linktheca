@@ -961,14 +961,14 @@ git commit -m "feat(db): embedded goose migrations, run on startup"
 **Files:**
 - Create: `internal/testing/testdb/testdb.go`
 
-- [ ] **Step 1: Add testcontainers dependency**
+- [x] **Step 1: Add testcontainers dependency**
 
 ```bash
 go get github.com/testcontainers/testcontainers-go
 go get github.com/testcontainers/testcontainers-go/modules/postgres
 ```
 
-- [ ] **Step 2: Create testdb.go**
+- [x] **Step 2: Create testdb.go**
 
 Create `internal/testing/testdb/testdb.go`:
 ```go
@@ -1087,7 +1087,7 @@ func randHex(n int) string {
 
 **Note:** The `tcpostgres.Run` signature varies by testcontainers-go version. If the exact shape above fails to compile, adjust to the signatures listed in your installed version (`go doc github.com/testcontainers/testcontainers-go/modules/postgres`). The key requirement is: start a `pgvector/pgvector:0.8.2-pg18-trixie` container, wait until ready, return the DSN.
 
-- [ ] **Step 3: Write a smoke test that uses testdb**
+- [x] **Step 3: Write a smoke test that uses testdb**
 
 Create `internal/testing/testdb/testdb_test.go`:
 ```go
@@ -1127,7 +1127,7 @@ func TestIntegrationMigrationsRan(t *testing.T) {
 }
 ```
 
-- [ ] **Step 4: Run the smoke test**
+- [x] **Step 4: Run the smoke test**
 
 ```bash
 go mod tidy
@@ -1136,7 +1136,7 @@ go test ./internal/testing/testdb/... -v -count=1
 
 Expected: both tests pass (first run may take 20-30 seconds while it pulls the pgvector image).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add go.mod go.sum internal/testing/testdb/
