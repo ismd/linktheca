@@ -2756,7 +2756,7 @@ git commit -m "feat(auth): service Me method"
 - Create: `internal/core/httpx/responses.go`
 - Create: `internal/core/httpx/middleware.go`
 
-- [ ] **Step 1: Create responses.go**
+- [x] **Step 1: Create responses.go**
 
 Create `internal/core/httpx/responses.go`:
 ```go
@@ -2792,7 +2792,7 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 }
 ```
 
-- [ ] **Step 2: Create middleware.go**
+- [x] **Step 2: Create middleware.go**
 
 Create `internal/core/httpx/middleware.go`:
 ```go
@@ -2878,7 +2878,7 @@ func newRequestID() string {
 }
 ```
 
-- [ ] **Step 3: Verify compilation**
+- [x] **Step 3: Verify compilation**
 
 ```bash
 go build ./internal/core/httpx/...
@@ -2886,7 +2886,7 @@ go build ./internal/core/httpx/...
 
 Expected: no errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/core/httpx/
