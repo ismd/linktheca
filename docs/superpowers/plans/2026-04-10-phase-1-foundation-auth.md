@@ -1611,13 +1611,13 @@ git commit -m "feat(auth): argon2id password hashing with OWASP-recommended para
 - Create: `internal/core/auth/jwt.go`
 - Test: `internal/core/auth/jwt_test.go`
 
-- [ ] **Step 1: Add JWT dependency**
+- [x] **Step 1: Add JWT dependency**
 
 ```bash
 go get github.com/golang-jwt/jwt/v5
 ```
 
-- [ ] **Step 2: Create core/auth/types.go**
+- [x] **Step 2: Create core/auth/types.go**
 
 Create `internal/core/auth/types.go`:
 ```go
@@ -1667,7 +1667,7 @@ func IsAdmin(ctx context.Context) bool {
 }
 ```
 
-- [ ] **Step 3: Write failing JWT test**
+- [x] **Step 3: Write failing JWT test**
 
 Create `internal/core/auth/jwt_test.go`:
 ```go
@@ -1717,7 +1717,7 @@ func TestParseWithWrongSecretFails(t *testing.T) {
 }
 ```
 
-- [ ] **Step 4: Run to confirm failure**
+- [x] **Step 4: Run to confirm failure**
 
 ```bash
 go test ./internal/core/auth/...
@@ -1725,7 +1725,7 @@ go test ./internal/core/auth/...
 
 Expected: FAIL — `auth.NewJWTIssuer` does not exist.
 
-- [ ] **Step 5: Implement jwt.go**
+- [x] **Step 5: Implement jwt.go**
 
 Create `internal/core/auth/jwt.go`:
 ```go
@@ -1789,7 +1789,7 @@ func (j *JWTIssuer) Parse(tokenString string) (*Claims, error) {
 }
 ```
 
-- [ ] **Step 6: Run tests to verify pass**
+- [x] **Step 6: Run tests to verify pass**
 
 ```bash
 go mod tidy
@@ -1798,7 +1798,7 @@ go test ./internal/core/auth/... -v
 
 Expected: all password and jwt tests pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add go.mod go.sum internal/core/auth/
