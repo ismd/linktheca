@@ -2901,7 +2901,7 @@ git commit -m "feat(httpx): JSON responses, RequestID, RequestLogger, Recover mi
 - Create: `internal/core/auth/middleware.go`
 - Create: `internal/core/auth/middleware_test.go`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 Create `internal/core/auth/middleware_test.go`:
 ```go
@@ -3007,7 +3007,7 @@ func TestRequireAdminAcceptsAdmin(t *testing.T) {
 var _ = strings.TrimSpace
 ```
 
-- [ ] **Step 2: Run to confirm failure**
+- [x] **Step 2: Run to confirm failure**
 
 ```bash
 go test ./internal/core/auth/... -short
@@ -3015,7 +3015,7 @@ go test ./internal/core/auth/... -short
 
 Expected: FAIL — `RequireUser`, `RequireAdmin` not defined.
 
-- [ ] **Step 3: Implement middleware.go**
+- [x] **Step 3: Implement middleware.go**
 
 Create `internal/core/auth/middleware.go`:
 ```go
@@ -3072,7 +3072,7 @@ func RequireAdmin(next http.Handler) http.Handler {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 go test ./internal/core/auth/... -v
@@ -3080,7 +3080,7 @@ go test ./internal/core/auth/... -v
 
 Expected: all middleware tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/core/auth/middleware.go internal/core/auth/middleware_test.go
