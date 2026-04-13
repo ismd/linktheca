@@ -10,16 +10,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	linktheca "github.com/ismd/linktheca"
 	"github.com/ismd/linktheca/internal/core/config"
 	"github.com/ismd/linktheca/internal/core/db"
 	"github.com/ismd/linktheca/internal/core/logging"
+	"github.com/ismd/linktheca/internal/server"
 )
 
 func main() {
 	if err := run(); err != nil {
-		// logger may not be up yet; use stderr directly
 		slog.Error("startup failed", "err", err)
 		os.Exit(1)
 	}
@@ -48,17 +47,11 @@ func run() error {
 	}
 	logger.Info("migrations applied")
 
-	r := chi.NewRouter()
-	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
+	srv := server.New(server.Deps{
+		Config: cfg,
+		Logger: logger,
+		DB:     pool,
 	})
-
-	srv := &http.Server{
-		Addr:              cfg.HTTPAddr,
-		Handler:           r,
-		ReadHeaderTimeout: 5 * time.Second,
-	}
 
 	errCh := make(chan error, 1)
 	go func() {
