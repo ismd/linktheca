@@ -101,3 +101,69 @@ func TestHTTPLoginWrongPassword(t *testing.T) {
 
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
 }
+
+func TestHTTPRefreshRotates(t *testing.T) {
+	router, svc, _ := newTestHTTP(t, true)
+	reg, err := svc.Register(context.Background(), auth.RegisterRequest{
+		Email: "rfa@example.com", Password: "a-strong-password", DisplayName: "RFA",
+	}, "ua")
+	require.NoError(t, err)
+
+	body, _ := json.Marshal(auth.RefreshRequest{RefreshToken: reg.Tokens.RefreshToken})
+	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp auth.AuthResponse
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
+	require.NotEqual(t, reg.Tokens.RefreshToken, resp.Tokens.RefreshToken)
+}
+
+func TestHTTPLogout(t *testing.T) {
+	router, svc, _ := newTestHTTP(t, true)
+	reg, err := svc.Register(context.Background(), auth.RegisterRequest{
+		Email: "lgo@example.com", Password: "a-strong-password", DisplayName: "LGO",
+	}, "ua")
+	require.NoError(t, err)
+
+	body, _ := json.Marshal(auth.RefreshRequest{RefreshToken: reg.Tokens.RefreshToken})
+	req := httptest.NewRequest(http.MethodPost, "/auth/logout", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+reg.Tokens.AccessToken)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusNoContent, rec.Code)
+}
+
+func TestHTTPMeReturnsUser(t *testing.T) {
+	router, svc, _ := newTestHTTP(t, true)
+	reg, err := svc.Register(context.Background(), auth.RegisterRequest{
+		Email: "meh@example.com", Password: "a-strong-password", DisplayName: "MEH",
+	}, "ua")
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
+	req.Header.Set("Authorization", "Bearer "+reg.Tokens.AccessToken)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var got auth.User
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&got))
+	require.Equal(t, "meh@example.com", got.Email)
+}
+
+func TestHTTPMeRejectsUnauthenticated(t *testing.T) {
+	router, _, _ := newTestHTTP(t, true)
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusUnauthorized, rec.Code)
+}

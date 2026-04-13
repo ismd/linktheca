@@ -65,15 +65,49 @@ func (h *HTTP) login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTP) refresh(w http.ResponseWriter, r *http.Request) {
-	httpx.WriteError(w, http.StatusNotImplemented, "not_implemented", "")
+	var req RefreshRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid json body")
+		return
+	}
+
+	resp, err := h.svc.Refresh(r.Context(), req, r.UserAgent())
+
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, resp)
 }
 
 func (h *HTTP) logout(w http.ResponseWriter, r *http.Request) {
-	httpx.WriteError(w, http.StatusNotImplemented, "not_implemented", "")
+	var req RefreshRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid json body")
+		return
+	}
+
+	if err := h.svc.Logout(r.Context(), req); err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *HTTP) me(w http.ResponseWriter, r *http.Request) {
-	httpx.WriteError(w, http.StatusNotImplemented, "not_implemented", "")
+	userID := coreauth.UserID(r.Context())
+	user, err := h.svc.Me(r.Context(), userID)
+
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, user)
 }
 
 func writeServiceError(w http.ResponseWriter, err error) {
