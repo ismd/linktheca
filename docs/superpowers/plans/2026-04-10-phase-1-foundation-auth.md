@@ -2118,7 +2118,7 @@ git commit -m "feat(auth): refresh token store operations (create, find active, 
 - Create: `internal/auth/service.go`
 - Create: `internal/auth/service_test.go`
 
-- [ ] **Step 1: Write failing unit test for Register**
+- [x] **Step 1: Write failing unit test for Register**
 
 Create `internal/auth/service_test.go`:
 ```go
@@ -2301,7 +2301,7 @@ var _ auth.StoreAPI = (*mockStore)(nil)
 var _ = errors.New
 ```
 
-- [ ] **Step 2: Run to confirm failure**
+- [x] **Step 2: Run to confirm failure**
 
 ```bash
 go test ./internal/auth/... -short
@@ -2309,7 +2309,7 @@ go test ./internal/auth/... -short
 
 Expected: FAIL — `auth.Service`, `auth.StoreAPI`, `auth.NewService`, `auth.ErrRegistrationDisabled`, `auth.ErrWeakPassword` do not exist.
 
-- [ ] **Step 3: Implement service.go (Register only for now)**
+- [x] **Step 3: Implement service.go (Register only for now)**
 
 Create `internal/auth/service.go`:
 ```go
@@ -2423,7 +2423,7 @@ func (s *Service) issueTokens(ctx context.Context, user *User, userAgent string)
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 go test ./internal/auth/... -short -v
@@ -2431,7 +2431,7 @@ go test ./internal/auth/... -short -v
 
 Expected: all Register tests pass. Integration tests are skipped due to `-short`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/auth/service.go internal/auth/service_test.go
