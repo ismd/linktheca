@@ -3,6 +3,7 @@ module github.com/ismd/linktheca
 go 1.26.2
 
 require (
+	github.com/alexedwards/argon2id v1.0.0
 	github.com/caarlos0/env/v11 v11.4.0
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/jackc/pgx/v5 v5.9.1

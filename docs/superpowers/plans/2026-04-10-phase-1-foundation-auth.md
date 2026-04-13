@@ -1496,13 +1496,13 @@ git commit -m "feat(auth): users store with Create/GetByEmail/GetByID/Count"
 - Create: `internal/core/auth/password.go`
 - Test: `internal/core/auth/password_test.go`
 
-- [ ] **Step 1: Add argon2id dependency**
+- [x] **Step 1: Add argon2id dependency**
 
 ```bash
 go get github.com/alexedwards/argon2id
 ```
 
-- [ ] **Step 2: Write failing test**
+- [x] **Step 2: Write failing test**
 
 Create `internal/core/auth/password_test.go`:
 ```go
@@ -1544,7 +1544,7 @@ func TestVerifyPasswordInvalidHash(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run to confirm failure**
+- [x] **Step 3: Run to confirm failure**
 
 ```bash
 go test ./internal/core/auth/...
@@ -1552,7 +1552,7 @@ go test ./internal/core/auth/...
 
 Expected: FAIL — `auth.HashPassword` does not exist.
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 Create `internal/core/auth/password.go`:
 ```go
@@ -1584,7 +1584,7 @@ func VerifyPassword(plaintext, hash string) (bool, error) {
 }
 ```
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 ```bash
 go mod tidy
@@ -1593,7 +1593,7 @@ go test ./internal/core/auth/... -v
 
 Expected: all three tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add go.mod go.sum internal/core/auth/
