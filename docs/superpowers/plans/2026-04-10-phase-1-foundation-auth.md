@@ -1152,7 +1152,7 @@ git commit -m "test: testdb helper using testcontainers with per-test schemas"
 **Files:**
 - Create: `migrations/002_users.sql`
 
-- [ ] **Step 1: Create migration**
+- [x] **Step 1: Create migration**
 
 Create `migrations/002_users.sql`:
 ```sql
@@ -1171,7 +1171,7 @@ CREATE TABLE users (
 DROP TABLE users;
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add migrations/002_users.sql
