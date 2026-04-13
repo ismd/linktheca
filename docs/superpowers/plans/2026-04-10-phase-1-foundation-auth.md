@@ -2021,7 +2021,7 @@ func TestIntegrationRefreshStoreFindExpired(t *testing.T) {
 
 Also add `"time"` to the imports of `store_test.go` if not already present.
 
-- [ ] **Step 2: Run to confirm failure**
+- [x] **Step 2: Run to confirm failure**
 
 ```bash
 go test ./internal/auth/... -count=1
@@ -2029,7 +2029,7 @@ go test ./internal/auth/... -count=1
 
 Expected: FAIL — `CreateRefreshToken` does not exist.
 
-- [ ] **Step 3: Implement in store.go**
+- [x] **Step 3: Implement in store.go**
 
 Append to `internal/auth/store.go`:
 ```go
@@ -2093,7 +2093,7 @@ func (s *Store) RevokeRefreshToken(ctx context.Context, id int64) error {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 go test ./internal/auth/... -v -count=1
@@ -2101,7 +2101,7 @@ go test ./internal/auth/... -v -count=1
 
 Expected: all refresh token tests pass along with existing user tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/auth/store.go internal/auth/store_test.go
