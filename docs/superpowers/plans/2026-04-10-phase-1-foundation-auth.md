@@ -3482,14 +3482,14 @@ git commit -m "feat(auth): HTTP handlers for Refresh, Logout, Me"
 - Create: `internal/server/server.go`
 - Modify: `cmd/linktheca/main.go`
 
-- [ ] **Step 1: Add CORS and httprate dependencies**
+- [x] **Step 1: Add CORS and httprate dependencies**
 
 ```bash
 go get github.com/go-chi/cors
 go get github.com/go-chi/httprate
 ```
 
-- [ ] **Step 2: Create server.go**
+- [x] **Step 2: Create server.go**
 
 Create `internal/server/server.go`:
 ```go
@@ -3577,7 +3577,7 @@ func New(deps Deps) *http.Server {
 }
 ```
 
-- [ ] **Step 3: Expose handler functions on HTTP type**
+- [x] **Step 3: Expose handler functions on HTTP type**
 
 The server assembly above calls `authHTTP.RegisterHandler()`, `LoginHandler()`, etc. The current `http.go` uses a `Routes()` method. Replace the `Routes()` method in `internal/auth/http.go` with individual exported handler accessors. Append the following (and delete the `Routes` method):
 
@@ -3601,7 +3601,7 @@ func (h *HTTP) MeHandler() http.HandlerFunc { return h.me }
 
 Also remove the `chi` import from `http.go` since `Routes` is gone.
 
-- [ ] **Step 4: Update the http_test.go helper to not depend on Routes**
+- [x] **Step 4: Update the http_test.go helper to not depend on Routes**
 
 Replace `newTestHTTP` in `internal/auth/http_test.go` with:
 ```go
@@ -3628,7 +3628,7 @@ func newTestHTTP(t *testing.T, registration bool) (*chi.Mux, *auth.Service, *moc
 }
 ```
 
-- [ ] **Step 5: Update main.go to use server.New**
+- [x] **Step 5: Update main.go to use server.New**
 
 Replace `cmd/linktheca/main.go` with:
 ```go
@@ -3712,7 +3712,7 @@ func run() error {
 }
 ```
 
-- [ ] **Step 6: Run full test suite (short mode)**
+- [x] **Step 6: Run full test suite (short mode)**
 
 ```bash
 go mod tidy
@@ -3721,7 +3721,7 @@ go test ./... -short -count=1
 
 Expected: all tests pass. Integration tests are skipped.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add go.mod go.sum internal/server/ internal/auth/http.go internal/auth/http_test.go cmd/linktheca/main.go
