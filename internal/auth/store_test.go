@@ -102,7 +102,7 @@ func TestIntegrationRefreshStoreCreateAndFind(t *testing.T) {
 
 	hash := "abc123"
 	exp := time.Now().Add(1 * time.Hour)
-	rt, err := store.CreateRefreshToken(ctx, user.ID, hash, "test-ua", exp)
+	rt, err := store.CreateRefreshToken(ctx, user.ID, hash, exp)
 	require.NoError(t, err)
 	require.NotZero(t, rt.ID)
 	require.Equal(t, user.ID, rt.UserID)
@@ -125,7 +125,7 @@ func TestIntegrationRefreshStoreRevoke(t *testing.T) {
 	user, err := store.CreateUser(ctx, "rv@example.com", "h", "RV", false)
 	require.NoError(t, err)
 
-	rt, err := store.CreateRefreshToken(ctx, user.ID, "h1", "ua", time.Now().Add(1*time.Hour))
+	rt, err := store.CreateRefreshToken(ctx, user.ID, "h1", time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 
 	err = store.RevokeRefreshToken(ctx, rt.ID)
@@ -147,7 +147,7 @@ func TestIntegrationRefreshStoreFindExpired(t *testing.T) {
 	user, err := store.CreateUser(ctx, "exp@example.com", "h", "EXP", false)
 	require.NoError(t, err)
 
-	_, err = store.CreateRefreshToken(ctx, user.ID, "h2", "ua", time.Now().Add(-1*time.Hour))
+	_, err = store.CreateRefreshToken(ctx, user.ID, "h2", time.Now().Add(-1*time.Hour))
 	require.NoError(t, err)
 
 	// Expired tokens must be treated as not found.

@@ -49,6 +49,5 @@ type RefreshToken struct {
 	TokenHash string
 	ExpiresAt time.Time
 	RevokedAt *time.Time
-	UserAgent string
 	CreatedAt time.Time
 }

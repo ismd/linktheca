@@ -41,7 +41,7 @@ func (h *HTTP) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.svc.Register(r.Context(), req, r.UserAgent())
+	resp, err := h.svc.Register(r.Context(), req)
 	if err != nil {
 		writeServiceError(w, err)
 		return
@@ -56,7 +56,7 @@ func (h *HTTP) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.svc.Login(r.Context(), req, r.UserAgent())
+	resp, err := h.svc.Login(r.Context(), req)
 	if err != nil {
 		writeServiceError(w, err)
 		return
@@ -73,7 +73,7 @@ func (h *HTTP) refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.svc.Refresh(r.Context(), req, r.UserAgent())
+	resp, err := h.svc.Refresh(r.Context(), req)
 
 	if err != nil {
 		writeServiceError(w, err)

@@ -22,7 +22,7 @@ type StoreAPI interface {
 	GetUserByEmail(ctx context.Context, email string) (*User, error)
 	GetUserByID(ctx context.Context, id int64) (*User, error)
 	CountUsers(ctx context.Context) (int64, error)
-	CreateRefreshToken(ctx context.Context, userID int64, tokenHash, userAgent string, expiresAt time.Time) (*RefreshToken, error)
+	CreateRefreshToken(ctx context.Context, userID int64, tokenHash string, expiresAt time.Time) (*RefreshToken, error)
 	FindActiveRefreshToken(ctx context.Context, tokenHash string) (*RefreshToken, error)
 	RevokeRefreshToken(ctx context.Context, id int64) error
 }
@@ -44,7 +44,7 @@ func NewService(store StoreAPI, jwt *coreauth.JWTIssuer, cfg ServiceConfig) *Ser
 
 // Register creates a new user account and returns tokens plus the user record
 // The first user created on the instance is promoted to admin
-func (s *Service) Register(ctx context.Context, req RegisterRequest, userAgent string) (*AuthResponse, error) {
+func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthResponse, error) {
 	if !s.cfg.RegistrationEnabled {
 		return nil, ErrRegistrationDisabled
 	}
@@ -68,7 +68,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest, userAgent s
 		return nil, err
 	}
 
-	tokens, err := s.issueTokens(ctx, user, userAgent)
+	tokens, err := s.issueTokens(ctx, user)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest, userAgent s
 
 // Refresh exchanges a valid refresh token for a new access+refresh pair
 // Implements rotation: the old refresh is revoked immediately
-func (s *Service) Refresh(ctx context.Context, req RefreshRequest, userAgent string) (*AuthResponse, error) {
+func (s *Service) Refresh(ctx context.Context, req RefreshRequest) (*AuthResponse, error) {
 	hash := coreauth.HashRefreshToken(req.RefreshToken)
 	existing, err := s.store.FindActiveRefreshToken(ctx, hash)
 	if err != nil {
@@ -98,7 +98,7 @@ func (s *Service) Refresh(ctx context.Context, req RefreshRequest, userAgent str
 		return nil, fmt.Errorf("revoke previous: %w", err)
 	}
 
-	tokens, err := s.issueTokens(ctx, user, userAgent)
+	tokens, err := s.issueTokens(ctx, user)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (s *Service) Logout(ctx context.Context, req RefreshRequest) error {
 }
 
 // issueTokens creates an access token and a refresh token record
-func (s *Service) issueTokens(ctx context.Context, user *User, userAgent string) (*TokenPair, error) {
+func (s *Service) issueTokens(ctx context.Context, user *User) (*TokenPair, error) {
 	access, err := s.jwt.Issue(user.ID, user.IsAdmin)
 	if err != nil {
 		return nil, fmt.Errorf("issue access: %w", err)
@@ -135,7 +135,6 @@ func (s *Service) issueTokens(ctx context.Context, user *User, userAgent string)
 	_, err = s.store.CreateRefreshToken(ctx,
 		user.ID,
 		coreauth.HashRefreshToken(refresh),
-		userAgent,
 		time.Now().Add(s.cfg.RefreshTTL),
 	)
 	if err != nil {
@@ -147,7 +146,7 @@ func (s *Service) issueTokens(ctx context.Context, user *User, userAgent string)
 
 // Login authenticates a user by email and password
 // Returns ErrInvalidCredentials for any authentication failure (do not leak whether the email exists)
-func (s *Service) Login(ctx context.Context, req LoginRequest, userAgent string) (*AuthResponse, error) {
+func (s *Service) Login(ctx context.Context, req LoginRequest) (*AuthResponse, error) {
 	user, err := s.store.GetUserByEmail(ctx, req.Email)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
@@ -161,7 +160,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest, userAgent string)
 		return nil, ErrInvalidCredentials
 	}
 
-	tokens, err := s.issueTokens(ctx, user, userAgent)
+	tokens, err := s.issueTokens(ctx, user)
 	if err != nil {
 		return nil, err
 	}

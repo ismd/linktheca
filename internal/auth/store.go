@@ -102,15 +102,15 @@ func scanUser(row pgx.Row) (*User, error) {
 	return &u, nil
 }
 
-func (s *Store) CreateRefreshToken(ctx context.Context, userID int64, tokenHash, userAgent string, expiresAt time.Time) (*RefreshToken, error) {
+func (s *Store) CreateRefreshToken(ctx context.Context, userID int64, tokenHash string, expiresAt time.Time) (*RefreshToken, error) {
 	var rt RefreshToken
 
 	err := s.db.QueryRow(ctx, `
-		INSERT INTO refresh_tokens (user_id, token_hash, user_agent, expires_at)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, user_id, token_hash, expires_at, revoked_at, user_agent, created_at
-	`, userID, tokenHash, userAgent, expiresAt).Scan(
-		&rt.ID, &rt.UserID, &rt.TokenHash, &rt.ExpiresAt, &rt.RevokedAt, &rt.UserAgent, &rt.CreatedAt,
+		INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+		VALUES ($1, $2, $3)
+		RETURNING id, user_id, token_hash, expires_at, revoked_at, created_at
+	`, userID, tokenHash, expiresAt).Scan(
+		&rt.ID, &rt.UserID, &rt.TokenHash, &rt.ExpiresAt, &rt.RevokedAt, &rt.CreatedAt,
 	)
 
 	if err != nil {
@@ -124,13 +124,13 @@ func (s *Store) FindActiveRefreshToken(ctx context.Context, tokenHash string) (*
 	var rt RefreshToken
 
 	err := s.db.QueryRow(ctx, `
-		SELECT id, user_id, token_hash, expires_at, revoked_at, user_agent, created_at
+		SELECT id, user_id, token_hash, expires_at, revoked_at, created_at
 		FROM refresh_tokens
 		WHERE token_hash = $1
 		  AND revoked_at IS NULL
 		  AND expires_at > now()
 	`, tokenHash).Scan(
-		&rt.ID, &rt.UserID, &rt.TokenHash, &rt.ExpiresAt, &rt.RevokedAt, &rt.UserAgent, &rt.CreatedAt,
+		&rt.ID, &rt.UserID, &rt.TokenHash, &rt.ExpiresAt, &rt.RevokedAt, &rt.CreatedAt,
 	)
 
 	if err != nil {

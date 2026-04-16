@@ -71,10 +71,10 @@ func (m *mockStore) CountUsers(_ context.Context) (int64, error) {
 	return int64(len(m.users)), nil
 }
 
-func (m *mockStore) CreateRefreshToken(_ context.Context, userID int64, hash, ua string, exp time.Time) (*auth.RefreshToken, error) {
+func (m *mockStore) CreateRefreshToken(_ context.Context, userID int64, hash string, exp time.Time) (*auth.RefreshToken, error) {
 	m.nextRTID++
 	rt := &auth.RefreshToken{
-		ID: m.nextRTID, UserID: userID, TokenHash: hash, ExpiresAt: exp, UserAgent: ua, CreatedAt: time.Now(),
+		ID: m.nextRTID, UserID: userID, TokenHash: hash, ExpiresAt: exp, CreatedAt: time.Now(),
 	}
 	m.refreshByHash[hash] = rt
 
@@ -126,7 +126,7 @@ func TestRegisterFirstUserBecomesAdmin(t *testing.T) {
 
 	resp, err := svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "root@example.com", Password: "a-strong-password", DisplayName: "Root",
-	}, "ua")
+	})
 
 	require.NoError(t, err)
 	require.True(t, resp.User.IsAdmin)
@@ -140,12 +140,12 @@ func TestRegisterSecondUserIsNotAdmin(t *testing.T) {
 
 	_, err := svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "a@example.com", Password: "a-strong-password", DisplayName: "A",
-	}, "ua")
+	})
 	require.NoError(t, err)
 
 	resp, err := svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "b@example.com", Password: "another-strong-password", DisplayName: "B",
-	}, "ua")
+	})
 
 	require.NoError(t, err)
 	require.False(t, resp.User.IsAdmin)
@@ -157,7 +157,7 @@ func TestRegisterDisabledReturnsError(t *testing.T) {
 
 	_, err := svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "a@example.com", Password: "a-strong-password", DisplayName: "A",
-	}, "ua")
+	})
 
 	require.ErrorIs(t, err, auth.ErrRegistrationDisabled)
 }
@@ -168,7 +168,7 @@ func TestRegisterShortPassword(t *testing.T) {
 
 	_, err := svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "a@example.com", Password: "short", DisplayName: "A",
-	}, "ua")
+	})
 
 	require.ErrorIs(t, err, auth.ErrWeakPassword)
 }
@@ -179,12 +179,12 @@ func TestRegisterDuplicateEmail(t *testing.T) {
 
 	_, err := svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "dup@example.com", Password: "a-strong-password", DisplayName: "Dup",
-	}, "ua")
+	})
 	require.NoError(t, err)
 
 	_, err = svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "dup@example.com", Password: "another-password", DisplayName: "Dup2",
-	}, "ua")
+	})
 	require.ErrorIs(t, err, auth.ErrEmailTaken)
 }
 
@@ -194,12 +194,12 @@ func TestLoginSuccess(t *testing.T) {
 
 	_, err := svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "a@example.com", Password: "a-strong-password", DisplayName: "A",
-	}, "ua")
+	})
 	require.NoError(t, err)
 
 	resp, err := svc.Login(context.Background(), auth.LoginRequest{
 		Email: "a@example.com", Password: "a-strong-password",
-	}, "ua")
+	})
 
 	require.NoError(t, err)
 	require.Equal(t, "a@example.com", resp.User.Email)
@@ -213,12 +213,12 @@ func TestLoginWrongPassword(t *testing.T) {
 
 	_, err := svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "a@example.com", Password: "a-strong-password", DisplayName: "A",
-	}, "ua")
+	})
 	require.NoError(t, err)
 
 	_, err = svc.Login(context.Background(), auth.LoginRequest{
 		Email: "a@example.com", Password: "wrong-password",
-	}, "ua")
+	})
 	require.ErrorIs(t, err, auth.ErrInvalidCredentials)
 }
 
@@ -228,7 +228,7 @@ func TestLoginUnknownUser(t *testing.T) {
 
 	_, err := svc.Login(context.Background(), auth.LoginRequest{
 		Email: "nobody@example.com", Password: "a-strong-password",
-	}, "ua")
+	})
 	require.ErrorIs(t, err, auth.ErrInvalidCredentials)
 }
 
@@ -238,13 +238,13 @@ func TestRefreshRotatesToken(t *testing.T) {
 
 	reg, err := svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "r@example.com", Password: "a-strong-password", DisplayName: "R",
-	}, "ua")
+	})
 	require.NoError(t, err)
 
 	// Use the refresh token to obtain a new pair
 	resp, err := svc.Refresh(context.Background(), auth.RefreshRequest{
 		RefreshToken: reg.Tokens.RefreshToken,
-	}, "ua")
+	})
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.Tokens.AccessToken)
 	require.NotEqual(t, reg.Tokens.RefreshToken, resp.Tokens.RefreshToken, "rotation must produce a new refresh")
@@ -252,7 +252,7 @@ func TestRefreshRotatesToken(t *testing.T) {
 	// The old refresh token must now be invalid
 	_, err = svc.Refresh(context.Background(), auth.RefreshRequest{
 		RefreshToken: reg.Tokens.RefreshToken,
-	}, "ua")
+	})
 
 	require.ErrorIs(t, err, auth.ErrInvalidCredentials)
 }
@@ -263,7 +263,7 @@ func TestRefreshUnknownToken(t *testing.T) {
 
 	_, err := svc.Refresh(context.Background(), auth.RefreshRequest{
 		RefreshToken: "definitely-not-a-valid-token",
-	}, "ua")
+	})
 
 	require.ErrorIs(t, err, auth.ErrInvalidCredentials)
 }
@@ -274,7 +274,7 @@ func TestLogoutRevokesRefreshToken(t *testing.T) {
 
 	reg, err := svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "lo@example.com", Password: "a-strong-password", DisplayName: "LO",
-	}, "ua")
+	})
 	require.NoError(t, err)
 
 	err = svc.Logout(context.Background(), auth.RefreshRequest{
@@ -284,7 +284,7 @@ func TestLogoutRevokesRefreshToken(t *testing.T) {
 
 	_, err = svc.Refresh(context.Background(), auth.RefreshRequest{
 		RefreshToken: reg.Tokens.RefreshToken,
-	}, "ua")
+	})
 	require.ErrorIs(t, err, auth.ErrInvalidCredentials)
 }
 
@@ -294,7 +294,7 @@ func TestMeReturnsCurrentUser(t *testing.T) {
 
 	reg, err := svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "me@example.com", Password: "a-strong-password", DisplayName: "Me",
-	}, "ua")
+	})
 	require.NoError(t, err)
 
 	got, err := svc.Me(context.Background(), reg.User.ID)

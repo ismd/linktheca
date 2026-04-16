@@ -77,7 +77,7 @@ func TestHTTPLoginSuccess(t *testing.T) {
 	router, svc, _ := newTestHTTP(t, true)
 	_, err := svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "li@example.com", Password: "a-strong-password", DisplayName: "LI",
-	}, "ua")
+	})
 	require.NoError(t, err)
 
 	body, _ := json.Marshal(auth.LoginRequest{
@@ -95,7 +95,7 @@ func TestHTTPLoginWrongPassword(t *testing.T) {
 	router, svc, _ := newTestHTTP(t, true)
 	_, err := svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "lw@example.com", Password: "a-strong-password", DisplayName: "LW",
-	}, "ua")
+	})
 	require.NoError(t, err)
 
 	body, _ := json.Marshal(auth.LoginRequest{
@@ -113,7 +113,7 @@ func TestHTTPRefreshRotates(t *testing.T) {
 	router, svc, _ := newTestHTTP(t, true)
 	reg, err := svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "rfa@example.com", Password: "a-strong-password", DisplayName: "RFA",
-	}, "ua")
+	})
 	require.NoError(t, err)
 
 	body, _ := json.Marshal(auth.RefreshRequest{RefreshToken: reg.Tokens.RefreshToken})
@@ -133,7 +133,7 @@ func TestHTTPLogout(t *testing.T) {
 	router, svc, _ := newTestHTTP(t, true)
 	reg, err := svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "lgo@example.com", Password: "a-strong-password", DisplayName: "LGO",
-	}, "ua")
+	})
 	require.NoError(t, err)
 
 	body, _ := json.Marshal(auth.RefreshRequest{RefreshToken: reg.Tokens.RefreshToken})
@@ -150,7 +150,7 @@ func TestHTTPMeReturnsUser(t *testing.T) {
 	router, svc, _ := newTestHTTP(t, true)
 	reg, err := svc.Register(context.Background(), auth.RegisterRequest{
 		Email: "meh@example.com", Password: "a-strong-password", DisplayName: "MEH",
-	}, "ua")
+	})
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
