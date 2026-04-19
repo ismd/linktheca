@@ -61,7 +61,7 @@ linktheca/
 **Files:**
 - Create: `migrations/004_article_contents.sql`
 
-- [ ] **Step 1: Create migration file**
+- [x] **Step 1: Create migration file**
 
 Create `migrations/004_article_contents.sql`:
 ```sql
@@ -89,7 +89,7 @@ CREATE INDEX article_contents_fts_idx ON article_contents USING GIN (
 DROP TABLE article_contents;
 ```
 
-- [ ] **Step 2: Verify migration applies**
+- [x] **Step 2: Verify migration applies**
 
 Start Postgres and run the backend to apply migrations:
 ```bash
@@ -114,7 +114,7 @@ kill %1
 wait 2>/dev/null
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add migrations/004_article_contents.sql
