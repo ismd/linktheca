@@ -128,7 +128,7 @@ git commit -m "feat(db): add article_contents migration for shared content cache
 **Files:**
 - Create: `migrations/005_library_items.sql`
 
-- [ ] **Step 1: Create migration file**
+- [x] **Step 1: Create migration file**
 
 Create `migrations/005_library_items.sql`:
 ```sql
@@ -153,7 +153,7 @@ CREATE INDEX library_items_user_state_idx ON library_items (user_id, state);
 DROP TABLE library_items;
 ```
 
-- [ ] **Step 2: Verify migration applies**
+- [x] **Step 2: Verify migration applies**
 
 ```bash
 LINKTHECA_DB_DSN="postgres://linktheca:linktheca@localhost:5432/linktheca?sslmode=disable" \
@@ -167,7 +167,7 @@ wait 2>/dev/null
 
 Expected: prints column listing with `id`, `user_id`, `content_id`, `state`, `is_favorite`, `note`, `saved_at`, `read_at`.
 
-- [ ] **Step 3: Stop dev DB and commit**
+- [x] **Step 3: Stop dev DB and commit**
 
 ```bash
 make dev-db-down
