@@ -185,7 +185,7 @@ git commit -m "feat(db): add library_items migration for per-user saved articles
 - Create: `internal/core/content/extractor.go`
 - Test: `internal/core/content/extractor_test.go`
 
-- [ ] **Step 1: Add go-readability dependency**
+- [x] **Step 1: Add go-readability dependency**
 
 ```bash
 go get github.com/go-shiori/go-readability
@@ -193,7 +193,7 @@ go get github.com/go-shiori/go-readability
 
 Expected: package downloaded, `go.mod` and `go.sum` updated.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `internal/core/content/extractor_test.go`:
 ```go
@@ -268,7 +268,7 @@ func TestReadingTimeEstimation(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [x] **Step 3: Run test to verify it fails**
 
 ```bash
 go test ./internal/core/content/... -v
@@ -276,7 +276,7 @@ go test ./internal/core/content/... -v
 
 Expected: FAIL — package does not exist.
 
-- [ ] **Step 4: Write the implementation**
+- [x] **Step 4: Write the implementation**
 
 Create `internal/core/content/extractor.go`:
 ```go
@@ -373,7 +373,7 @@ func EstimateReadingTime(text string) int {
 }
 ```
 
-- [ ] **Step 5: Run tests to verify pass**
+- [x] **Step 5: Run tests to verify pass**
 
 ```bash
 go test ./internal/core/content/... -v
@@ -381,7 +381,7 @@ go test ./internal/core/content/... -v
 
 Expected: PASS for all three tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 go mod tidy
