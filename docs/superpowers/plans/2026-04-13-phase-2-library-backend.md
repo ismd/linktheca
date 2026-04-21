@@ -398,7 +398,7 @@ git commit -m "feat(content): article extractor with go-readability"
 **Files:**
 - Create: `internal/library/types.go`
 
-- [ ] **Step 1: Create types file**
+- [x] **Step 1: Create types file**
 
 Create `internal/library/types.go`:
 ```go
@@ -468,7 +468,7 @@ type ListResult struct {
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [x] **Step 2: Verify it compiles**
 
 ```bash
 go build ./internal/library/...
@@ -476,7 +476,7 @@ go build ./internal/library/...
 
 Expected: no output, no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/library/types.go
