@@ -1,4 +1,4 @@
-.PHONY: help dev-db dev-db-down dev-db-logs run test test-unit test-integration lint tidy build clean
+.PHONY: help dev-db dev-db-down dev-db-logs run test test-unit test-integration smoke-radar lint tidy build server-build cli-build clean
 
 help:
 	@echo "Available targets:"
@@ -24,7 +24,7 @@ dev-db-logs:
 	docker compose -f compose.dev.yaml logs -f postgres
 
 run:
-	go run ./cmd/linktheca
+	go run ./cmd/linktheca-server
 
 test:
 	go test ./... -race -count=1
@@ -41,7 +41,13 @@ lint:
 tidy:
 	go mod tidy
 
-build:
+build: server-build cli-build
+
+server-build:
+	mkdir -p bin
+	go build -o bin/linktheca-server ./cmd/linktheca-server
+
+cli-build:
 	mkdir -p bin
 	go build -o bin/linktheca ./cmd/linktheca
 
