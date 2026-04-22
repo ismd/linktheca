@@ -385,7 +385,7 @@ git commit -m "test(testdb): assert pgvector type works under schema-per-test"
 **Files:**
 - Create: `migrations/006_radar_topics.sql`
 
-- [ ] **Step 1: Create the migration file**
+- [x] **Step 1: Create the migration file**
 
 ```sql
 -- +goose Up
@@ -406,7 +406,7 @@ CREATE INDEX radar_topics_user_active_idx ON radar_topics (user_id) WHERE is_act
 DROP TABLE radar_topics;
 ```
 
-- [ ] **Step 2: Verify it applies**
+- [x] **Step 2: Verify it applies**
 
 ```bash
 make dev-db
@@ -427,7 +427,7 @@ docker compose -f compose.dev.yaml exec -T postgres \
 
 Expected: table definition printed.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add migrations/006_radar_topics.sql
