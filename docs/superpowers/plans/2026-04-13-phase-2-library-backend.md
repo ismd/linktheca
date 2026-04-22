@@ -2396,7 +2396,7 @@ git commit -m "feat(server): wire library module into HTTP router"
 **Files:**
 - Create: `internal/library/integration_test.go`
 
-- [ ] **Step 1: Write the end-to-end integration test**
+- [x] **Step 1: Write the end-to-end integration test**
 
 Create `internal/library/integration_test.go`:
 ```go
@@ -2578,7 +2578,7 @@ func TestIntegrationSaveDuplicateURL(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run the integration tests**
+- [x] **Step 2: Run the integration tests**
 
 ```bash
 go test ./internal/library/... -v -count=1 -run TestIntegration
@@ -2586,7 +2586,7 @@ go test ./internal/library/... -v -count=1 -run TestIntegration
 
 Expected: PASS for all integration tests (testcontainers spins up a real Postgres).
 
-- [ ] **Step 3: Run the entire test suite**
+- [x] **Step 3: Run the entire test suite**
 
 ```bash
 go test ./... -count=1 -race
@@ -2594,7 +2594,7 @@ go test ./... -count=1 -race
 
 Expected: PASS for all packages — auth, library, core, server.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/library/integration_test.go
