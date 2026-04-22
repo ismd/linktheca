@@ -2821,14 +2821,14 @@ git commit -m "feat(server): add library content detail route"
 
 **Files:** (none — manual verification)
 
-- [ ] **Step 1: Start Postgres**
+- [x] **Step 1: Start Postgres**
 
 ```bash
 make dev-db
 sleep 3
 ```
 
-- [ ] **Step 2: Start backend**
+- [x] **Step 2: Start backend**
 
 ```bash
 LINKTHECA_DB_DSN="postgres://linktheca:linktheca@localhost:5432/linktheca?sslmode=disable" \
@@ -2837,7 +2837,7 @@ go run ./cmd/linktheca &
 sleep 2
 ```
 
-- [ ] **Step 3: Register and get token (or login if user already exists)**
+- [x] **Step 3: Register and get token (or login if user already exists)**
 
 ```bash
 curl -s -X POST http://localhost:8080/auth/register \
@@ -2853,7 +2853,7 @@ ACCESS=$(jq -r '.tokens.access_token' /tmp/register.json)
 echo "Token: $ACCESS"
 ```
 
-- [ ] **Step 4: Save a URL to the library**
+- [x] **Step 4: Save a URL to the library**
 
 ```bash
 curl -s -X POST http://localhost:8080/library \
@@ -2864,7 +2864,7 @@ curl -s -X POST http://localhost:8080/library \
 
 Expected: 201 with JSON containing `id`, `state: "unread"`, `url`, and extracted `title`.
 
-- [ ] **Step 5: List library items**
+- [x] **Step 5: List library items**
 
 ```bash
 curl -s http://localhost:8080/library \
@@ -2873,7 +2873,7 @@ curl -s http://localhost:8080/library \
 
 Expected: JSON with `total: 1` and the saved item in `items`.
 
-- [ ] **Step 6: Get item detail (full content)**
+- [x] **Step 6: Get item detail (full content)**
 
 ```bash
 ITEM_ID=$(jq -r '.id' /tmp/saved.json)
@@ -2883,7 +2883,7 @@ curl -s http://localhost:8080/library/${ITEM_ID}/content \
 
 Expected: JSON with `content` object containing `text` and `html` fields.
 
-- [ ] **Step 7: Mark as read**
+- [x] **Step 7: Mark as read**
 
 ```bash
 curl -s -X PATCH http://localhost:8080/library/${ITEM_ID} \
@@ -2894,7 +2894,7 @@ curl -s -X PATCH http://localhost:8080/library/${ITEM_ID} \
 
 Expected: JSON with `state: "read"` and `read_at` set.
 
-- [ ] **Step 8: Delete**
+- [x] **Step 8: Delete**
 
 ```bash
 curl -s -X DELETE http://localhost:8080/library/${ITEM_ID} \
@@ -2903,7 +2903,7 @@ curl -s -X DELETE http://localhost:8080/library/${ITEM_ID} \
 
 Expected: 204 with no body.
 
-- [ ] **Step 9: Stop backend and DB**
+- [x] **Step 9: Stop backend and DB**
 
 ```bash
 kill %1
@@ -2911,7 +2911,7 @@ wait 2>/dev/null
 make dev-db-down
 ```
 
-- [ ] **Step 10: No commit needed — manual verification only**
+- [x] **Step 10: No commit needed — manual verification only**
 
 If any step failed, fix the issue, commit the fix, and re-run.
 
