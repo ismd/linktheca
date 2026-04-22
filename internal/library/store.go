@@ -283,3 +283,34 @@ func scanItemFromRows(rows pgx.Rows) (*Item, error) {
 
 	return &item, nil
 }
+
+// GetItemDetail returns a library item with the full article_contents record
+func (s *Store) GetItemDetail(ctx context.Context, userID, itemID int64) (*ItemDetail, error) {
+	row := s.db.QueryRow(ctx, `
+		SELECT li.id, li.user_id, li.content_id, li.state, li.is_favorite, li.saved_at, li.read_at,
+		       ac.url, ac.title, ac.excerpt, ac.reading_time_seconds,
+		       ac.id, ac.url, ac.canonical_url, ac.title, ac.byline, ac.excerpt, ac.text, ac.html,
+		       ac.lang, ac.reading_time_seconds, ac.fetched_at, ac.fetch_error
+		FROM library_items li
+		JOIN article_contents ac ON ac.id = li.content_id
+		WHERE li.id = $1 AND li.user_id = $2
+	`, itemID, userID)
+
+	var d ItemDetail
+	err := row.Scan(
+		&d.ID, &d.UserID, &d.ContentID, &d.State, &d.IsFavorite, &d.SavedAt, &d.ReadAt,
+		&d.URL, &d.Title, &d.Excerpt, &d.ReadTimeSecs,
+		&d.Content.ID, &d.Content.URL, &d.Content.CanonicalURL, &d.Content.Title,
+		&d.Content.Byline, &d.Content.Excerpt, &d.Content.Text, &d.Content.HTML,
+		&d.Content.Lang, &d.Content.ReadingTimeSecs, &d.Content.FetchedAt, &d.Content.FetchError,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("get item detail: %w", err)
+	}
+
+	return &d, nil
+}

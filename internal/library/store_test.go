@@ -379,3 +379,31 @@ func createTestUserWithEmail(t *testing.T, pool *pgxpool.Pool, email string) int
 	require.NoError(t, err)
 	return id
 }
+
+func TestIntegrationGetItemDetail(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := library.NewStore(pool)
+	ctx := context.Background()
+
+	userID := createTestUser(t, pool)
+
+	content, _ := store.UpsertContent(ctx, library.UpsertContentParams{
+		URL:   "https://example.com/detail",
+		Title: ptr("Detail Article"),
+		Text:  ptr("Full article text for reader view."),
+		HTML:  ptr("<p>Full article text for reader view.</p>"),
+	})
+	item, _ := store.CreateItem(ctx, userID, content.ID)
+
+	detail, err := store.GetItemDetail(ctx, userID, item.ID)
+	require.NoError(t, err)
+	require.Equal(t, item.ID, detail.ID)
+	require.Equal(t, "https://example.com/detail", detail.Content.URL)
+	require.NotNil(t, detail.Content.Text)
+	require.Equal(t, "Full article text for reader view.", *detail.Content.Text)
+	require.NotNil(t, detail.Content.HTML)
+}

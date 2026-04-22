@@ -147,6 +147,26 @@ func (h *HTTP) delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// GetDetailHandler returns the http.HandlerFunc for GET /library/:id/content
+func (h *HTTP) GetDetailHandler() http.HandlerFunc { return h.getDetail }
+
+func (h *HTTP) getDetail(w http.ResponseWriter, r *http.Request) {
+	userID := coreauth.UserID(r.Context())
+	itemID, err := parseID(r)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid id")
+		return
+	}
+
+	detail, err := h.svc.GetDetail(r.Context(), userID, itemID)
+	if err != nil {
+		writeLibraryError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, detail)
+}
+
 func parseID(r *http.Request) (int64, error) {
 	return strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 }

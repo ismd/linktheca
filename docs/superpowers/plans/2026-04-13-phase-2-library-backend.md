@@ -2616,7 +2616,7 @@ The `GetByID` from Task 6 joins only summary fields (URL, title, excerpt, readin
 - Modify: `internal/library/service.go`
 - Modify: `internal/library/http.go`
 
-- [ ] **Step 1: Add ItemDetail type to types.go**
+- [x] **Step 1: Add ItemDetail type to types.go**
 
 Append to `internal/library/types.go`:
 ```go
@@ -2627,7 +2627,7 @@ type ItemDetail struct {
 }
 ```
 
-- [ ] **Step 2: Write the failing integration test**
+- [x] **Step 2: Write the failing integration test**
 
 Append to `internal/library/store_test.go`:
 ```go
@@ -2660,7 +2660,7 @@ func TestIntegrationGetItemDetail(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [x] **Step 3: Run test to verify it fails**
 
 ```bash
 go test ./internal/library/... -v -count=1 -run TestIntegrationGetItemDetail
@@ -2668,7 +2668,7 @@ go test ./internal/library/... -v -count=1 -run TestIntegrationGetItemDetail
 
 Expected: FAIL — `GetItemDetail` not defined.
 
-- [ ] **Step 4: Implement GetItemDetail in store**
+- [x] **Step 4: Implement GetItemDetail in store**
 
 Append to `internal/library/store.go`:
 ```go
@@ -2702,7 +2702,7 @@ func (s *Store) GetItemDetail(ctx context.Context, userID, itemID int64) (*ItemD
 }
 ```
 
-- [ ] **Step 5: Add GetItemDetail to StoreAPI interface and service**
+- [x] **Step 5: Add GetItemDetail to StoreAPI interface and service**
 
 Add to the `StoreAPI` interface in `service.go`:
 ```go
@@ -2742,7 +2742,7 @@ func (h *HTTP) getDetail(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 6: Update mock store in service_test.go**
+- [x] **Step 6: Update mock store in service_test.go**
 
 Add to `mockStore`:
 ```go
@@ -2755,7 +2755,7 @@ func (m *mockStore) GetItemDetail(_ context.Context, userID, itemID int64) (*lib
 }
 ```
 
-- [ ] **Step 7: Run all tests**
+- [x] **Step 7: Run all tests**
 
 ```bash
 go test ./internal/library/... -v -count=1
@@ -2763,7 +2763,7 @@ go test ./internal/library/... -v -count=1
 
 Expected: PASS for all tests.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add internal/library/

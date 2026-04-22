@@ -69,3 +69,9 @@ type UpdateParams struct {
 	IsFavorite *bool
 	Note       *string
 }
+
+// ItemDetail is a library item with the full article content for reader view.
+type ItemDetail struct {
+	Item
+	Content ArticleContent `json:"content"`
+}

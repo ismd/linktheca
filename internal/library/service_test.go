@@ -147,6 +147,15 @@ func (m *mockStore) contentTitle(contentID int64) *string {
 	return nil
 }
 
+func (m *mockStore) GetItemDetail(_ context.Context, userID, itemID int64) (*library.ItemDetail, error) {
+	item, ok := m.items[itemID]
+	if !ok || item.UserID != userID {
+		return nil, library.ErrNotFound
+	}
+
+	return &library.ItemDetail{Item: *item}, nil
+}
+
 // --- mock extractor ---
 
 type mockExtractor struct {

@@ -15,6 +15,7 @@ type StoreAPI interface {
 	ListItems(ctx context.Context, p ListParams) (*ListResult, error)
 	UpdateItem(ctx context.Context, userID, itemID int64, p UpdateParams) (*Item, error)
 	DeleteItem(ctx context.Context, userID, itemID int64) error
+	GetItemDetail(ctx context.Context, userID, itemID int64) (*ItemDetail, error)
 }
 
 type Service struct {
@@ -98,6 +99,11 @@ func (s *Service) Update(ctx context.Context, userID, itemID int64, req UpdateRe
 // Delete removes a library item
 func (s *Service) Delete(ctx context.Context, userID, itemID int64) error {
 	return s.store.DeleteItem(ctx, userID, itemID)
+}
+
+// GetDetail returns a single library item with full article content for reader view
+func (s *Service) GetDetail(ctx context.Context, userID, itemID int64) (*ItemDetail, error) {
+	return s.store.GetItemDetail(ctx, userID, itemID)
 }
 
 func nilIfEmpty(s string) *string {
