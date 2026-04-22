@@ -481,7 +481,7 @@ git commit -m "feat(radar): add radar_feeds migration"
 **Files:**
 - Create: `migrations/008_radar_feed_subscriptions.sql`
 
-- [ ] **Step 1: Create the migration file**
+- [x] **Step 1: Create the migration file**
 
 ```sql
 -- +goose Up
@@ -496,9 +496,9 @@ CREATE TABLE radar_feed_subscriptions (
 DROP TABLE radar_feed_subscriptions;
 ```
 
-- [ ] **Step 2: Verify apply**
+- [x] **Step 2: Verify apply**
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add migrations/008_radar_feed_subscriptions.sql
