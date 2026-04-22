@@ -284,7 +284,7 @@ git commit -m "feat(config): add TEI and Radar env fields"
 **Files:**
 - Modify: `go.mod`, `go.sum`
 
-- [ ] **Step 1: Add dependencies**
+- [x] **Step 1: Add dependencies**
 
 ```bash
 go get github.com/pgvector/pgvector-go
@@ -295,13 +295,13 @@ go get github.com/riverqueue/river/rivermigrate
 go get github.com/spf13/cobra
 ```
 
-- [ ] **Step 2: Tidy**
+- [x] **Step 2: Tidy**
 
 ```bash
 go mod tidy
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 ```bash
 go build ./...
@@ -309,7 +309,7 @@ go build ./...
 
 Expected: success (no code uses them yet; they are tracked as direct deps once first imported in later tasks — that's fine).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add go.mod go.sum

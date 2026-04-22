@@ -3,6 +3,7 @@ module github.com/ismd/linktheca
 go 1.26.2
 
 require (
+	codeberg.org/readeck/go-readability/v2 v2.1.1
 	github.com/alexedwards/argon2id v1.0.0
 	github.com/caarlos0/env/v11 v11.4.0
 	github.com/go-chi/chi/v5 v5.2.5
@@ -17,7 +18,6 @@ require (
 )
 
 require (
-	codeberg.org/readeck/go-readability/v2 v2.1.1 // indirect
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
