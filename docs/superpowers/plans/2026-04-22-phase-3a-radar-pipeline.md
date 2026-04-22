@@ -512,7 +512,7 @@ git commit -m "feat(radar): add radar_feed_subscriptions migration"
 **Files:**
 - Create: `migrations/009_radar_findings.sql`
 
-- [ ] **Step 1: Create the migration file**
+- [x] **Step 1: Create the migration file**
 
 ```sql
 -- +goose Up
@@ -536,9 +536,9 @@ CREATE INDEX radar_findings_embedding_hnsw ON radar_findings USING hnsw (embeddi
 DROP TABLE radar_findings;
 ```
 
-- [ ] **Step 2: Verify apply**
+- [x] **Step 2: Verify apply**
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add migrations/009_radar_findings.sql
