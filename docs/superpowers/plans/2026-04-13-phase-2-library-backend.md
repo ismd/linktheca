@@ -2259,7 +2259,7 @@ git commit -m "feat(library): HTTP handlers for save, list, get, update, delete"
 **Files:**
 - Modify: `internal/server/server.go`
 
-- [ ] **Step 1: Update server.go to include library routes**
+- [x] **Step 1: Update server.go to include library routes**
 
 Add the library import and wiring. The full updated `server.go`:
 
@@ -2364,7 +2364,7 @@ func New(deps Deps) *http.Server {
 }
 ```
 
-- [ ] **Step 2: Verify everything compiles**
+- [x] **Step 2: Verify everything compiles**
 
 ```bash
 go build ./...
@@ -2372,7 +2372,7 @@ go build ./...
 
 Expected: no errors.
 
-- [ ] **Step 3: Run all tests (unit)**
+- [x] **Step 3: Run all tests (unit)**
 
 ```bash
 go test ./... -short -count=1
@@ -2380,7 +2380,7 @@ go test ./... -short -count=1
 
 Expected: PASS for all packages.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/server/server.go

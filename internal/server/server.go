@@ -11,7 +11,9 @@ import (
 	"github.com/ismd/linktheca/internal/auth"
 	coreauth "github.com/ismd/linktheca/internal/core/auth"
 	"github.com/ismd/linktheca/internal/core/config"
+	"github.com/ismd/linktheca/internal/core/content"
 	"github.com/ismd/linktheca/internal/core/httpx"
+	"github.com/ismd/linktheca/internal/library"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -27,12 +29,19 @@ func New(deps Deps) *http.Server {
 
 	issuer := coreauth.NewJWTIssuer(cfg.JWTSecret, cfg.JWTAccessTTL)
 
+	// Auth module
 	authStore := auth.NewStore(deps.DB)
 	authSvc := auth.NewService(authStore, issuer, auth.ServiceConfig{
 		RefreshTTL:          cfg.JWTRefreshTTL,
 		RegistrationEnabled: cfg.RegistrationEnabled,
 	})
 	authHTTP := auth.NewHTTP(authSvc, issuer)
+
+	// Library module
+	libStore := library.NewStore(deps.DB)
+	extractor := content.NewExtractor()
+	libSvc := library.NewService(libStore, extractor)
+	libHTTP := library.NewHTTP(libSvc)
 
 	r := chi.NewRouter()
 
@@ -54,6 +63,7 @@ func New(deps Deps) *http.Server {
 		_, _ = w.Write([]byte("ok"))
 	})
 
+	// Auth — public (rate-limited)
 	r.Group(func(r chi.Router) {
 		r.Use(httprate.LimitByIP(10, 10*time.Minute))
 		r.Post("/auth/register", authHTTP.RegisterHandler())
@@ -61,10 +71,21 @@ func New(deps Deps) *http.Server {
 		r.Post("/auth/refresh", authHTTP.RefreshHandler())
 	})
 
+	// Auth — protected
 	r.Group(func(r chi.Router) {
 		r.Use(coreauth.RequireUser(issuer))
 		r.Post("/auth/logout", authHTTP.LogoutHandler())
 		r.Get("/auth/me", authHTTP.MeHandler())
+	})
+
+	// Library — all routes require auth
+	r.Route("/library", func(r chi.Router) {
+		r.Use(coreauth.RequireUser(issuer))
+		r.Post("/", libHTTP.SaveHandler())
+		r.Get("/", libHTTP.ListHandler())
+		r.Get("/{id}", libHTTP.GetHandler())
+		r.Patch("/{id}", libHTTP.UpdateHandler())
+		r.Delete("/{id}", libHTTP.DeleteHandler())
 	})
 
 	srv := &http.Server{
