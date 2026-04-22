@@ -54,3 +54,18 @@ func TestLoadDefaults(t *testing.T) {
 	require.Equal(t, "info", cfg.LogLevel)
 	require.Equal(t, "text", cfg.LogFormat)
 }
+
+func TestLoad_RadarDefaults(t *testing.T) {
+	t.Setenv("LINKTHECA_DB_DSN", "postgres://x:y@localhost:5432/z?sslmode=disable")
+	t.Setenv("LINKTHECA_JWT_SECRET", "dev-only-secret-that-is-at-least-32-bytes-long")
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+
+	require.Equal(t, "http://localhost:8081", cfg.TEIURL)
+	require.Equal(t, 30*time.Second, cfg.TEITimeout)
+	require.Equal(t, 1024, cfg.EmbeddingDim)
+	require.True(t, cfg.RadarEnabled)
+	require.Equal(t, 5*time.Minute, cfg.RadarSchedulerInterval)
+	require.Equal(t, 5, cfg.RadarMaxWorkers)
+}

@@ -210,7 +210,7 @@ git commit -m "refactor(cmd): rename linktheca to linktheca-server"
 **Files:**
 - Modify: `internal/core/config/config.go`
 
-- [ ] **Step 1: Write a failing test for the new fields**
+- [x] **Step 1: Write a failing test for the new fields**
 
 Create `internal/core/config/config_test.go` if it doesn't exist, or add to it. (This test validates that the new env vars are parsed — it's a tiny guard, not a full config-coverage pass.)
 
@@ -240,7 +240,7 @@ func TestLoad_RadarDefaults(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test — expect failure**
+- [x] **Step 2: Run test — expect failure**
 
 ```bash
 go test ./internal/core/config/...
@@ -248,7 +248,7 @@ go test ./internal/core/config/...
 
 Expected: compile error (fields don't exist yet).
 
-- [ ] **Step 3: Add fields to `Config`**
+- [x] **Step 3: Add fields to `Config`**
 
 Edit `internal/core/config/config.go`. Inside the `Config` struct (after existing fields), add:
 
@@ -262,7 +262,7 @@ Edit `internal/core/config/config.go`. Inside the `Config` struct (after existin
 	RadarMaxWorkers        int           `env:"LINKTHECA_RADAR_MAX_WORKERS" envDefault:"5"`
 ```
 
-- [ ] **Step 4: Run tests — expect pass**
+- [x] **Step 4: Run tests — expect pass**
 
 ```bash
 go test ./internal/core/config/...
@@ -270,7 +270,7 @@ go test ./internal/core/config/...
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/core/config/

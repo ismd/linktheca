@@ -22,6 +22,14 @@ type Config struct {
 	RegistrationEnabled bool `env:"LINKTHECA_REGISTRATION_ENABLED" envDefault:"true"`
 
 	CORSOrigins []string `env:"LINKTHECA_CORS_ORIGINS" envSeparator:","`
+
+	TEIURL       string        `env:"LINKTHECA_TEI_URL" envDefault:"http://localhost:8081"`
+	TEITimeout   time.Duration `env:"LINKTHECA_TEI_TIMEOUT" envDefault:"30s"`
+	EmbeddingDim int           `env:"LINKTHECA_EMBEDDING_DIM" envDefault:"1024"`
+
+	RadarEnabled           bool          `env:"LINKTHECA_RADAR_ENABLED" envDefault:"true"`
+	RadarSchedulerInterval time.Duration `env:"LINKTHECA_RADAR_SCHEDULER_INTERVAL" envDefault:"5m"`
+	RadarMaxWorkers        int           `env:"LINKTHECA_RADAR_MAX_WORKERS" envDefault:"5"`
 }
 
 func Load() (*Config, error) {
