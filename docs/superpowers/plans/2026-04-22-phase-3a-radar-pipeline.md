@@ -325,7 +325,7 @@ Observation: `testdb.New` uses `search_path=<schema>` without `,public`. Extensi
 **Files:**
 - Create: `internal/testing/testdb/testdb_vector_test.go`
 
-- [ ] **Step 1: Write a sanity test**
+- [x] **Step 1: Write a sanity test**
 
 Create `internal/testing/testdb/testdb_vector_test.go`:
 
@@ -361,7 +361,7 @@ func TestVectorTypeAvailable(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run the test**
+- [x] **Step 2: Run the test**
 
 ```bash
 go test ./internal/testing/testdb/... -run TestVectorTypeAvailable -v
@@ -369,7 +369,7 @@ go test ./internal/testing/testdb/... -run TestVectorTypeAvailable -v
 
 Expected: PASS. If it fails with `type "vector" does not exist`, fix by editing `testdb.go`: change `scopedDSN := sharedDSN + "&search_path=" + schema` to `scopedDSN := sharedDSN + "&search_path=" + schema + ",public"`. Re-run — expected PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/testing/testdb/
