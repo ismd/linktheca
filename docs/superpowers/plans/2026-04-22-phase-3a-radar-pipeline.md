@@ -441,7 +441,7 @@ git commit -m "feat(radar): add radar_topics migration"
 **Files:**
 - Create: `migrations/007_radar_feeds.sql`
 
-- [ ] **Step 1: Create the migration file**
+- [x] **Step 1: Create the migration file**
 
 ```sql
 -- +goose Up
@@ -465,9 +465,9 @@ CREATE INDEX radar_feeds_active_fetched_idx ON radar_feeds (is_active, last_fetc
 DROP TABLE radar_feeds;
 ```
 
-- [ ] **Step 2: Verify apply (same procedure as task 5)**
+- [x] **Step 2: Verify apply (same procedure as task 5)**
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add migrations/007_radar_feeds.sql
