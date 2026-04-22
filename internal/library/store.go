@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -101,4 +102,184 @@ func scanContent(row pgx.Row) (*ArticleContent, error) {
 	}
 
 	return &c, nil
+}
+
+// GetItemByID returns a single library item with joined content fields
+// Only returns items belonging to the given user
+func (s *Store) GetItemByID(ctx context.Context, userID, itemID int64) (*Item, error) {
+	row := s.db.QueryRow(ctx, `
+		SELECT li.id, li.user_id, li.content_id, li.state, li.is_favorite, li.saved_at, li.read_at,
+		       ac.url, ac.title, ac.excerpt, ac.reading_time_seconds
+		FROM library_items li
+		JOIN article_contents ac ON ac.id = li.content_id
+		WHERE li.id = $1 AND li.user_id = $2
+	`, itemID, userID)
+
+	return scanItem(row)
+}
+
+// ListItems returns paginated library items for a user with optional state filter
+func (s *Store) ListItems(ctx context.Context, p ListParams) (*ListResult, error) {
+	// Count total matching rows.
+	countQuery := `SELECT count(*) FROM library_items WHERE user_id = $1`
+	countArgs := []any{p.UserID}
+	argIdx := 2
+
+	if p.State != "" {
+		countQuery += fmt.Sprintf(` AND state = $%d`, argIdx)
+		countArgs = append(countArgs, p.State)
+		argIdx++
+	}
+	if p.Favorite != nil {
+		countQuery += fmt.Sprintf(` AND is_favorite = $%d`, argIdx)
+		countArgs = append(countArgs, *p.Favorite)
+		argIdx++
+	}
+
+	var total int
+	if err := s.db.QueryRow(ctx, countQuery, countArgs...).Scan(&total); err != nil {
+		return nil, fmt.Errorf("count items: %w", err)
+	}
+
+	// Fetch items page.
+	query := `
+		SELECT li.id, li.user_id, li.content_id, li.state, li.is_favorite, li.saved_at, li.read_at,
+		       ac.url, ac.title, ac.excerpt, ac.reading_time_seconds
+		FROM library_items li
+		JOIN article_contents ac ON ac.id = li.content_id
+		WHERE li.user_id = $1`
+	args := []any{p.UserID}
+	argIdx = 2
+
+	if p.State != "" {
+		query += fmt.Sprintf(` AND li.state = $%d`, argIdx)
+		args = append(args, p.State)
+		argIdx++
+	}
+	if p.Favorite != nil {
+		query += fmt.Sprintf(` AND li.is_favorite = $%d`, argIdx)
+		args = append(args, *p.Favorite)
+		argIdx++
+	}
+
+	query += ` ORDER BY li.saved_at DESC`
+	query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, argIdx, argIdx+1)
+	args = append(args, p.Limit, p.Offset)
+
+	rows, err := s.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list items: %w", err)
+	}
+	defer rows.Close()
+
+	var items []Item
+	for rows.Next() {
+		item, err := scanItemFromRows(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan item: %w", err)
+		}
+		items = append(items, *item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows: %w", err)
+	}
+	if items == nil {
+		items = []Item{}
+	}
+
+	return &ListResult{Items: items, Total: total}, nil
+}
+
+// UpdateItem partially updates a library item. Only non-nil fields are changed
+// When state changes to "read", read_at is set to now(). When state changes away from "read", read_at is cleared
+func (s *Store) UpdateItem(ctx context.Context, userID, itemID int64, p UpdateParams) (*Item, error) {
+	setClauses := []string{}
+	args := []any{}
+	argIdx := 1
+
+	if p.State != nil {
+		setClauses = append(setClauses, fmt.Sprintf("state = $%d", argIdx))
+		args = append(args, *p.State)
+		argIdx++
+
+		if *p.State == "read" {
+			setClauses = append(setClauses, "read_at = now()")
+		} else {
+			setClauses = append(setClauses, "read_at = NULL")
+		}
+	}
+
+	if p.IsFavorite != nil {
+		setClauses = append(setClauses, fmt.Sprintf("is_favorite = $%d", argIdx))
+		args = append(args, *p.IsFavorite)
+		argIdx++
+	}
+
+	if len(setClauses) == 0 {
+		return s.GetItemByID(ctx, userID, itemID)
+	}
+
+	query := fmt.Sprintf(`UPDATE library_items SET %s WHERE id = $%d AND user_id = $%d
+		RETURNING id, user_id, content_id, state, is_favorite, saved_at, read_at`,
+		strings.Join(setClauses, ", "), argIdx, argIdx+1)
+	args = append(args, itemID, userID)
+
+	var item Item
+	err := s.db.QueryRow(ctx, query, args...).Scan(
+		&item.ID, &item.UserID, &item.ContentID, &item.State,
+		&item.IsFavorite, &item.SavedAt, &item.ReadAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("update item: %w", err)
+	}
+
+	return &item, nil
+}
+
+// DeleteItem removes a library item. Returns ErrNotFound if the item doesn't exist or doesn't belong to the user.
+func (s *Store) DeleteItem(ctx context.Context, userID, itemID int64) error {
+	tag, err := s.db.Exec(ctx, `DELETE FROM library_items WHERE id = $1 AND user_id = $2`, itemID, userID)
+
+	if err != nil {
+		return fmt.Errorf("delete item: %w", err)
+	}
+
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+func scanItem(row pgx.Row) (*Item, error) {
+	var item Item
+
+	err := row.Scan(&item.ID, &item.UserID, &item.ContentID, &item.State,
+		&item.IsFavorite, &item.SavedAt, &item.ReadAt,
+		&item.URL, &item.Title, &item.Excerpt, &item.ReadTimeSecs)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+
+	return &item, nil
+}
+
+func scanItemFromRows(rows pgx.Rows) (*Item, error) {
+	var item Item
+
+	err := rows.Scan(&item.ID, &item.UserID, &item.ContentID, &item.State,
+		&item.IsFavorite, &item.SavedAt, &item.ReadAt,
+		&item.URL, &item.Title, &item.Excerpt, &item.ReadTimeSecs)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &item, nil
 }

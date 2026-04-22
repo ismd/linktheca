@@ -2,6 +2,7 @@ package library_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/ismd/linktheca/internal/library"
@@ -121,3 +122,260 @@ func createTestUser(t *testing.T, pool *pgxpool.Pool) int64 {
 
 func ptr(s string) *string { return &s }
 func intPtr(n int) *int    { return &n }
+
+func TestIntegrationListItems(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := library.NewStore(pool)
+	ctx := context.Background()
+
+	userID := createTestUser(t, pool)
+
+	// Save 3 articles
+	for i := 0; i < 3; i++ {
+		c, err := store.UpsertContent(ctx, library.UpsertContentParams{
+			URL:   fmt.Sprintf("https://example.com/list-%d", i),
+			Title: ptr(fmt.Sprintf("Article %d", i)),
+		})
+		require.NoError(t, err)
+		_, err = store.CreateItem(ctx, userID, c.ID)
+		require.NoError(t, err)
+	}
+
+	result, err := store.ListItems(ctx, library.ListParams{
+		UserID: userID,
+		Limit:  10,
+		Offset: 0,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 3, result.Total)
+	require.Len(t, result.Items, 3)
+	// Items come with joined content fields
+	require.NotEmpty(t, result.Items[0].URL)
+}
+
+func TestIntegrationListItemsByState(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := library.NewStore(pool)
+	ctx := context.Background()
+
+	userID := createTestUser(t, pool)
+
+	c1, _ := store.UpsertContent(ctx, library.UpsertContentParams{URL: "https://example.com/s1", Title: ptr("S1")})
+	c2, _ := store.UpsertContent(ctx, library.UpsertContentParams{URL: "https://example.com/s2", Title: ptr("S2")})
+
+	item1, _ := store.CreateItem(ctx, userID, c1.ID)
+	_, _ = store.CreateItem(ctx, userID, c2.ID)
+
+	// Mark first as read
+	state := "read"
+	_, err := store.UpdateItem(ctx, userID, item1.ID, library.UpdateParams{State: &state})
+	require.NoError(t, err)
+
+	// Filter by state=unread
+	result, err := store.ListItems(ctx, library.ListParams{
+		UserID: userID,
+		State:  "unread",
+		Limit:  10,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, result.Total)
+}
+
+func TestIntegrationListItemsPagination(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := library.NewStore(pool)
+	ctx := context.Background()
+
+	userID := createTestUser(t, pool)
+
+	for i := 0; i < 5; i++ {
+		c, _ := store.UpsertContent(ctx, library.UpsertContentParams{
+			URL:   fmt.Sprintf("https://example.com/page-%d", i),
+			Title: ptr(fmt.Sprintf("Page %d", i)),
+		})
+		_, _ = store.CreateItem(ctx, userID, c.ID)
+	}
+
+	result, err := store.ListItems(ctx, library.ListParams{
+		UserID: userID,
+		Limit:  2,
+		Offset: 0,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 5, result.Total)
+	require.Len(t, result.Items, 2)
+
+	result2, err := store.ListItems(ctx, library.ListParams{
+		UserID: userID,
+		Limit:  2,
+		Offset: 2,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 5, result2.Total)
+	require.Len(t, result2.Items, 2)
+}
+
+func TestIntegrationGetItemByID(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := library.NewStore(pool)
+	ctx := context.Background()
+
+	userID := createTestUser(t, pool)
+
+	content, _ := store.UpsertContent(ctx, library.UpsertContentParams{
+		URL:   "https://example.com/get-me",
+		Title: ptr("Get Me"),
+		Text:  ptr("Full article text here."),
+		HTML:  ptr("<p>Full article text here.</p>"),
+	})
+	item, _ := store.CreateItem(ctx, userID, content.ID)
+
+	got, err := store.GetItemByID(ctx, userID, item.ID)
+	require.NoError(t, err)
+	require.Equal(t, item.ID, got.ID)
+	require.Equal(t, "https://example.com/get-me", got.URL)
+	require.NotNil(t, got.Title)
+	require.Equal(t, "Get Me", *got.Title)
+}
+
+func TestIntegrationGetItemByIDNotFound(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := library.NewStore(pool)
+
+	_, err := store.GetItemByID(context.Background(), 999, 999)
+	require.ErrorIs(t, err, library.ErrNotFound)
+}
+
+func TestIntegrationGetItemByIDAnotherUser(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := library.NewStore(pool)
+	ctx := context.Background()
+
+	user1 := createTestUser(t, pool)
+	user2 := createTestUserWithEmail(t, pool, "user2@example.com")
+
+	content, _ := store.UpsertContent(ctx, library.UpsertContentParams{URL: "https://example.com/private", Title: ptr("Private")})
+	item, _ := store.CreateItem(ctx, user1, content.ID)
+
+	// user2 should not see user1's item
+	_, err := store.GetItemByID(ctx, user2, item.ID)
+	require.ErrorIs(t, err, library.ErrNotFound)
+}
+
+func TestIntegrationUpdateItem(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := library.NewStore(pool)
+	ctx := context.Background()
+
+	userID := createTestUser(t, pool)
+
+	content, _ := store.UpsertContent(ctx, library.UpsertContentParams{URL: "https://example.com/update-me", Title: ptr("Update Me")})
+	item, _ := store.CreateItem(ctx, userID, content.ID)
+
+	state := "read"
+	fav := true
+	updated, err := store.UpdateItem(ctx, userID, item.ID, library.UpdateParams{
+		State:      &state,
+		IsFavorite: &fav,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "read", updated.State)
+	require.True(t, updated.IsFavorite)
+	require.NotNil(t, updated.ReadAt, "read_at should be set when state becomes read")
+}
+
+func TestIntegrationUpdateItemPartial(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := library.NewStore(pool)
+	ctx := context.Background()
+
+	userID := createTestUser(t, pool)
+
+	content, _ := store.UpsertContent(ctx, library.UpsertContentParams{URL: "https://example.com/partial", Title: ptr("Partial")})
+	item, _ := store.CreateItem(ctx, userID, content.ID)
+
+	// Only update favorite and leave state
+	fav := true
+	updated, err := store.UpdateItem(ctx, userID, item.ID, library.UpdateParams{
+		IsFavorite: &fav,
+	})
+	require.NoError(t, err)
+	require.True(t, updated.IsFavorite)
+	require.Equal(t, "unread", updated.State, "state must not change")
+}
+
+func TestIntegrationDeleteItem(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := library.NewStore(pool)
+	ctx := context.Background()
+
+	userID := createTestUser(t, pool)
+
+	content, _ := store.UpsertContent(ctx, library.UpsertContentParams{URL: "https://example.com/delete-me", Title: ptr("Delete Me")})
+	item, _ := store.CreateItem(ctx, userID, content.ID)
+
+	err := store.DeleteItem(ctx, userID, item.ID)
+	require.NoError(t, err)
+
+	_, err = store.GetItemByID(ctx, userID, item.ID)
+	require.ErrorIs(t, err, library.ErrNotFound)
+}
+
+func TestIntegrationDeleteItemNotFound(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := library.NewStore(pool)
+
+	err := store.DeleteItem(context.Background(), 999, 999)
+	require.ErrorIs(t, err, library.ErrNotFound)
+}
+
+func createTestUserWithEmail(t *testing.T, pool *pgxpool.Pool, email string) int64 {
+	t.Helper()
+	var id int64
+	err := pool.QueryRow(context.Background(),
+		`INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id`,
+		email, "fakehash", "Test User",
+	).Scan(&id)
+	require.NoError(t, err)
+	return id
+}

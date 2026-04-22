@@ -62,3 +62,10 @@ type ListResult struct {
 	Items []Item `json:"items"`
 	Total int    `json:"total"`
 }
+
+// UpdateParams holds the fields that can be changed via store.UpdateItem
+type UpdateParams struct {
+	State      *string
+	IsFavorite *bool
+	Note       *string
+}

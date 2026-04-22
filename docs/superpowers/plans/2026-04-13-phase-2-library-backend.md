@@ -896,7 +896,7 @@ git commit -m "feat(library): store with UpsertContent and CreateItem"
 - Modify: `internal/library/store.go`
 - Modify: `internal/library/store_test.go`
 
-- [ ] **Step 1: Add integration tests for List, GetByID, Update, Delete**
+- [x] **Step 1: Add integration tests for List, GetByID, Update, Delete**
 
 Append to `internal/library/store_test.go`:
 ```go
@@ -1164,7 +1164,7 @@ func createTestUserWithEmail(t *testing.T, pool *pgxpool.Pool, email string) int
 
 Also add `"fmt"` to the imports at the top of the test file (needed by `TestIntegrationListItems`).
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```bash
 go test ./internal/library/... -v -count=1
@@ -1172,7 +1172,7 @@ go test ./internal/library/... -v -count=1
 
 Expected: FAIL — `ListItems`, `GetItemByID`, `UpdateItem`, `DeleteItem` not defined.
 
-- [ ] **Step 3: Add UpdateParams type to types.go**
+- [x] **Step 3: Add UpdateParams type to types.go**
 
 Append to `internal/library/types.go`:
 ```go
@@ -1184,7 +1184,7 @@ type UpdateParams struct {
 }
 ```
 
-- [ ] **Step 4: Implement ListItems, GetItemByID, UpdateItem, DeleteItem**
+- [x] **Step 4: Implement ListItems, GetItemByID, UpdateItem, DeleteItem**
 
 Append to `internal/library/store.go`:
 ```go
@@ -1365,7 +1365,7 @@ func scanItemFromRows(rows pgx.Rows) (*Item, error) {
 
 Also add `"strings"` to the imports in `store.go`.
 
-- [ ] **Step 5: Run tests to verify pass**
+- [x] **Step 5: Run tests to verify pass**
 
 ```bash
 go test ./internal/library/... -v -count=1
@@ -1373,7 +1373,7 @@ go test ./internal/library/... -v -count=1
 
 Expected: PASS for all tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/library/store.go internal/library/store_test.go internal/library/types.go
