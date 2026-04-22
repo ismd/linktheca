@@ -2777,7 +2777,7 @@ git commit -m "feat(library): add GetDetail for full article content in reader v
 **Files:**
 - Modify: `internal/server/server.go`
 
-- [ ] **Step 1: Add the content detail route**
+- [x] **Step 1: Add the content detail route**
 
 In `server.go`, inside the `/library` route group, add:
 ```go
@@ -2797,7 +2797,7 @@ r.Route("/library", func(r chi.Router) {
 })
 ```
 
-- [ ] **Step 2: Verify build and tests**
+- [x] **Step 2: Verify build and tests**
 
 ```bash
 go build ./...
@@ -2806,7 +2806,7 @@ go test ./... -short -count=1
 
 Expected: builds clean, all unit tests pass.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/server/server.go

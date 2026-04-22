@@ -84,6 +84,7 @@ func New(deps Deps) *http.Server {
 		r.Post("/", libHTTP.SaveHandler())
 		r.Get("/", libHTTP.ListHandler())
 		r.Get("/{id}", libHTTP.GetHandler())
+		r.Get("/{id}/content", libHTTP.GetDetailHandler())
 		r.Patch("/{id}", libHTTP.UpdateHandler())
 		r.Delete("/{id}", libHTTP.DeleteHandler())
 	})
