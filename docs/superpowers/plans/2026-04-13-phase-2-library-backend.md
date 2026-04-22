@@ -1864,7 +1864,7 @@ git commit -m "test(library): complete unit tests for service methods"
 - Create: `internal/library/http.go`
 - Create: `internal/library/http_test.go`
 
-- [ ] **Step 1: Write the failing HTTP integration tests**
+- [x] **Step 1: Write the failing HTTP integration tests**
 
 Create `internal/library/http_test.go`:
 ```go
@@ -2053,7 +2053,7 @@ func TestHTTPSaveDuplicate(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```bash
 go test ./internal/library/... -v -count=1 -run TestHTTP
@@ -2061,7 +2061,7 @@ go test ./internal/library/... -v -count=1 -run TestHTTP
 
 Expected: FAIL — `library.NewHTTP`, handler methods not defined.
 
-- [ ] **Step 3: Write the HTTP handlers**
+- [x] **Step 3: Write the HTTP handlers**
 
 Create `internal/library/http.go`:
 ```go
@@ -2227,7 +2227,7 @@ func writeLibraryError(w http.ResponseWriter, err error) {
 }
 ```
 
-- [ ] **Step 4: Run HTTP tests to verify pass**
+- [x] **Step 4: Run HTTP tests to verify pass**
 
 ```bash
 go test ./internal/library/... -v -count=1 -run TestHTTP
@@ -2235,7 +2235,7 @@ go test ./internal/library/... -v -count=1 -run TestHTTP
 
 Expected: PASS for all HTTP tests.
 
-- [ ] **Step 5: Run ALL library tests together**
+- [x] **Step 5: Run ALL library tests together**
 
 ```bash
 go test ./internal/library/... -v -count=1 -short
@@ -2243,7 +2243,7 @@ go test ./internal/library/... -v -count=1 -short
 
 Expected: PASS for all unit and HTTP tests. Integration tests skipped due to `-short`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/library/http.go internal/library/http_test.go
