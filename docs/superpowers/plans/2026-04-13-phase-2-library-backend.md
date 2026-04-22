@@ -1390,7 +1390,7 @@ git commit -m "feat(library): store CRUD — List, GetByID, Update, Delete with 
 - Create: `internal/library/service.go`
 - Create: `internal/library/service_test.go`
 
-- [ ] **Step 1: Write the mock store and failing tests**
+- [x] **Step 1: Write the mock store and failing tests**
 
 Create `internal/library/service_test.go`:
 ```go
@@ -1597,7 +1597,7 @@ func TestServiceSaveURLExtractionFailure(t *testing.T) {
 var _ library.StoreAPI = (*mockStore)(nil)
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```bash
 go test ./internal/library/... -v -count=1 -run TestService
@@ -1605,7 +1605,7 @@ go test ./internal/library/... -v -count=1 -run TestService
 
 Expected: FAIL — `library.NewService`, `library.StoreAPI` not defined.
 
-- [ ] **Step 3: Write the service implementation**
+- [x] **Step 3: Write the service implementation**
 
 Create `internal/library/service.go`:
 ```go
@@ -1726,7 +1726,7 @@ func nilIfZero(n int) *int {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify pass**
+- [x] **Step 4: Run tests to verify pass**
 
 ```bash
 go test ./internal/library/... -v -count=1 -run TestService
@@ -1734,7 +1734,7 @@ go test ./internal/library/... -v -count=1 -run TestService
 
 Expected: PASS for `TestServiceSaveURL`, `TestServiceSaveURLDuplicate`, `TestServiceSaveURLExtractionFailure`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/library/service.go internal/library/service_test.go
