@@ -552,7 +552,7 @@ git commit -m "feat(radar): add radar_findings migration with HNSW index"
 **Files:**
 - Create: `migrations/010_radar_topic_matches.sql`
 
-- [ ] **Step 1: Create the migration file**
+- [x] **Step 1: Create the migration file**
 
 ```sql
 -- +goose Up
@@ -572,9 +572,9 @@ CREATE INDEX radar_topic_matches_topic_state_idx ON radar_topic_matches (topic_i
 DROP TABLE radar_topic_matches;
 ```
 
-- [ ] **Step 2: Verify apply**
+- [x] **Step 2: Verify apply**
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add migrations/010_radar_topic_matches.sql
