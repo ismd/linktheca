@@ -1748,7 +1748,7 @@ git commit -m "feat(library): service with SaveURL, List, GetByID, Update, Delet
 **Files:**
 - Modify: `internal/library/service_test.go`
 
-- [ ] **Step 1: Add unit tests for remaining service methods**
+- [x] **Step 1: Add unit tests for remaining service methods**
 
 Append to `internal/library/service_test.go`:
 ```go
@@ -1839,7 +1839,7 @@ func TestServiceDeleteNotFound(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run all service tests**
+- [x] **Step 2: Run all service tests**
 
 ```bash
 go test ./internal/library/... -v -count=1 -run TestService
@@ -1847,7 +1847,7 @@ go test ./internal/library/... -v -count=1 -run TestService
 
 Expected: PASS for all service tests.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/library/service_test.go

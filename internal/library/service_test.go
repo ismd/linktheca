@@ -213,5 +213,91 @@ func TestServiceSaveURLExtractionFailure(t *testing.T) {
 	require.Equal(t, "https://example.com/broken", item.URL)
 }
 
+func TestServiceList(t *testing.T) {
+	store := newMockStore()
+	ext := newMockExtractor()
+	svc := library.NewService(store, ext)
+
+	_, _ = svc.SaveURL(context.Background(), 1, "https://example.com/a")
+	_, _ = svc.SaveURL(context.Background(), 1, "https://example.com/b")
+
+	result, err := svc.List(context.Background(), library.ListParams{
+		UserID: 1,
+		Limit:  10,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 2, result.Total)
+}
+
+func TestServiceGetByID(t *testing.T) {
+	store := newMockStore()
+	ext := newMockExtractor()
+	svc := library.NewService(store, ext)
+
+	item, _ := svc.SaveURL(context.Background(), 1, "https://example.com/get")
+
+	got, err := svc.GetByID(context.Background(), 1, item.ID)
+	require.NoError(t, err)
+	require.Equal(t, item.ID, got.ID)
+}
+
+func TestServiceGetByIDNotFound(t *testing.T) {
+	store := newMockStore()
+	ext := newMockExtractor()
+	svc := library.NewService(store, ext)
+
+	_, err := svc.GetByID(context.Background(), 1, 999)
+	require.ErrorIs(t, err, library.ErrNotFound)
+}
+
+func TestServiceUpdate(t *testing.T) {
+	store := newMockStore()
+	ext := newMockExtractor()
+	svc := library.NewService(store, ext)
+
+	item, _ := svc.SaveURL(context.Background(), 1, "https://example.com/upd")
+
+	state := "read"
+	updated, err := svc.Update(context.Background(), 1, item.ID, library.UpdateRequest{State: &state})
+	require.NoError(t, err)
+	require.Equal(t, "read", updated.State)
+}
+
+func TestServiceUpdateInvalidState(t *testing.T) {
+	store := newMockStore()
+	ext := newMockExtractor()
+	svc := library.NewService(store, ext)
+
+	item, _ := svc.SaveURL(context.Background(), 1, "https://example.com/bad")
+
+	bad := "invalid"
+	_, err := svc.Update(context.Background(), 1, item.ID, library.UpdateRequest{State: &bad})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid state")
+}
+
+func TestServiceDelete(t *testing.T) {
+	store := newMockStore()
+	ext := newMockExtractor()
+	svc := library.NewService(store, ext)
+
+	item, _ := svc.SaveURL(context.Background(), 1, "https://example.com/del")
+
+	err := svc.Delete(context.Background(), 1, item.ID)
+	require.NoError(t, err)
+
+	_, err = svc.GetByID(context.Background(), 1, item.ID)
+	require.ErrorIs(t, err, library.ErrNotFound)
+}
+
+func TestServiceDeleteNotFound(t *testing.T) {
+	store := newMockStore()
+	ext := newMockExtractor()
+	svc := library.NewService(store, ext)
+
+	err := svc.Delete(context.Background(), 1, 999)
+	require.ErrorIs(t, err, library.ErrNotFound)
+}
+
 // compile-time interface check
 var _ library.StoreAPI = (*mockStore)(nil)
