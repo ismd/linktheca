@@ -493,7 +493,7 @@ git commit -m "feat(library): domain types and DTOs"
 - Create: `internal/library/store.go`
 - Test: `internal/library/store_test.go`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `internal/library/store_test.go`:
 ```go
@@ -759,7 +759,7 @@ func ptr(s string) *string { return &s }
 func intPtr(n int) *int    { return &n }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 go test ./internal/library/... -v
@@ -767,7 +767,7 @@ go test ./internal/library/... -v
 
 Expected: FAIL — package `library` has no Go files / types not found.
 
-- [ ] **Step 3: Write the store implementation**
+- [x] **Step 3: Write the store implementation**
 
 Create `internal/library/store.go`:
 ```go
@@ -873,7 +873,7 @@ func scanContent(row pgx.Row) (*ArticleContent, error) {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify pass**
+- [x] **Step 4: Run tests to verify pass**
 
 ```bash
 go test ./internal/library/... -v -count=1
@@ -881,7 +881,7 @@ go test ./internal/library/... -v -count=1
 
 Expected: PASS for all four tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/library/store.go internal/library/store_test.go
