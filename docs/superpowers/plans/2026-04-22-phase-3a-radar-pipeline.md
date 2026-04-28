@@ -1410,7 +1410,7 @@ git commit -m "feat(radar): add AddFeed and Subscribe to store"
 - Modify: `internal/radar/store.go`
 - Modify: `internal/radar/store_test.go`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Append to `internal/radar/store_test.go`:
 
@@ -1461,9 +1461,9 @@ func TestStore_UpsertFinding(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run — expect compile failure**
+- [x] **Step 2: Run — expect compile failure**
 
-- [ ] **Step 3: Implement helpers**
+- [x] **Step 3: Implement helpers**
 
 Append to `internal/radar/store.go`:
 
@@ -1569,13 +1569,13 @@ func (s *Store) GetFindingByExternalID(ctx context.Context, feedID int64, extern
 }
 ```
 
-- [ ] **Step 4: Run tests — expect pass**
+- [x] **Step 4: Run tests — expect pass**
 
 ```bash
 go test ./internal/radar/... -run TestStore_ -v
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/radar/

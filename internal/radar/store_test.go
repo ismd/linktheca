@@ -114,3 +114,48 @@ func TestStore_Subscribe(t *testing.T) {
 	_, err = store.Subscribe(ctx, userID, 999999)
 	require.ErrorIs(t, err, radar.ErrFeedNotFound)
 }
+
+func TestStore_ListDueFeeds(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	a, _ := store.AddFeed(ctx, radar.AddFeedParams{URL: "https://a.example/f", Kind: "rss", FetchIntervalSeconds: 3600})
+	b, _ := store.AddFeed(ctx, radar.AddFeedParams{URL: "https://b.example/f", Kind: "rss", FetchIntervalSeconds: 3600})
+
+	// b has been fetched recently; only a should be "due".
+	_, err := pool.Exec(ctx, `UPDATE radar_feeds SET last_fetched_at = now() WHERE id = $1`, b.ID)
+	require.NoError(t, err)
+
+	due, err := store.ListDueFeeds(ctx, 100)
+	require.NoError(t, err)
+	ids := make(map[int64]bool)
+	for _, id := range due {
+		ids[id] = true
+	}
+	require.True(t, ids[a.ID])
+	require.False(t, ids[b.ID])
+}
+
+func TestStore_UpsertFinding(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	feed, _ := store.AddFeed(ctx, radar.AddFeedParams{URL: "https://feed.example/f", Kind: "rss", FetchIntervalSeconds: 3600})
+
+	ext := "guid-1"
+	title := "hello"
+	f1, created, err := store.UpsertFinding(ctx, radar.FindingUpsert{
+		FeedID: feed.ID, ExternalID: &ext, URL: "https://post.example/1", Title: &title,
+	})
+	require.NoError(t, err)
+	require.True(t, created)
+	require.NotZero(t, f1.ID)
+
+	_, created2, err := store.UpsertFinding(ctx, radar.FindingUpsert{
+		FeedID: feed.ID, ExternalID: &ext, URL: "https://post.example/1", Title: &title,
+	})
+	require.NoError(t, err)
+	require.False(t, created2, "second upsert with same (feed_id, external_id) must not create")
+}

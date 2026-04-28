@@ -103,3 +103,110 @@ func (s *Store) Subscribe(ctx context.Context, userID, feedID int64) (*Subscript
 
 	return &sub, nil
 }
+
+// ListDueFeeds returns IDs of active feeds whose next-fetch moment has passed.
+func (s *Store) ListDueFeeds(ctx context.Context, limit int) ([]int64, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT id FROM radar_feeds
+		WHERE is_active
+		  AND (last_fetched_at IS NULL
+		       OR last_fetched_at + fetch_interval_seconds * interval '1 second' < now())
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list due feeds: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+
+	return ids, rows.Err()
+}
+
+type FeedFetchState struct {
+	URL          string
+	Etag         *string
+	LastModified *string
+}
+
+func (s *Store) GetFeedForFetch(ctx context.Context, feedID int64) (*FeedFetchState, error) {
+	row := s.db.QueryRow(ctx,
+		`SELECT url, etag, last_modified FROM radar_feeds WHERE id=$1`, feedID)
+	var st FeedFetchState
+	if err := row.Scan(&st.URL, &st.Etag, &st.LastModified); err != nil {
+		return nil, wrapPgError(err)
+	}
+
+	return &st, nil
+}
+
+func (s *Store) MarkFeedFetched(ctx context.Context, feedID int64, etag, lastModified *string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE radar_feeds
+		SET last_fetched_at = now(), etag = $1, last_modified = $2, last_error = NULL
+		WHERE id = $3
+	`, etag, lastModified, feedID)
+
+	return err
+}
+
+func (s *Store) MarkFeedError(ctx context.Context, feedID int64, errMsg string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE radar_feeds SET last_fetched_at = now(), last_error = $1 WHERE id = $2
+	`, errMsg, feedID)
+
+	return err
+}
+
+// UpsertFinding inserts a finding; returns (finding, created=true) if new, else (existing, false).
+func (s *Store) UpsertFinding(ctx context.Context, p FindingUpsert) (*Finding, bool, error) {
+	row := s.db.QueryRow(ctx, `
+		INSERT INTO radar_findings (feed_id, external_id, url, title, summary, published_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (feed_id, external_id) DO NOTHING
+		RETURNING id, feed_id, content_id, external_id, url, title, summary,
+		          published_at, discovered_at, embedding IS NOT NULL
+	`, p.FeedID, p.ExternalID, p.URL, p.Title, p.Summary, p.PublishedAt)
+
+	var f Finding
+	err := row.Scan(&f.ID, &f.FeedID, &f.ContentID, &f.ExternalID, &f.URL,
+		&f.Title, &f.Summary, &f.PublishedAt, &f.DiscoveredAt, &f.HasEmbedding)
+	if err == nil {
+		return &f, true, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, false, fmt.Errorf("upsert finding: %w", err)
+	}
+
+	// Conflict path — fetch the existing row.
+	existing, err := s.GetFindingByExternalID(ctx, p.FeedID, p.ExternalID)
+	if err != nil {
+		return nil, false, err
+	}
+
+	return existing, false, nil
+}
+
+func (s *Store) GetFindingByExternalID(ctx context.Context, feedID int64, externalID *string) (*Finding, error) {
+	row := s.db.QueryRow(ctx, `
+		SELECT id, feed_id, content_id, external_id, url, title, summary,
+		       published_at, discovered_at, embedding IS NOT NULL
+		FROM radar_findings
+		WHERE feed_id = $1 AND external_id IS NOT DISTINCT FROM $2
+	`, feedID, externalID)
+
+	var f Finding
+	if err := row.Scan(&f.ID, &f.FeedID, &f.ContentID, &f.ExternalID, &f.URL,
+		&f.Title, &f.Summary, &f.PublishedAt, &f.DiscoveredAt, &f.HasEmbedding); err != nil {
+		return nil, wrapPgError(err)
+	}
+
+	return &f, nil
+}
