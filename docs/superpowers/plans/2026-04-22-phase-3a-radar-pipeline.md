@@ -901,7 +901,7 @@ git commit -m "feat(embeddings): add TEIClient"
 **Files:**
 - Create: `internal/core/embeddings/client_smoke_test.go`
 
-- [ ] **Step 1: Write the smoke test**
+- [x] **Step 1: Write the smoke test**
 
 Create `internal/core/embeddings/client_smoke_test.go`. The `//go:build smoke` tag keeps it out of normal `go test ./...`.
 
@@ -955,7 +955,7 @@ func TestTEI_RealEmbedding(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Verify build-tag compiles**
+- [x] **Step 2: Verify build-tag compiles**
 
 ```bash
 go vet -tags=smoke ./internal/core/embeddings/...
@@ -963,7 +963,7 @@ go vet -tags=smoke ./internal/core/embeddings/...
 
 Expected: no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/core/embeddings/client_smoke_test.go
