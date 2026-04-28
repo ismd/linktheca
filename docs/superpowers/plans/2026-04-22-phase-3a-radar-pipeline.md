@@ -979,7 +979,7 @@ git commit -m "test(embeddings): add TEI smoke test under build tag"
 **Files:**
 - Create: `internal/radar/types.go`
 
-- [ ] **Step 1: Create the types file**
+- [x] **Step 1: Create the types file**
 
 ```go
 // Package radar implements the news-monitoring module: topics, feeds,
@@ -1093,7 +1093,7 @@ type FindingUpsert struct {
 }
 ```
 
-- [ ] **Step 2: Compile check**
+- [x] **Step 2: Compile check**
 
 ```bash
 go build ./internal/radar/...
@@ -1101,7 +1101,7 @@ go build ./internal/radar/...
 
 Expected: success.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/radar/types.go
