@@ -159,3 +159,47 @@ func TestStore_UpsertFinding(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, created2, "second upsert with same (feed_id, external_id) must not create")
 }
+
+func TestStore_UpdateFindingEmbedding_AndMatch(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	topic, err := store.CreateTopic(ctx, radar.CreateTopicParams{
+		UserID: userID, Name: "ai", Description: "artificial intelligence", MatchThreshold: 0.5,
+	})
+	require.NoError(t, err)
+
+	// Topic embedding.
+	vec := make([]float32, 1024)
+	vec[0] = 1.0
+	err = store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec))
+	require.NoError(t, err)
+
+	feed, err := store.AddFeed(ctx, radar.AddFeedParams{URL: "https://f.example/x", Kind: "rss", FetchIntervalSeconds: 3600})
+	require.NoError(t, err)
+	_, err = store.Subscribe(ctx, userID, feed.ID)
+	require.NoError(t, err)
+
+	ext := "g1"
+	f, _, err := store.UpsertFinding(ctx, radar.FindingUpsert{
+		FeedID: feed.ID, ExternalID: &ext, URL: "https://p.example/1",
+	})
+	require.NoError(t, err)
+
+	// Finding embedding identical → cosine distance 0 → similarity 1.
+	err = store.UpdateFindingEmbedding(ctx, f.ID, pgvector.NewVector(vec))
+	require.NoError(t, err)
+
+	n, err := store.MatchFindingToTopics(ctx, f.ID)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), n, "exactly one topic should match")
+
+	var sim float32
+	err = pool.QueryRow(ctx,
+		`SELECT similarity FROM radar_topic_matches WHERE topic_id=$1 AND finding_id=$2`,
+		topic.ID, f.ID).Scan(&sim)
+	require.NoError(t, err)
+	require.InDelta(t, 1.0, sim, 0.001)
+}

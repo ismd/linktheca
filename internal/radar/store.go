@@ -210,3 +210,66 @@ func (s *Store) GetFindingByExternalID(ctx context.Context, feedID int64, extern
 
 	return &f, nil
 }
+
+func (s *Store) UpdateFindingEmbedding(ctx context.Context, findingID int64, vec pgvector.Vector) error {
+	cmd, err := s.db.Exec(ctx,
+		`UPDATE radar_findings SET embedding = $1 WHERE id = $2`, vec, findingID)
+
+	if err != nil {
+		return fmt.Errorf("update finding embedding: %w", err)
+	}
+
+	if cmd.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+// MatchFindingToTopics inserts matches for all subscribed+active topics of
+// the finding's feed where cosine similarity ≥ topic.match_threshold.
+// Returns the number of matches inserted (existing rows are not counted).
+func (s *Store) MatchFindingToTopics(ctx context.Context, findingID int64) (int64, error) {
+	cmd, err := s.db.Exec(ctx, `
+		INSERT INTO radar_topic_matches (topic_id, finding_id, similarity, state)
+		SELECT rt.id,
+		       $1,
+		       1 - (rt.embedding <=> f.embedding) AS similarity,
+		       'new'
+		FROM radar_topics rt
+		JOIN radar_feed_subscriptions rfs ON rfs.user_id = rt.user_id
+		JOIN radar_findings f ON f.id = $1
+		WHERE rfs.feed_id = f.feed_id
+		  AND rt.is_active
+		  AND rt.embedding IS NOT NULL
+		  AND f.embedding IS NOT NULL
+		  AND 1 - (rt.embedding <=> f.embedding) >= rt.match_threshold
+		ON CONFLICT (topic_id, finding_id) DO NOTHING
+	`, findingID)
+
+	if err != nil {
+		return 0, fmt.Errorf("match finding: %w", err)
+	}
+
+	return cmd.RowsAffected(), nil
+}
+
+type FindingForEmbed struct {
+	ID           int64
+	Title        *string
+	Summary      *string
+	HasEmbedding bool
+}
+
+func (s *Store) GetFindingForEmbed(ctx context.Context, findingID int64) (*FindingForEmbed, error) {
+	row := s.db.QueryRow(ctx,
+		`SELECT id, title, summary, embedding IS NOT NULL
+		 FROM radar_findings WHERE id = $1`, findingID)
+
+	var f FindingForEmbed
+	if err := row.Scan(&f.ID, &f.Title, &f.Summary, &f.HasEmbedding); err != nil {
+		return nil, wrapPgError(err)
+	}
+
+	return &f, nil
+}
