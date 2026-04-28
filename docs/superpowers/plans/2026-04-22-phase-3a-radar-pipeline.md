@@ -592,7 +592,7 @@ git commit -m "feat(radar): add radar_topic_matches migration"
 - Create: `internal/core/embeddings/fake.go`
 - Create: `internal/core/embeddings/fake_test.go`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `internal/core/embeddings/fake_test.go`:
 
@@ -641,7 +641,7 @@ func TestFakeEmbedder_Normalized(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test — expect failure**
+- [x] **Step 2: Run test — expect failure**
 
 ```bash
 go test ./internal/core/embeddings/...
@@ -649,7 +649,7 @@ go test ./internal/core/embeddings/...
 
 Expected: compile error (package doesn't exist).
 
-- [ ] **Step 3: Create the interface**
+- [x] **Step 3: Create the interface**
 
 Create `internal/core/embeddings/client.go`:
 
@@ -666,7 +666,7 @@ type Client interface {
 }
 ```
 
-- [ ] **Step 4: Implement `FakeEmbedder`**
+- [x] **Step 4: Implement `FakeEmbedder`**
 
 Create `internal/core/embeddings/fake.go`:
 
@@ -725,7 +725,7 @@ func (f *FakeEmbedder) Embed(_ context.Context, text string) ([]float32, error) 
 }
 ```
 
-- [ ] **Step 5: Run tests — expect pass**
+- [x] **Step 5: Run tests — expect pass**
 
 ```bash
 go test ./internal/core/embeddings/... -v
@@ -733,7 +733,7 @@ go test ./internal/core/embeddings/... -v
 
 Expected: all three tests PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/core/embeddings/
