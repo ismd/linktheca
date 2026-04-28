@@ -69,3 +69,48 @@ func TestStore_UpdateTopicEmbedding(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, isNull)
 }
+
+func TestStore_AddFeed(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	feed, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: "https://example.com/feed.xml", Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+	require.NotZero(t, feed.ID)
+	require.Equal(t, "rss", feed.Kind)
+	require.True(t, feed.IsActive)
+
+	_, err = store.AddFeed(ctx, radar.AddFeedParams{
+		URL: "https://example.com/feed.xml", Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.ErrorIs(t, err, radar.ErrDuplicate)
+}
+
+func TestStore_Subscribe(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	feed, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: "https://a.example/feed.xml", Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+
+	sub, err := store.Subscribe(ctx, userID, feed.ID)
+	require.NoError(t, err)
+	require.Equal(t, userID, sub.UserID)
+	require.Equal(t, feed.ID, sub.FeedID)
+
+	// Idempotent.
+	sub2, err := store.Subscribe(ctx, userID, feed.ID)
+	require.NoError(t, err)
+	require.Equal(t, sub.CreatedAt, sub2.CreatedAt)
+
+	// Non-existent feed → ErrFeedNotFound.
+	_, err = store.Subscribe(ctx, userID, 999999)
+	require.ErrorIs(t, err, radar.ErrFeedNotFound)
+}

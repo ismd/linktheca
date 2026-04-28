@@ -69,3 +69,37 @@ func wrapPgError(err error) error {
 
 	return err
 }
+
+func (s *Store) AddFeed(ctx context.Context, p AddFeedParams) (*Feed, error) {
+	row := s.db.QueryRow(ctx, `
+		INSERT INTO radar_feeds (url, kind, fetch_interval_seconds)
+		VALUES ($1, $2, $3)
+		RETURNING id, url, kind, title, fetch_interval_seconds, is_active,
+		          last_fetched_at, last_error, created_at
+	`, p.URL, p.Kind, p.FetchIntervalSeconds)
+
+	var f Feed
+	if err := row.Scan(&f.ID, &f.URL, &f.Kind, &f.Title,
+		&f.FetchIntervalSeconds, &f.IsActive,
+		&f.LastFetchedAt, &f.LastError, &f.CreatedAt); err != nil {
+		return nil, wrapPgError(err)
+	}
+
+	return &f, nil
+}
+
+func (s *Store) Subscribe(ctx context.Context, userID, feedID int64) (*Subscription, error) {
+	row := s.db.QueryRow(ctx, `
+		INSERT INTO radar_feed_subscriptions (user_id, feed_id)
+		VALUES ($1, $2)
+		ON CONFLICT (user_id, feed_id) DO UPDATE SET created_at = radar_feed_subscriptions.created_at
+		RETURNING user_id, feed_id, created_at
+	`, userID, feedID)
+
+	var sub Subscription
+	if err := row.Scan(&sub.UserID, &sub.FeedID, &sub.CreatedAt); err != nil {
+		return nil, wrapPgError(err)
+	}
+
+	return &sub, nil
+}
