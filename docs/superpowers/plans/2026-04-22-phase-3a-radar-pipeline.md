@@ -748,7 +748,7 @@ git commit -m "feat(embeddings): add Client interface and FakeEmbedder"
 - Modify: `internal/core/embeddings/client.go`
 - Create: `internal/core/embeddings/client_test.go`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `internal/core/embeddings/client_test.go`:
 
@@ -808,7 +808,7 @@ func TestTEIClient_Embed_EmptyResponse(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test — expect failure**
+- [x] **Step 2: Run test — expect failure**
 
 ```bash
 go test ./internal/core/embeddings/... -run TEIClient
@@ -816,7 +816,7 @@ go test ./internal/core/embeddings/... -run TEIClient
 
 Expected: compile error (`NewTEIClient` / `TEIClient` not defined).
 
-- [ ] **Step 3: Implement `TEIClient`**
+- [x] **Step 3: Implement `TEIClient`**
 
 Append to `internal/core/embeddings/client.go`:
 
@@ -879,7 +879,7 @@ func (c *TEIClient) Embed(ctx context.Context, text string) ([]float32, error) {
 
 Reorganize the import block so it's a single `import (...)` at the top. The package comment stays at the top of the file; only the `import "context"` line should be replaced by the consolidated block.
 
-- [ ] **Step 4: Run tests — expect pass**
+- [x] **Step 4: Run tests — expect pass**
 
 ```bash
 go test ./internal/core/embeddings/... -v
@@ -887,7 +887,7 @@ go test ./internal/core/embeddings/... -v
 
 Expected: all tests PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/core/embeddings/
