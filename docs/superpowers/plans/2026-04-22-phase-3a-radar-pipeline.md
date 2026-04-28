@@ -1116,7 +1116,7 @@ git commit -m "feat(radar): add module types and DTOs"
 - Create: `internal/radar/store.go`
 - Create: `internal/radar/store_test.go`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `internal/radar/store_test.go`:
 
@@ -1194,7 +1194,7 @@ func TestStore_UpdateTopicEmbedding(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test — expect failure**
+- [x] **Step 2: Run test — expect failure**
 
 ```bash
 go test ./internal/radar/... -run TestStore_CreateTopic -v
@@ -1202,7 +1202,7 @@ go test ./internal/radar/... -run TestStore_CreateTopic -v
 
 Expected: compile error (`NewStore`, `CreateTopic` missing).
 
-- [ ] **Step 3: Implement store (topics methods)**
+- [x] **Step 3: Implement store (topics methods)**
 
 Create `internal/radar/store.go`:
 
@@ -1275,7 +1275,7 @@ func wrapPgError(err error) error {
 }
 ```
 
-- [ ] **Step 4: Run tests — expect pass**
+- [x] **Step 4: Run tests — expect pass**
 
 ```bash
 go test ./internal/radar/... -run TestStore_ -v
@@ -1283,7 +1283,7 @@ go test ./internal/radar/... -run TestStore_ -v
 
 Expected: both PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/radar/
