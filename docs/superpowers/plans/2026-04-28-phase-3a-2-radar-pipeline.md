@@ -117,7 +117,7 @@ git commit -m "chore(deps): add gofeed and river for radar pipeline"
 - Create: `internal/radar/service.go`
 - Create: `internal/radar/service_test.go`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `internal/radar/service_test.go`:
 
@@ -301,7 +301,7 @@ func (e *errEmbedder) Embed(_ context.Context, _ string) ([]float32, error) {
 }
 ```
 
-- [ ] **Step 2: Run — expect compile failure**
+- [x] **Step 2: Run — expect compile failure**
 
 ```bash
 go test ./internal/radar/... -run TestService_
@@ -309,7 +309,7 @@ go test ./internal/radar/... -run TestService_
 
 Expected: build error (`NewService`, `ErrInvalidInput`, `ErrEmbedderUnavailable`, `StoreAPI` undefined).
 
-- [ ] **Step 3: Add new sentinels to types.go**
+- [x] **Step 3: Add new sentinels to types.go**
 
 Edit `internal/radar/types.go` — extend the var block:
 
@@ -323,7 +323,7 @@ var (
 )
 ```
 
-- [ ] **Step 4: Create service.go**
+- [x] **Step 4: Create service.go**
 
 Create `internal/radar/service.go`:
 
@@ -401,7 +401,7 @@ func (s *Service) CreateTopic(ctx context.Context, userID int64, req CreateTopic
 }
 ```
 
-- [ ] **Step 5: Run tests — expect pass**
+- [x] **Step 5: Run tests — expect pass**
 
 ```bash
 go test ./internal/radar/... -run TestService_CreateTopic -v
@@ -409,7 +409,7 @@ go test ./internal/radar/... -run TestService_CreateTopic -v
 
 Expected: 4 PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/radar/

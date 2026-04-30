@@ -9,9 +9,11 @@ import (
 )
 
 var (
-	ErrNotFound   = errors.New("not found")
-	ErrDuplicate  = errors.New("duplicate")
-	ErrFeedNotFound = errors.New("feed not found")
+	ErrNotFound            = errors.New("not found")
+	ErrDuplicate           = errors.New("duplicate")
+	ErrFeedNotFound        = errors.New("feed not found")
+	ErrInvalidInput        = errors.New("invalid input")
+	ErrEmbedderUnavailable = errors.New("embedder unavailable")
 )
 
 type Topic struct {
