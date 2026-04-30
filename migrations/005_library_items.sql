@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE library_items (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     content_id  BIGINT NOT NULL REFERENCES article_contents(id),
     state       TEXT NOT NULL DEFAULT 'unread'
                 CHECK (state IN ('unread', 'read', 'archived')),

@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE radar_topics (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_id         INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id         BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name            TEXT NOT NULL,
     description     TEXT NOT NULL,
     embedding       vector(1024),
