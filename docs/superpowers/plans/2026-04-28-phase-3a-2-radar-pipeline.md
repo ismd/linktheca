@@ -84,7 +84,7 @@ River v0 evolves; before writing worker code in tasks 13+, run `go doc github.co
 **Files:**
 - Modify: `go.mod`, `go.sum`
 
-- [ ] **Step 1: Add the deps**
+- [x] **Step 1: Add the deps**
 
 ```bash
 go get github.com/mmcdole/gofeed
@@ -93,7 +93,7 @@ go get github.com/riverqueue/river/riverdriver/riverpgxv5
 go get github.com/riverqueue/river/rivermigrate
 ```
 
-- [ ] **Step 2: Tidy and build**
+- [x] **Step 2: Tidy and build**
 
 ```bash
 go mod tidy
@@ -102,7 +102,7 @@ go build ./...
 
 Expected: success.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add go.mod go.sum
