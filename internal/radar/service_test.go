@@ -175,3 +175,55 @@ type errEmbedder struct{ err error }
 func (e *errEmbedder) Embed(_ context.Context, _ string) ([]float32, error) {
 	return nil, e.err
 }
+
+func TestService_AddFeed_Defaults(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+
+	feed, err := svc.AddFeed(context.Background(), radar.AddFeedRequest{
+		URL: "https://example.com/feed.xml",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "rss", feed.Kind)
+	require.Equal(t, 3600, feed.FetchIntervalSeconds)
+}
+
+func TestService_AddFeed_Validation(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+
+	_, err := svc.AddFeed(context.Background(), radar.AddFeedRequest{URL: ""})
+	require.ErrorIs(t, err, radar.ErrInvalidInput)
+
+	_, err = svc.AddFeed(context.Background(), radar.AddFeedRequest{URL: "not-a-url"})
+	require.ErrorIs(t, err, radar.ErrInvalidInput)
+
+	bad := "weird"
+	_, err = svc.AddFeed(context.Background(), radar.AddFeedRequest{
+		URL: "https://x.example/f", Kind: &bad,
+	})
+	require.ErrorIs(t, err, radar.ErrInvalidInput)
+
+	tooFast := 60
+	_, err = svc.AddFeed(context.Background(), radar.AddFeedRequest{
+		URL: "https://x.example/f", FetchIntervalSeconds: &tooFast,
+	})
+	require.ErrorIs(t, err, radar.ErrInvalidInput)
+}
+
+func TestService_AddFeed_Duplicate(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+
+	_, err := svc.AddFeed(context.Background(), radar.AddFeedRequest{
+		URL: "https://x.example/dup",
+	})
+	require.NoError(t, err)
+	_, err = svc.AddFeed(context.Background(), radar.AddFeedRequest{
+		URL: "https://x.example/dup",
+	})
+	require.ErrorIs(t, err, radar.ErrDuplicate)
+}

@@ -73,3 +73,47 @@ func (s *Service) CreateTopic(ctx context.Context, userID int64, req CreateTopic
 	topic.HasEmbedding = true
 	return topic, nil
 }
+
+const (
+	defaultFetchIntervalSeconds = 3600
+	minFetchIntervalSeconds     = 300
+	maxFetchIntervalSeconds     = 86400
+)
+
+func (s *Service) AddFeed(ctx context.Context, req AddFeedRequest) (*Feed, error) {
+	url := strings.TrimSpace(req.URL)
+
+	if url == "" || len(url) > 2000 {
+		return nil, fmt.Errorf("%w: url must be 1..2000 chars", ErrInvalidInput)
+	}
+
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		return nil, fmt.Errorf("%w: url must be http(s)", ErrInvalidInput)
+	}
+
+	kind := "rss"
+	if req.Kind != nil {
+		kind = *req.Kind
+		if kind != "rss" && kind != "atom" {
+			return nil, fmt.Errorf("%w: kind must be rss|atom", ErrInvalidInput)
+		}
+	}
+
+	interval := defaultFetchIntervalSeconds
+	if req.FetchIntervalSeconds != nil {
+		interval = *req.FetchIntervalSeconds
+		if interval < minFetchIntervalSeconds || interval > maxFetchIntervalSeconds {
+			return nil, fmt.Errorf("%w: fetch_interval_seconds must be %d..%d",
+				ErrInvalidInput, minFetchIntervalSeconds, maxFetchIntervalSeconds)
+		}
+	}
+
+	feed, err := s.store.AddFeed(ctx, AddFeedParams{
+		URL: url, Kind: kind, FetchIntervalSeconds: interval,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return feed, nil
+}

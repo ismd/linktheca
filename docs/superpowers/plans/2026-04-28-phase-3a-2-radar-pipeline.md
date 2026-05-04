@@ -424,7 +424,7 @@ git commit -m "feat(radar): add Service.CreateTopic with synchronous embedding"
 - Modify: `internal/radar/service.go`
 - Modify: `internal/radar/service_test.go`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Append to `internal/radar/service_test.go`:
 
@@ -482,9 +482,9 @@ func TestService_AddFeed_Duplicate(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run — expect compile failure**
+- [x] **Step 2: Run — expect compile failure**
 
-- [ ] **Step 3: Implement AddFeed**
+- [x] **Step 3: Implement AddFeed**
 
 Append to `internal/radar/service.go`:
 
@@ -529,13 +529,13 @@ func (s *Service) AddFeed(ctx context.Context, req AddFeedRequest) (*Feed, error
 }
 ```
 
-- [ ] **Step 4: Run tests — expect pass**
+- [x] **Step 4: Run tests — expect pass**
 
 ```bash
 go test ./internal/radar/... -run TestService_ -v
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/radar/
