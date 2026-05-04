@@ -3,11 +3,16 @@
 package crawler
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/ismd/linktheca/internal/radar"
+	"github.com/mmcdole/gofeed"
 )
 
 type FetchResult struct {
@@ -74,4 +79,50 @@ func (f *HTTPFetcher) Fetch(ctx context.Context, url, etag, lastModified string)
 		Etag:         resp.Header.Get("ETag"),
 		LastModified: resp.Header.Get("Last-Modified"),
 	}, nil
+}
+
+func Parse(body []byte) ([]*gofeed.Item, error) {
+	parser := gofeed.NewParser()
+
+	feed, err := parser.Parse(bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("parse feed: %w", err)
+	}
+
+	return feed.Items, nil
+}
+
+func ToUpserts(feedID int64, items []*gofeed.Item) []radar.FindingUpsert {
+	out := make([]radar.FindingUpsert, 0, len(items))
+	for _, it := range items {
+		if it == nil || strings.TrimSpace(it.Link) == "" {
+			continue
+		}
+
+		up := radar.FindingUpsert{FeedID: feedID, URL: strings.TrimSpace(it.Link)}
+
+		ext := strings.TrimSpace(it.GUID)
+		if ext == "" {
+			ext = up.URL
+		}
+
+		up.ExternalID = &ext
+
+		if t := strings.TrimSpace(it.Title); t != "" {
+			up.Title = &t
+		}
+
+		if d := strings.TrimSpace(it.Description); d != "" {
+			up.Summary = &d
+		}
+
+		if it.PublishedParsed != nil {
+			pp := *it.PublishedParsed
+			up.PublishedAt = &pp
+		}
+
+		out = append(out, up)
+	}
+
+	return out
 }

@@ -1322,7 +1322,7 @@ git commit -m "feat(crawler): add Fetcher interface and HTTPFetcher"
 - Modify: `internal/radar/crawler/crawler.go`
 - Modify: `internal/radar/crawler/crawler_test.go`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Append to `internal/radar/crawler/crawler_test.go`:
 
@@ -1365,9 +1365,9 @@ var _ []radar.FindingUpsert = crawler.ToUpserts(0, nil)
 
 Also: add the import for `radar` to the existing import block at the top of `crawler_test.go`.
 
-- [ ] **Step 2: Run — expect failure**
+- [x] **Step 2: Run — expect failure**
 
-- [ ] **Step 3: Implement Parse and ToUpserts**
+- [x] **Step 3: Implement Parse and ToUpserts**
 
 Append to `internal/radar/crawler/crawler.go`:
 
@@ -1424,13 +1424,13 @@ func ToUpserts(feedID int64, items []*gofeed.Item) []radar.FindingUpsert {
 
 Reorganize the `import` block in `crawler.go` so `bytes`, `context`, `fmt`, `io`, `net/http`, `strings`, `time`, and the two third-party packages are all in one parenthesized block at the top.
 
-- [ ] **Step 4: Run — expect pass**
+- [x] **Step 4: Run — expect pass**
 
 ```bash
 go test ./internal/radar/crawler/... -v
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/radar/crawler/
