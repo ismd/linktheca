@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/ismd/linktheca/internal/auth"
 	"github.com/ismd/linktheca/internal/core/config"
@@ -128,4 +131,29 @@ func TestIntegrationRegistrationDisabled(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
 	resp.Body.Close()
+}
+
+func TestRadarDisabled_Returns501OnAnyRoute(t *testing.T) {
+	cfg := &config.Config{
+		HTTPAddr:     ":0",
+		JWTSecret:    "test-secret-at-least-32-bytes-long-for-hmac",
+		JWTAccessTTL: 15 * time.Minute,
+		RadarEnabled: false,
+	}
+	deps := server.Deps{
+		Config: cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		DB:     nil, // not used by /radar disabled handler
+		Radar:  nil,
+	}
+	srv := server.New(deps)
+	defer srv.Close()
+
+	for _, path := range []string{"/radar/topics", "/radar/feeds", "/radar/subscriptions", "/radar/anything"} {
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader("{}"))
+		rec := httptest.NewRecorder()
+		srv.Handler.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusNotImplemented, rec.Code, "path %s", path)
+		require.Contains(t, rec.Body.String(), "radar_disabled")
+	}
 }

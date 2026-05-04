@@ -2146,7 +2146,7 @@ git commit -m "feat(server): mount /radar routes when RADAR_ENABLED"
 **Files:**
 - Modify: `internal/server/server_test.go`
 
-- [ ] **Step 1: Open existing server_test.go and read it**
+- [x] **Step 1: Open existing server_test.go and read it**
 
 ```bash
 go doc -src github.com/ismd/linktheca/internal/server | head -40
@@ -2154,7 +2154,7 @@ go doc -src github.com/ismd/linktheca/internal/server | head -40
 
 Read `internal/server/server_test.go` — note how the existing tests build `Deps` and call `server.New`.
 
-- [ ] **Step 2: Add the test**
+- [x] **Step 2: Add the test**
 
 Append to `internal/server/server_test.go`:
 
@@ -2187,7 +2187,7 @@ func TestRadarDisabled_Returns501OnAnyRoute(t *testing.T) {
 
 Add necessary imports (`io`, `net/http`, `net/http/httptest`, `strings`, `time`, `log/slog`, `testing`, `config`, `server`, `require`).
 
-- [ ] **Step 3: Run**
+- [x] **Step 3: Run**
 
 ```bash
 go test ./internal/server/... -run TestRadarDisabled -v
@@ -2195,7 +2195,7 @@ go test ./internal/server/... -run TestRadarDisabled -v
 
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/server/server_test.go
