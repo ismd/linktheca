@@ -72,6 +72,7 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/riverqueue/river v0.35.1 // indirect
 	github.com/riverqueue/river/riverdriver v0.35.1 // indirect
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.35.1 // indirect
 	github.com/riverqueue/river/rivershared v0.35.1 // indirect
 	github.com/riverqueue/river/rivertype v0.35.1 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect

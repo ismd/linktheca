@@ -1536,7 +1536,7 @@ git commit -m "feat(radar/jobs): add job args, Inserter, and Deps"
 **Files:**
 - Create: `internal/radar/jobs/crawl_feed.go`
 
-- [ ] **Step 1: Write the worker**
+- [x] **Step 1: Write the worker**
 
 Create `internal/radar/jobs/crawl_feed.go`:
 
@@ -1622,13 +1622,13 @@ func ptrOrNil(s string) *string {
 }
 ```
 
-- [ ] **Step 2: Compile check**
+- [x] **Step 2: Compile check**
 
 ```bash
 go build ./internal/radar/jobs/
 ```
 
-Still expect failure for the other three workers. Don't commit yet.
+Expected: success — `Build`/`NewClient` are deferred to Task 14, so nothing in the package references the remaining three workers yet. Don't commit yet.
 
 ---
 
@@ -1637,7 +1637,7 @@ Still expect failure for the other three workers. Don't commit yet.
 **Files:**
 - Create: `internal/radar/jobs/embed_finding.go`
 
-- [ ] **Step 1: Write the worker**
+- [x] **Step 1: Write the worker**
 
 Create `internal/radar/jobs/embed_finding.go`:
 
@@ -1713,7 +1713,7 @@ func embedText(f *radar.FindingForEmbed) string {
 }
 ```
 
-- [ ] **Step 2: Compile check** — still expect failures for remaining workers.
+- [x] **Step 2: Compile check** — expected: success. `Build`/`NewClient` are deferred to Task 14, so nothing in the package references the remaining workers yet.
 
 ---
 
@@ -1722,7 +1722,7 @@ func embedText(f *radar.FindingForEmbed) string {
 **Files:**
 - Create: `internal/radar/jobs/match_finding.go`
 
-- [ ] **Step 1: Write the worker**
+- [x] **Step 1: Write the worker**
 
 Create `internal/radar/jobs/match_finding.go`:
 
@@ -1761,7 +1761,7 @@ type matchStore interface {
 }
 ```
 
-- [ ] **Step 2: Compile** — still missing ScheduleCrawlsWorker.
+- [x] **Step 2: Compile** — still missing ScheduleCrawlsWorker.
 
 ---
 
@@ -1771,7 +1771,7 @@ type matchStore interface {
 - Create: `internal/radar/jobs/scheduler.go`
 - Modify: `internal/radar/jobs/jobs.go`
 
-- [ ] **Step 1: Write the worker**
+- [x] **Step 1: Write the worker**
 
 Create `internal/radar/jobs/scheduler.go`:
 
@@ -1817,7 +1817,7 @@ func (w *ScheduleCrawlsWorker) Work(ctx context.Context, _ *river.Job[ScheduleCr
 }
 ```
 
-- [ ] **Step 2: Add Build, Bundle, and NewClient to jobs.go**
+- [x] **Step 2: Add Build, Bundle, and NewClient to jobs.go**
 
 Edit `internal/radar/jobs/jobs.go`. Append (the existing imports include `context` and the radar/embeddings/crawler packages — extend the import block to add `time`, `pgxpool`, `riverpgxv5`):
 
@@ -1889,20 +1889,21 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+	"github.com/riverqueue/river/rivertype"
 )
 ```
 
 Note on the `*river.Client[pgx.Tx]` type: River's generic parameter is the transaction type the driver exposes. `riverpgxv5` uses `pgx.Tx`. Verify with `go doc github.com/riverqueue/river NewClient` and adjust the parameterization if River v0.x has changed it.
 
-- [ ] **Step 3: Build everything**
+- [x] **Step 3: Build everything**
 
 ```bash
 go build ./internal/radar/...
 ```
 
-Expected: success.
+Expected: success. The consolidated import block must keep `"github.com/riverqueue/river/rivertype"` (still referenced by the `Inserter` interface from Task 10) — dropping it produces `undefined: rivertype` at the `Insert` signature.
 
-- [ ] **Step 4: Commit (atomic commit for all four workers + Build/NewClient)**
+- [x] **Step 4: Commit (atomic commit for all four workers + Build/NewClient)**
 
 ```bash
 git add internal/radar/jobs/
