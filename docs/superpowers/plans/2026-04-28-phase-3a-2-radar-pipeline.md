@@ -641,7 +641,7 @@ git commit -m "feat(radar): add Service.Subscribe"
 - Create: `internal/radar/http.go`
 - Create: `internal/radar/http_test.go`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `internal/radar/http_test.go`:
 
@@ -755,7 +755,7 @@ func coreauthWithUser(ctx context.Context, userID int64, isAdmin bool) context.C
 }
 ```
 
-- [ ] **Step 2: Run — expect compile failure**
+- [x] **Step 2: Run — expect compile failure**
 
 ```bash
 go test ./internal/radar/... -run TestHTTP_
@@ -763,7 +763,7 @@ go test ./internal/radar/... -run TestHTTP_
 
 Expected: build error (`NewHTTP`, `CreateTopicHandler`, `DisabledHandler` undefined).
 
-- [ ] **Step 3: Implement http.go**
+- [x] **Step 3: Implement http.go**
 
 Create `internal/radar/http.go`:
 
@@ -828,13 +828,13 @@ func writeRadarError(w http.ResponseWriter, err error) {
 }
 ```
 
-- [ ] **Step 4: Run tests — expect pass**
+- [x] **Step 4: Run tests — expect pass**
 
 ```bash
 go test ./internal/radar/... -run TestHTTP_ -v
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/radar/
