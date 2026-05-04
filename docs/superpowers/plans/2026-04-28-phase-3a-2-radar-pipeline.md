@@ -984,7 +984,7 @@ git commit -m "feat(radar): add AddFeed and Subscribe HTTP handlers"
 **Files:**
 - Create: `internal/radar/integration_test.go`
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 Create `internal/radar/integration_test.go`:
 
@@ -1126,7 +1126,7 @@ func TestIntegrationAddFeedRequiresAdmin(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run**
+- [x] **Step 2: Run**
 
 ```bash
 make dev-db
@@ -1135,7 +1135,7 @@ go test ./internal/radar/... -run TestIntegration -v
 
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/radar/integration_test.go
