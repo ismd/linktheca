@@ -1919,7 +1919,7 @@ git commit -m "feat(radar): add River workers and Build helper for radar pipelin
 
 The test drives the four workers without a running River client, by calling `worker.Work(ctx, job)` directly and using a fake `Inserter` that dispatches enqueued args to the matching worker inline. That keeps the test independent of River internals while still exercising the full data flow.
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 Create `internal/radar/jobs/jobs_test.go`:
 
@@ -1938,6 +1938,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pgvector/pgvector-go"
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertype"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1953,12 +1954,12 @@ func newFakeInserter() *fakeInserter {
 	return &fakeInserter{dispatch: map[string]func(context.Context, river.JobArgs){}}
 }
 
-func (f *fakeInserter) Insert(ctx context.Context, args river.JobArgs, _ *river.InsertOpts) (*river.JobInsertResult, error) {
+func (f *fakeInserter) Insert(ctx context.Context, args river.JobArgs, _ *river.InsertOpts) (*rivertype.JobInsertResult, error) {
 	f.calls = append(f.calls, args)
 	if fn, ok := f.dispatch[args.Kind()]; ok {
 		fn(ctx, args)
 	}
-	return &river.JobInsertResult{}, nil
+	return &rivertype.JobInsertResult{}, nil
 }
 
 type fakeFetcher struct{ body []byte }
@@ -2044,7 +2045,7 @@ func TestJobs_FullPipeline(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run**
+- [x] **Step 2: Run**
 
 ```bash
 make dev-db
@@ -2053,7 +2054,7 @@ go test ./internal/radar/jobs/... -v -run TestJobs_FullPipeline
 
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/radar/jobs/
