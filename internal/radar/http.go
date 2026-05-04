@@ -62,3 +62,42 @@ func writeRadarError(w http.ResponseWriter, err error) {
 		httpx.WriteError(w, http.StatusInternalServerError, "internal", "")
 	}
 }
+
+func (h *HTTP) AddFeedHandler() http.HandlerFunc    { return h.addFeed }
+func (h *HTTP) SubscribeHandler() http.HandlerFunc  { return h.subscribe }
+
+func (h *HTTP) addFeed(w http.ResponseWriter, r *http.Request) {
+	var req AddFeedRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid json body")
+		return
+	}
+
+	feed, err := h.svc.AddFeed(r.Context(), req)
+	if err != nil {
+		writeRadarError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusCreated, feed)
+}
+
+func (h *HTTP) subscribe(w http.ResponseWriter, r *http.Request) {
+	var req SubscribeRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid json body")
+		return
+	}
+
+	userID := coreauth.UserID(r.Context())
+
+	sub, err := h.svc.Subscribe(r.Context(), userID, req)
+	if err != nil {
+		writeRadarError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusCreated, sub)
+}

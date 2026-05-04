@@ -89,3 +89,72 @@ func TestHTTP_DisabledHandler_501(t *testing.T) {
 	require.Equal(t, http.StatusNotImplemented, rec.Code)
 	require.Contains(t, rec.Body.String(), "radar_disabled")
 }
+
+func TestHTTP_AddFeed_201(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	body, _ := json.Marshal(radar.AddFeedRequest{URL: "https://news.ycombinator.com/rss"})
+	req := httptest.NewRequest(http.MethodPost, "/radar/feeds", bytes.NewReader(body))
+	req = req.WithContext(userOnlyContext(req.Context(), 1, true))
+	rec := httptest.NewRecorder()
+	h.AddFeedHandler()(rec, req)
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+
+	var got radar.Feed
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&got))
+	require.Equal(t, "rss", got.Kind)
+	require.True(t, got.IsActive)
+}
+
+func TestHTTP_AddFeed_409_Duplicate(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	body, _ := json.Marshal(radar.AddFeedRequest{URL: "https://dup.example/f"})
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/radar/feeds", bytes.NewReader(body))
+		req = req.WithContext(userOnlyContext(req.Context(), 1, true))
+		rec := httptest.NewRecorder()
+		h.AddFeedHandler()(rec, req)
+		if i == 0 {
+			require.Equal(t, http.StatusCreated, rec.Code)
+		} else {
+			require.Equal(t, http.StatusConflict, rec.Code)
+		}
+	}
+}
+
+func TestHTTP_Subscribe_201(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	feed, _ := svc.AddFeed(context.Background(), radar.AddFeedRequest{URL: "https://s.example/f"})
+
+	body, _ := json.Marshal(radar.SubscribeRequest{FeedID: feed.ID})
+	req := httptest.NewRequest(http.MethodPost, "/radar/subscriptions", bytes.NewReader(body))
+	req = req.WithContext(userOnlyContext(req.Context(), 99, false))
+	rec := httptest.NewRecorder()
+	h.SubscribeHandler()(rec, req)
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+
+	var sub radar.Subscription
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&sub))
+	require.Equal(t, int64(99), sub.UserID)
+}
+
+func TestHTTP_Subscribe_404_FeedMissing(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	body, _ := json.Marshal(radar.SubscribeRequest{FeedID: 12345})
+	req := httptest.NewRequest(http.MethodPost, "/radar/subscriptions", bytes.NewReader(body))
+	req = req.WithContext(userOnlyContext(req.Context(), 1, false))
+	rec := httptest.NewRecorder()
+	h.SubscribeHandler()(rec, req)
+	require.Equal(t, http.StatusNotFound, rec.Code)
+}

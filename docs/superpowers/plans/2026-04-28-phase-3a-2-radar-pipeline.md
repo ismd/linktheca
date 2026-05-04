@@ -849,7 +849,7 @@ git commit -m "feat(radar): add CreateTopic HTTP handler and DisabledHandler"
 - Modify: `internal/radar/http.go`
 - Modify: `internal/radar/http_test.go`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Append to `internal/radar/http_test.go`:
 
@@ -924,9 +924,9 @@ func TestHTTP_Subscribe_404_FeedMissing(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run — expect failure**
+- [x] **Step 2: Run — expect failure**
 
-- [ ] **Step 3: Implement handlers**
+- [x] **Step 3: Implement handlers**
 
 Append to `internal/radar/http.go`:
 
@@ -964,13 +964,13 @@ func (h *HTTP) subscribe(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 4: Run — expect pass**
+- [x] **Step 4: Run — expect pass**
 
 ```bash
 go test ./internal/radar/... -run TestHTTP_ -v
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/radar/
