@@ -2070,7 +2070,7 @@ git commit -m "test(radar/jobs): add full-pipeline integration test"
 **Files:**
 - Modify: `internal/server/server.go`
 
-- [ ] **Step 1: Update Deps**
+- [x] **Step 1: Update Deps**
 
 Edit `internal/server/server.go`. Replace the `Deps` struct and add new fields plus a `Radar` substruct that callers can leave nil:
 
@@ -2099,7 +2099,7 @@ Add imports:
 "github.com/riverqueue/river"
 ```
 
-- [ ] **Step 2: Mount /radar routes inside `New`**
+- [x] **Step 2: Mount /radar routes inside `New`**
 
 Inside `server.New`, after the existing `r.Route("/library", ...)` block, add:
 
@@ -2124,7 +2124,7 @@ Inside `server.New`, after the existing `r.Route("/library", ...)` block, add:
 	}
 ```
 
-- [ ] **Step 3: Build**
+- [x] **Step 3: Build**
 
 ```bash
 go build ./...
@@ -2132,7 +2132,7 @@ go build ./...
 
 Expected: success.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/server/server.go

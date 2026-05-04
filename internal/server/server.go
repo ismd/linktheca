@@ -12,15 +12,28 @@ import (
 	coreauth "github.com/ismd/linktheca/internal/core/auth"
 	"github.com/ismd/linktheca/internal/core/config"
 	"github.com/ismd/linktheca/internal/core/content"
+	"github.com/ismd/linktheca/internal/core/embeddings"
 	"github.com/ismd/linktheca/internal/core/httpx"
 	"github.com/ismd/linktheca/internal/library"
+	"github.com/ismd/linktheca/internal/radar"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
 )
 
 type Deps struct {
 	Config *config.Config
 	Logger *slog.Logger
 	DB     *pgxpool.Pool
+	Radar  *RadarDeps // nil when RADAR_ENABLED=false
+}
+
+// RadarDeps is wired by the caller (cmd/linktheca-server) when Radar is enabled.
+// It owns the River client lifecycle.
+type RadarDeps struct {
+	Embedder embeddings.Client
+	River    *river.Client[pgx.Tx]
+	Workers  *river.Workers
 }
 
 func New(deps Deps) *http.Server {
@@ -88,6 +101,25 @@ func New(deps Deps) *http.Server {
 		r.Patch("/{id}", libHTTP.UpdateHandler())
 		r.Delete("/{id}", libHTTP.DeleteHandler())
 	})
+
+    if cfg.RadarEnabled && deps.Radar != nil {
+		radarStore := radar.NewStore(deps.DB)
+		radarSvc := radar.NewService(radarStore, deps.Radar.Embedder)
+		radarHTTP := radar.NewHTTP(radarSvc)
+
+		r.Route("/radar", func(r chi.Router) {
+			r.Use(coreauth.RequireUser(issuer))
+			r.Post("/topics", radarHTTP.CreateTopicHandler())
+			r.Post("/subscriptions", radarHTTP.SubscribeHandler())
+			r.Group(func(r chi.Router) {
+				r.Use(coreauth.RequireAdmin)
+				r.Post("/feeds", radarHTTP.AddFeedHandler())
+			})
+		})
+	} else {
+		r.HandleFunc("/radar", radar.DisabledHandler)
+		r.HandleFunc("/radar/*", radar.DisabledHandler)
+	}
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
