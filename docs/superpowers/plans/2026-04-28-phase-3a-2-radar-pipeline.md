@@ -1455,7 +1455,7 @@ Use these to confirm exact field names and method signatures. The patterns in ta
 **Files:**
 - Create: `internal/radar/jobs/jobs.go`
 
-- [ ] **Step 1: Create args + Inserter + Deps types only**
+- [x] **Step 1: Create args + Inserter + Deps types only**
 
 This task defines the shared types that subsequent tasks will reference. The `Build` function and `NewClient` helper are added in Task 14, after all four workers exist.
 
@@ -1473,6 +1473,7 @@ import (
 	"github.com/ismd/linktheca/internal/radar"
 	"github.com/ismd/linktheca/internal/radar/crawler"
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertype"
 )
 
 // --- Args (one type per worker; River uses Kind() for routing) ---
@@ -1502,7 +1503,7 @@ func (MatchFindingArgs) Kind() string { return "radar.match_finding" }
 // Inserter is the slice of river.Client that workers actually need.
 // Defining an interface lets jobs_test.go run workers without a real client.
 type Inserter interface {
-	Insert(ctx context.Context, args river.JobArgs, opts *river.InsertOpts) (*river.JobInsertResult, error)
+	Insert(ctx context.Context, args river.JobArgs, opts *river.InsertOpts) (*rivertype.JobInsertResult, error)
 }
 
 // Deps groups everything passed into Build so callers don't drift.
@@ -1513,7 +1514,7 @@ type Deps struct {
 }
 ```
 
-- [ ] **Step 2: Compile**
+- [x] **Step 2: Compile**
 
 ```bash
 go build ./internal/radar/jobs/
@@ -1521,7 +1522,7 @@ go build ./internal/radar/jobs/
 
 Expected: success — this file is self-contained.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/radar/jobs/jobs.go
