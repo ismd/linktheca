@@ -1152,7 +1152,7 @@ git commit -m "test(radar): add HTTP integration tests for radar flow"
 - Create: `internal/radar/crawler/crawler.go`
 - Create: `internal/radar/crawler/crawler_test.go`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `internal/radar/crawler/crawler_test.go`:
 
@@ -1213,13 +1213,13 @@ func TestHTTPFetcher_5xx(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run — expect failure**
+- [x] **Step 2: Run — expect failure**
 
 ```bash
 go test ./internal/radar/crawler/...
 ```
 
-- [ ] **Step 3: Implement HTTPFetcher**
+- [x] **Step 3: Implement HTTPFetcher**
 
 Create `internal/radar/crawler/crawler.go`:
 
@@ -1301,13 +1301,13 @@ func (f *HTTPFetcher) Fetch(ctx context.Context, url, etag, lastModified string)
 }
 ```
 
-- [ ] **Step 4: Run — expect pass**
+- [x] **Step 4: Run — expect pass**
 
 ```bash
 go test ./internal/radar/crawler/... -v
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/radar/crawler/
