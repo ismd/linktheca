@@ -227,3 +227,50 @@ func TestService_AddFeed_Duplicate(t *testing.T) {
 	})
 	require.ErrorIs(t, err, radar.ErrDuplicate)
 }
+
+func TestService_Subscribe_Success(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+
+	feed, err := svc.AddFeed(context.Background(), radar.AddFeedRequest{
+		URL: "https://x.example/sub",
+	})
+	require.NoError(t, err)
+
+	sub, err := svc.Subscribe(context.Background(), 42, radar.SubscribeRequest{FeedID: feed.ID})
+	require.NoError(t, err)
+	require.Equal(t, int64(42), sub.UserID)
+	require.Equal(t, feed.ID, sub.FeedID)
+}
+
+func TestService_Subscribe_Idempotent(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+
+	feed, _ := svc.AddFeed(context.Background(), radar.AddFeedRequest{URL: "https://x.example/i"})
+
+	sub1, _ := svc.Subscribe(context.Background(), 1, radar.SubscribeRequest{FeedID: feed.ID})
+	sub2, err := svc.Subscribe(context.Background(), 1, radar.SubscribeRequest{FeedID: feed.ID})
+	require.NoError(t, err)
+	require.Equal(t, sub1.CreatedAt, sub2.CreatedAt)
+}
+
+func TestService_Subscribe_FeedMissing(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+
+	_, err := svc.Subscribe(context.Background(), 1, radar.SubscribeRequest{FeedID: 999})
+	require.ErrorIs(t, err, radar.ErrFeedNotFound)
+}
+
+func TestService_Subscribe_Validation(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+
+	_, err := svc.Subscribe(context.Background(), 1, radar.SubscribeRequest{FeedID: 0})
+	require.ErrorIs(t, err, radar.ErrInvalidInput)
+}

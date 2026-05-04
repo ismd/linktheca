@@ -117,3 +117,11 @@ func (s *Service) AddFeed(ctx context.Context, req AddFeedRequest) (*Feed, error
 
 	return feed, nil
 }
+
+func (s *Service) Subscribe(ctx context.Context, userID int64, req SubscribeRequest) (*Subscription, error) {
+	if req.FeedID <= 0 {
+		return nil, fmt.Errorf("%w: feed_id must be positive", ErrInvalidInput)
+	}
+
+	return s.store.Subscribe(ctx, userID, req.FeedID)
+}

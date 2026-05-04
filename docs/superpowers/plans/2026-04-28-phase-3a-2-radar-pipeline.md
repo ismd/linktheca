@@ -550,7 +550,7 @@ git commit -m "feat(radar): add Service.AddFeed with validation"
 - Modify: `internal/radar/service.go`
 - Modify: `internal/radar/service_test.go`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Append to `internal/radar/service_test.go`:
 
@@ -603,9 +603,9 @@ func TestService_Subscribe_Validation(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run — expect failure**
+- [x] **Step 2: Run — expect failure**
 
-- [ ] **Step 3: Implement Subscribe**
+- [x] **Step 3: Implement Subscribe**
 
 Append to `internal/radar/service.go`:
 
@@ -618,13 +618,13 @@ func (s *Service) Subscribe(ctx context.Context, userID int64, req SubscribeRequ
 }
 ```
 
-- [ ] **Step 4: Run — expect pass**
+- [x] **Step 4: Run — expect pass**
 
 ```bash
 go test ./internal/radar/... -run TestService_ -v
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/radar/
