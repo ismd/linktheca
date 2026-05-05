@@ -2209,7 +2209,7 @@ git commit -m "test(server): assert /radar returns 501 when disabled"
 **Files:**
 - Modify: `cmd/linktheca-server/main.go`
 
-- [ ] **Step 1: Update run() to construct radar deps when enabled**
+- [x] **Step 1: Update run() to construct radar deps when enabled**
 
 Edit `cmd/linktheca-server/main.go`. Replace `run()` with:
 
@@ -2241,7 +2241,10 @@ func run() error {
 	var riverClient *river.Client[pgx.Tx]
 	if cfg.RadarEnabled {
 		// River migrations.
-		mig := rivermigrate.New(riverpgxv5.New(pool), nil)
+		mig, err := rivermigrate.New(riverpgxv5.New(pool), nil)
+		if err != nil {
+			return fmt.Errorf("river migrate new: %w", err)
+		}
 		if _, err := mig.Migrate(ctx, rivermigrate.DirectionUp, nil); err != nil {
 			return fmt.Errorf("river migrate: %w", err)
 		}
@@ -2331,7 +2334,7 @@ Add imports:
 "github.com/riverqueue/river/rivermigrate"
 ```
 
-- [ ] **Step 2: Build**
+- [x] **Step 2: Build**
 
 ```bash
 go build ./cmd/linktheca-server
@@ -2339,7 +2342,7 @@ go build ./cmd/linktheca-server
 
 Expected: success.
 
-- [ ] **Step 3: Manual sanity check (Postgres up, TEI not)**
+- [x] **Step 3: Manual sanity check (Postgres up, TEI not)**
 
 ```bash
 make dev-db
@@ -2356,7 +2359,7 @@ kill $SERVER_PID
 
 Expected: `200`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add cmd/linktheca-server/main.go

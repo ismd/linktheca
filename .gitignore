@@ -19,3 +19,5 @@ coverage.out
 
 # Air
 tmp/
+
+/linktheca-server
