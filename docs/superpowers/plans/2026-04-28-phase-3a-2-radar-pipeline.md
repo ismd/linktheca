@@ -2375,7 +2375,7 @@ git commit -m "feat(server): wire River + TEI on startup with graceful shutdown"
 **Files:**
 - Modify: `compose.dev.yaml`
 
-- [ ] **Step 1: Edit compose**
+- [x] **Step 1: Edit compose**
 
 Replace the file with:
 
@@ -2418,7 +2418,7 @@ volumes:
   linktheca_tei_data:
 ```
 
-- [ ] **Step 2: Verify (manual)**
+- [x] **Step 2: Verify (manual)**
 
 ```bash
 docker compose -f compose.dev.yaml config
@@ -2426,7 +2426,7 @@ docker compose -f compose.dev.yaml config
 
 Expected: parses without error.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add compose.dev.yaml

@@ -488,6 +488,8 @@ LIMIT 50;
 
 ## 6. Embeddings
 
+> **Обновление 2026-05-06:** актуальное обоснование выбора модели и инференс-сервера — в `2026-05-06-embedding-model-decision.md`. Inference-сервер заменён на TEI (см. `2026-04-22-phase-3a-radar-pipeline-design.md`). Раздел ниже сохранён как исторический снапшот апреля 2026.
+
 **Сервер:** Ollama — как отдельный сервис в compose, HTTP API.
 
 **Обоснование Ollama (не TEI, не in-process):**
