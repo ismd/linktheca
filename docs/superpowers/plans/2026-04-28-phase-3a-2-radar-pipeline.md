@@ -2440,7 +2440,7 @@ git commit -m "chore(compose): add TEI service for radar pipeline"
 **Files:**
 - Modify: `Makefile`
 
-- [ ] **Step 1: Add target**
+- [x] **Step 1: Add target**
 
 Replace lines 36–37 (`test-integration`) by appending the smoke target after them:
 
@@ -2455,7 +2455,7 @@ Update help text (lines 3–15) — add the line for `smoke-radar`:
 	@echo "  smoke-radar     - smoke tests with real TEI (slow)"
 ```
 
-- [ ] **Step 2: Sanity**
+- [x] **Step 2: Sanity**
 
 ```bash
 make help
@@ -2463,7 +2463,7 @@ make help
 
 Expected: smoke-radar is listed.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Makefile

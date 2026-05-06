@@ -2,17 +2,18 @@
 
 help:
 	@echo "Available targets:"
-	@echo "  dev-db          - start Postgres in Docker"
-	@echo "  dev-db-down     - stop Postgres"
-	@echo "  dev-db-logs     - follow Postgres logs"
-	@echo "  run             - run backend locally"
-	@echo "  test            - run all Go tests with race detector"
-	@echo "  test-unit       - run only unit tests (skip integration)"
+	@echo "  dev-db           - start Postgres in Docker"
+	@echo "  dev-db-down      - stop Postgres"
+	@echo "  dev-db-logs      - follow Postgres logs"
+	@echo "  run              - run backend locally"
+	@echo "  test             - run all Go tests with race detector"
+	@echo "  test-unit        - run only unit tests (skip integration)"
 	@echo "  test-integration - run only integration tests"
-	@echo "  lint            - go vet"
-	@echo "  tidy            - go mod tidy"
-	@echo "  build           - build the backend binary"
-	@echo "  clean           - remove build artifacts"
+	@echo "  smoke-radar      - smoke tests with real TEI (slow)"
+	@echo "  lint             - go vet"
+	@echo "  tidy             - go mod tidy"
+	@echo "  build            - build the backend binary"
+	@echo "  clean            - remove build artifacts"
 
 dev-db:
 	docker compose -f compose.dev.yaml up -d
@@ -34,6 +35,9 @@ test-unit:
 
 test-integration:
 	go test ./... -race -count=1 -run Integration
+
+smoke-radar:
+	go test -tags=smoke -timeout=10m -count=1 ./internal/radar/... ./internal/core/embeddings/...
 
 lint:
 	go vet ./...
