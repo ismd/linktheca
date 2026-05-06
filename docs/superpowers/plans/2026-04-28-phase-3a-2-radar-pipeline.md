@@ -2477,7 +2477,7 @@ git commit -m "chore(make): add smoke-radar target"
 **Files:**
 - Create: `internal/radar/jobs/smoke_test.go`
 
-- [ ] **Step 1: Write the smoke test**
+- [x] **Step 1: Write the smoke test**
 
 Create `internal/radar/jobs/smoke_test.go`:
 
@@ -2593,7 +2593,7 @@ func TestSmoke_PipelineWithRealTEI(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Build-tag check**
+- [x] **Step 2: Build-tag check**
 
 ```bash
 go vet -tags=smoke ./internal/radar/jobs/...
@@ -2601,7 +2601,7 @@ go vet -tags=smoke ./internal/radar/jobs/...
 
 Expected: no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/radar/jobs/smoke_test.go
