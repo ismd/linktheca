@@ -11,11 +11,16 @@ require (
 	github.com/go-chi/httprate v0.15.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/jackc/pgx/v5 v5.9.2
+	github.com/mmcdole/gofeed v1.3.0
 	github.com/pgvector/pgvector-go v0.3.0
 	github.com/pressly/goose/v3 v3.27.0
+	github.com/riverqueue/river v0.35.1
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.35.1
+	github.com/riverqueue/river/rivertype v0.35.1
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.42.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.42.0
+	golang.org/x/net v0.53.0
 )
 
 require (
@@ -53,7 +58,6 @@ require (
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
-	github.com/mmcdole/gofeed v1.3.0 // indirect
 	github.com/mmcdole/goxpp v1.1.1-0.20240225020742-a0c311522b23 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.2.0 // indirect
@@ -70,11 +74,8 @@ require (
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
-	github.com/riverqueue/river v0.35.1 // indirect
 	github.com/riverqueue/river/riverdriver v0.35.1 // indirect
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.35.1 // indirect
 	github.com/riverqueue/river/rivershared v0.35.1 // indirect
-	github.com/riverqueue/river/rivertype v0.35.1 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.3 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
@@ -94,7 +95,6 @@ require (
 	go.uber.org/goleak v1.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.50.0 // indirect
-	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/text v0.36.0 // indirect

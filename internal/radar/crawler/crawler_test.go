@@ -84,5 +84,59 @@ func TestParse_GarbageReturnsError(t *testing.T) {
 	require.Error(t, err)
 }
 
+// Aggregator feeds (HN, Lobsters, Reddit) often put a one-link "Comments"
+// anchor or a bare URL into <description>. That text adds no signal to
+// embeddings and uniformly biases vectors across all findings from the
+// same feed, so we drop it.
+func TestToUpserts_DropsUselessSummary(t *testing.T) {
+	cases := []struct {
+		name string
+		desc string
+	}{
+		{"hn comments anchor", `<a href="https://news.ycombinator.com/item?id=48055913">Comments</a>`},
+		{"bare placeholder word", "Comments"},
+		{"discussion placeholder", "Discuss"},
+		{"read-more placeholder anchor", `<a href="https://example.com/x">Read more</a>`},
+		{"bare url", "https://news.ycombinator.com/item?id=48055913"},
+		{"whitespace only", "   \n\t "},
+		{"empty anchor", `<a href="https://example.com/x"></a>`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rss := []byte(`<?xml version="1.0"?>
+<rss version="2.0"><channel><item>
+  <title>Some article</title>
+  <link>https://example.com/article</link>
+  <description><![CDATA[` + tc.desc + `]]></description>
+</item></channel></rss>`)
+
+			items, err := crawler.Parse(rss)
+			require.NoError(t, err)
+
+			ups := crawler.ToUpserts(1, items)
+			require.Len(t, ups, 1)
+			require.Nil(t, ups[0].Summary, "useless summary should be dropped")
+		})
+	}
+}
+
+func TestToUpserts_KeepsRealSummary(t *testing.T) {
+	rss := []byte(`<?xml version="1.0"?>
+<rss version="2.0"><channel><item>
+  <title>Some article</title>
+  <link>https://example.com/article</link>
+  <description><![CDATA[<p>A meaningful description with <a href="https://x">a link</a> in it.</p>]]></description>
+</item></channel></rss>`)
+
+	items, err := crawler.Parse(rss)
+	require.NoError(t, err)
+
+	ups := crawler.ToUpserts(1, items)
+	require.Len(t, ups, 1)
+	require.NotNil(t, ups[0].Summary)
+	require.Contains(t, *ups[0].Summary, "meaningful description")
+}
+
 // Compile-time check that ToUpserts returns []radar.FindingUpsert.
 var _ []radar.FindingUpsert = crawler.ToUpserts(0, nil)

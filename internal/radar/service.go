@@ -10,7 +10,10 @@ import (
 	"github.com/pgvector/pgvector-go"
 )
 
-const defaultMatchThreshold = .75
+// defaultMatchThreshold sits between BGE-M3's noise floor (~0.4 for unrelated
+// pairs) and weak cross-lingual semantic matches (~0.55–0.6). Per-topic
+// match_threshold lets users tighten for high-precision topics.
+const defaultMatchThreshold = .55
 
 type StoreAPI interface {
 	CreateTopic(ctx context.Context, p CreateTopicParams) (*Topic, error)
@@ -58,7 +61,7 @@ func (s *Service) CreateTopic(ctx context.Context, userID int64, req CreateTopic
 		return nil, fmt.Errorf("create topic: %w", err)
 	}
 
-	vec, err := s.embedder.Embed(ctx, desc)
+	vec, err := s.embedder.Embed(ctx, name+": "+desc)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
 	}

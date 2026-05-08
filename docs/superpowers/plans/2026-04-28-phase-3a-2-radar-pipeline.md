@@ -2616,7 +2616,7 @@ git commit -m "test(radar/jobs): add real-TEI pipeline smoke test"
 
 This is a manual verification step — no commit, but mark the plan complete after.
 
-- [ ] **Step 1: Bring up Postgres + TEI**
+- [x] **Step 1: Bring up Postgres + TEI**
 
 ```bash
 docker compose -f compose.dev.yaml up -d
@@ -2625,7 +2625,7 @@ docker compose -f compose.dev.yaml logs -f tei | head -40 &
 
 Wait for TEI healthcheck to go green (~2 minutes first time as it pulls the model).
 
-- [ ] **Step 2: Start the server**
+- [x] **Step 2: Start the server**
 
 ```bash
 LINKTHECA_DB_DSN="postgres://linktheca:linktheca@localhost:5432/linktheca?sslmode=disable" \
@@ -2639,7 +2639,7 @@ sleep 3
 
 Expected logs: "goose migrations applied", "river migrations applied", "http server starting".
 
-- [ ] **Step 3: Register an admin user via curl**
+- [x] **Step 3: Register an admin user via curl**
 
 ```bash
 ADMIN_TOKEN=$(curl -s -X POST http://localhost:8080/auth/register \
@@ -2651,7 +2651,7 @@ echo "$ADMIN_TOKEN"
 
 (First user is auto-promoted to admin per existing auth logic.)
 
-- [ ] **Step 4: Add a feed, topic, subscription**
+- [x] **Step 4: Add a feed, topic, subscription**
 
 ```bash
 FEED_ID=$(curl -s -X POST http://localhost:8080/radar/feeds \
@@ -2683,13 +2683,13 @@ docker compose -f compose.dev.yaml exec -T postgres \
 
 Expected: at least a few findings, possibly some matches (depends on HN headlines).
 
-- [ ] **Step 6: Stop server**
+- [x] **Step 6: Stop server**
 
 ```bash
 kill $SERVER_PID
 ```
 
-- [ ] **Step 7: Mark this plan as complete in the docs**
+- [x] **Step 7: Mark this plan as complete in the docs**
 
 (No file change required beyond reviewing checkboxes; completion is signaled by the user moving on to phase 3a-3.)
 

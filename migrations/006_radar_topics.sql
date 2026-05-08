@@ -5,7 +5,7 @@ CREATE TABLE radar_topics (
     name            TEXT NOT NULL,
     description     TEXT NOT NULL,
     embedding       vector(1024),
-    match_threshold REAL NOT NULL DEFAULT 0.75,
+    match_threshold REAL NOT NULL DEFAULT 0.55,
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()

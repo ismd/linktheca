@@ -122,6 +122,25 @@ func TestService_CreateTopic_Success(t *testing.T) {
 	require.True(t, topic.HasEmbedding, "embedding must be set after CreateTopic")
 }
 
+func TestService_CreateTopic_EmbedsNameAndDescription(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+
+	topic, err := svc.CreateTopic(context.Background(), 1, radar.CreateTopicRequest{
+		Name: "WebAuthn", Description: "webauthn passkeys",
+	})
+	require.NoError(t, err)
+
+	expected, _ := emb.Embed(context.Background(), "WebAuthn: webauthn passkeys")
+	require.Equal(t, pgvector.NewVector(expected), store.topicEmb[topic.ID],
+		"topic embedding must be derived from name + description")
+
+	descOnly, _ := emb.Embed(context.Background(), "webauthn passkeys")
+	require.NotEqual(t, pgvector.NewVector(descOnly), store.topicEmb[topic.ID],
+		"topic embedding must not be description-only")
+}
+
 func TestService_CreateTopic_DefaultThreshold(t *testing.T) {
 	store := newMockStore()
 	emb := &embeddings.FakeEmbedder{Dim: 1024}
@@ -131,7 +150,7 @@ func TestService_CreateTopic_DefaultThreshold(t *testing.T) {
 		Name: "x", Description: "ten chars long",
 	})
 	require.NoError(t, err)
-	require.Equal(t, float32(0.75), topic.MatchThreshold)
+	require.Equal(t, float32(0.55), topic.MatchThreshold)
 }
 
 func TestService_CreateTopic_Validation(t *testing.T) {

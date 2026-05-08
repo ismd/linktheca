@@ -8,11 +8,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/ismd/linktheca/internal/radar"
 	"github.com/mmcdole/gofeed"
+	"golang.org/x/net/html"
 )
 
 type FetchResult struct {
@@ -112,7 +114,7 @@ func ToUpserts(feedID int64, items []*gofeed.Item) []radar.FindingUpsert {
 			up.Title = &t
 		}
 
-		if d := strings.TrimSpace(it.Description); d != "" {
+		if d := sanitizeSummary(it.Description); d != "" {
 			up.Summary = &d
 		}
 
@@ -125,4 +127,62 @@ func ToUpserts(feedID int64, items []*gofeed.Item) []radar.FindingUpsert {
 	}
 
 	return out
+}
+
+// Some aggregator feeds emit a "Comments" anchor or a bare URL as <description>.
+// That text adds no signal to embeddings and uniformly biases vectors across
+// all findings from the same feed.
+var summaryPlaceholders = map[string]struct{}{
+	"comment":    {},
+	"comments":   {},
+	"discuss":    {},
+	"discussion": {},
+	"link":       {},
+	"read":       {},
+	"read more":  {},
+	"article":    {},
+}
+
+func sanitizeSummary(raw string) string {
+	text := strings.TrimSpace(plainText(raw))
+	if text == "" {
+		return ""
+	}
+
+	if _, ok := summaryPlaceholders[strings.ToLower(text)]; ok {
+		return ""
+	}
+
+	if isBareURL(text) {
+		return ""
+	}
+
+	return text
+}
+
+func plainText(raw string) string {
+	z := html.NewTokenizer(strings.NewReader(raw))
+
+	var b strings.Builder
+	for {
+		switch z.Next() {
+		case html.ErrorToken:
+			return b.String()
+		case html.TextToken:
+			b.Write(z.Text())
+		}
+	}
+}
+
+func isBareURL(s string) bool {
+	if strings.ContainsAny(s, " \t\n\r") {
+		return false
+	}
+
+	u, err := url.Parse(s)
+	if err != nil {
+		return false
+	}
+
+	return (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
 }
