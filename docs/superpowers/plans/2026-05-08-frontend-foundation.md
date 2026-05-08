@@ -82,6 +82,7 @@ compose.prod.yaml                # на корне репо, для prod-деп�
 **Files:**
 - Create: `web/package.json`
 - Create: `web/tsconfig.json`
+- Create: `web/tsconfig.app.json`
 - Create: `web/tsconfig.node.json`
 - Create: `web/vite.config.ts`
 - Create: `web/index.html`
@@ -89,7 +90,7 @@ compose.prod.yaml                # на корне репо, для prod-деп�
 - Create: `web/src/App.tsx`
 - Create: `web/.gitignore`
 
-- [ ] **Step 1: Создать `web/package.json`**
+- [x] **Step 1: Создать `web/package.json`**
 
 ```json
 {
@@ -116,55 +117,98 @@ compose.prod.yaml                # на корне репо, для prod-деп�
 }
 ```
 
-- [ ] **Step 2: Создать `web/tsconfig.json`**
+- [x] **Step 2: Создать `web/tsconfig.json`** (root, только references)
+
+Канонический split-шаблон create-vite: корневой tsconfig — пустой контейнер с `references`, конкретные настройки живут в `tsconfig.app.json` и `tsconfig.node.json`. Это разделяет контексты `src/` (DOM) и `vite.config.ts` (Node), у которых разные `lib`/`module`.
+
+```json
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+```
+
+- [x] **Step 3: Создать `web/tsconfig.app.json`** (для `src/`)
+
+Ключевые отличия от стандартного шаблона:
+- `types: ["vite/client"]` — типы для `import.meta.env`, `import.meta.hot`, ассет-импортов (`?url`, `?raw`, `?worker`).
+- `verbatimModuleSyntax: true` — заставляет писать `import type` явно; помогает Oxc-транспайлеру Vite 8 и улучшает tree-shaking.
+- `isolatedModules: true` — обязательно для Vite (Oxc не читает типы при транспиляции).
+- `composite: true` + `tsBuildInfoFile` — нужно для project references, чтобы `tsc -b` не ругался TS6306.
+- `paths: { "@/*": ["./src/*"] }` — алиас, который синхронизируется с `vite.config.ts`.
 
 ```json
 {
   "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "ES2022",
+    "useDefineForClassFields": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
+    "skipLibCheck": true,
+    "types": ["vite/client"],
+
     "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
     "jsx": "react-jsx",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+
+    "noEmit": true,
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "esModuleInterop": true,
-    "useDefineForClassFields": true,
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
+
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": ["src"]
 }
 ```
 
-- [ ] **Step 3: Создать `web/tsconfig.node.json`**
+- [x] **Step 3b: Создать `web/tsconfig.node.json`** (для `vite.config.ts` и `vitest.config.ts`)
 
 ```json
 {
   "compilerOptions": {
-    "target": "ES2022",
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "ES2023",
+    "lib": ["ES2023"],
     "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "strict": true,
     "skipLibCheck": true,
-    "allowSyntheticDefaultImports": true
+
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true
   },
-  "include": ["vite.config.ts", "vitest.config.ts"]
+  "include": ["vite.config.ts"]
 }
 ```
 
-- [ ] **Step 4: Создать `web/vite.config.ts`**
+> **Note:** `vitest.config.ts` появится в Task 15 — тогда его нужно будет добавить в `include`.
+
+- [x] **Step 4: Создать `web/vite.config.ts`**
 
 ```ts
 import { defineConfig } from "vite";
@@ -181,7 +225,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 5: Создать `web/index.html`**
+- [x] **Step 5: Создать `web/index.html`**
 
 ```html
 <!doctype html>
@@ -198,7 +242,7 @@ export default defineConfig({
 </html>
 ```
 
-- [ ] **Step 6: Создать `web/src/main.tsx`**
+- [x] **Step 6: Создать `web/src/main.tsx`**
 
 ```tsx
 import { StrictMode } from "react";
@@ -212,7 +256,7 @@ createRoot(document.getElementById("root")!).render(
 );
 ```
 
-- [ ] **Step 7: Создать `web/src/App.tsx`**
+- [x] **Step 7: Создать `web/src/App.tsx`**
 
 ```tsx
 export default function App() {
@@ -220,7 +264,7 @@ export default function App() {
 }
 ```
 
-- [ ] **Step 8: Создать `web/.gitignore`**
+- [x] **Step 8: Создать `web/.gitignore`**
 
 ```
 node_modules
@@ -229,25 +273,25 @@ dist
 *.log
 ```
 
-- [ ] **Step 9: Установить зависимости**
+- [x] **Step 9: Установить зависимости**
 
 Run: `cd web && npm install`
 Expected: `package-lock.json` создан, `node_modules/` появилась, без ошибок.
 
-- [ ] **Step 10: Verify dev server**
+- [x] **Step 10: Verify dev server**
 
 Run: `cd web && npm run dev`
 Expected: vite поднимается на `:5173`, в браузере «Linktheca» большим текстом. Завершить через Ctrl+C.
 
-- [ ] **Step 11: Verify build**
+- [x] **Step 11: Verify build**
 
 Run: `cd web && npm run build`
 Expected: `dist/` создан, в нём `index.html` и `assets/`.
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
-git add web/.gitignore web/package.json web/package-lock.json web/tsconfig.json web/tsconfig.node.json web/vite.config.ts web/index.html web/src/main.tsx web/src/App.tsx
+git add web/.gitignore web/package.json web/package-lock.json web/tsconfig.json web/tsconfig.app.json web/tsconfig.node.json web/vite.config.ts web/index.html web/src/main.tsx web/src/App.tsx
 git commit -m "feat(web): initialize Vite + React 19 + TypeScript strict skeleton"
 ```
 
