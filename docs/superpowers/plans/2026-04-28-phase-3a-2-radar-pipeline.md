@@ -2697,10 +2697,10 @@ kill $SERVER_PID
 
 ## Self-review checklist (engineer runs this before declaring done)
 
-- [ ] Every `radar.Service` method covered by both unit tests (`service_test.go`) and an HTTP integration test (`integration_test.go`).
-- [ ] `DisabledHandler` returns 501 with `"radar_disabled"` and is mounted on `/radar` and `/radar/*` when `RadarEnabled=false`.
-- [ ] `server.Deps.Radar` is `nil`-safe — `server.New` does not nil-deref when Radar is off.
-- [ ] River workers use the constructors `NewScheduleCrawlsWorker`, `NewCrawlFeedWorker`, `NewEmbedFindingWorker`, `NewMatchFindingWorker`. `Build` wires them and `WireInserter` injects the inserter after the client exists.
-- [ ] `cmd/linktheca-server/main.go` orders shutdown HTTP → River → pool, and runs goose then River migrations on startup.
-- [ ] `compose.dev.yaml` exposes TEI on `8081:8080` with the `linktheca_tei_data` volume.
-- [ ] Smoke test sits behind `//go:build smoke` and runs only via `make smoke-radar`.
+- [x] Every `radar.Service` method covered by both unit tests (`service_test.go`) and an HTTP integration test (`integration_test.go`).
+- [x] `DisabledHandler` returns 501 with `"radar_disabled"` and is mounted on `/radar` and `/radar/*` when `RadarEnabled=false`.
+- [x] `server.Deps.Radar` is `nil`-safe — `server.New` does not nil-deref when Radar is off.
+- [x] River workers use the constructors `NewScheduleCrawlsWorker`, `NewCrawlFeedWorker`, `NewEmbedFindingWorker`, `NewMatchFindingWorker`. `Build` wires them and `WireInserter` injects the inserter after the client exists.
+- [x] `cmd/linktheca-server/main.go` orders shutdown HTTP → River → pool, and runs goose then River migrations on startup.
+- [x] `compose.dev.yaml` exposes TEI on `8081:8080` with the `linktheca_tei_data` volume.
+- [x] Smoke test sits behind `//go:build smoke` and runs only via `make smoke-radar`.
