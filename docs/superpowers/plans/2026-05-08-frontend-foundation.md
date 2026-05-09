@@ -451,7 +451,7 @@ git commit -m "feat(web): add Tailwind v4 with editorial design tokens"
 - Modify: `web/package.json` (deps)
 - Modify: `web/src/main.tsx` (font imports)
 
-- [ ] **Step 1: Установить шрифты**
+- [x] **Step 1: Установить шрифты**
 
 Run:
 ```bash
@@ -463,7 +463,7 @@ cd web && npm install \
 
 Expected: три пакета добавлены в dependencies.
 
-- [ ] **Step 2: Импортировать в `web/src/main.tsx`**
+- [x] **Step 2: Импортировать в `web/src/main.tsx`**
 
 ```tsx
 import { StrictMode } from "react";
@@ -489,11 +489,11 @@ createRoot(document.getElementById("root")!).render(
 );
 ```
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 Run: `cd web && npm run dev` и в браузере проверить, что заголовок «Linktheca» в Cormorant Garamond, а не в дефолтном serif. Network tab покажет загрузку `.woff2` файлов из @fontsource. Ctrl+C.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add web/package.json web/package-lock.json web/src/main.tsx
