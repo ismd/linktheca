@@ -117,9 +117,11 @@ compose.prod.yaml                # на корне репо, для prod-деп�
 }
 ```
 
-- [x] **Step 2: Создать `web/tsconfig.json`** (root, только references)
+- [x] **Step 2: Создать `web/tsconfig.json`** (root, references + alias)
 
 Канонический split-шаблон create-vite: корневой tsconfig — пустой контейнер с `references`, конкретные настройки живут в `tsconfig.app.json` и `tsconfig.node.json`. Это разделяет контексты `src/` (DOM) и `vite.config.ts` (Node), у которых разные `lib`/`module`.
+
+Дополнительно дублируем `baseUrl` + `paths` в корневом конфиге. Причина: shadcn CLI (`npx shadcn add ...`) резолвит alias из `components.json` через **корневой** `tsconfig.json` и не ходит по `references`. Без этого блока CLI не находит `@/*`, считает `@/shared/ui/...` буквальным путём и создаёт директорию `web/@/` вместо файлов в `web/src/shared/ui/`. Официальная shadcn Vite installation guide прямо требует прописать alias в обоих файлах.
 
 ```json
 {
@@ -127,7 +129,13 @@ compose.prod.yaml                # на корне репо, для prod-деп�
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" }
-  ]
+  ],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
 }
 ```
 
@@ -920,7 +928,7 @@ git commit -m "feat(web): proxy /api/* to backend during dev"
 - Create: `web/src/shared/ui/alert-dialog.tsx`
 - Modify: `web/package.json` (deps добавит shadcn cli)
 
-- [ ] **Step 1: Установить базовые зависимости вручную**
+- [x] **Step 1: Установить базовые зависимости вручную**
 
 Run:
 ```bash
@@ -931,7 +939,7 @@ cd web && npm install \
   lucide-react
 ```
 
-- [ ] **Step 2: Создать `web/src/shared/lib/cn.ts`**
+- [x] **Step 2: Создать `web/src/shared/lib/cn.ts`**
 
 ```ts
 import { clsx, type ClassValue } from "clsx";
@@ -942,7 +950,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 ```
 
-- [ ] **Step 3: Создать `web/components.json`**
+- [x] **Step 3: Создать `web/components.json`**
 
 ```json
 {
@@ -967,7 +975,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 ```
 
-- [ ] **Step 4: Установить shadcn primitives через CLI**
+- [x] **Step 4: Установить shadcn primitives через CLI**
 
 Run:
 ```bash
@@ -976,7 +984,7 @@ cd web && npx shadcn@latest add button card dialog input label alert-dialog --ye
 
 Expected: создаются файлы в `src/shared/ui/`. CLI может задавать вопросы — отвечать дефолтами.
 
-- [ ] **Step 5: Verify импорт работает**
+- [x] **Step 5: Verify импорт работает**
 
 Временно изменить `web/src/App.tsx`:
 
@@ -995,7 +1003,7 @@ export default function App() {
 
 Run: `cd web && npm run dev` — кнопка отрендерилась. Ctrl+C.
 
-- [ ] **Step 6: Откатить App.tsx**
+- [x] **Step 6: Откатить App.tsx**
 
 ```tsx
 export default function App() {
@@ -1007,7 +1015,7 @@ export default function App() {
 }
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add web/package.json web/package-lock.json web/components.json web/src/shared/lib/cn.ts web/src/shared/ui/

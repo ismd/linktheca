@@ -7,8 +7,8 @@
   --color-ink: #1a1814;
   --color-ink-2: #2d2a24;
   --color-ink-3: #4a4438;
-  --color-muted: #8a8275;
-  --color-muted-2: #a69d8a;
+  --color-graphite: #8a8275;
+  --color-graphite-2: #a69d8a;
   --color-rule: #d4cdbe;
   --color-rule-2: #e2dbc9;
   --color-vermillion: #c83832;
@@ -20,6 +20,93 @@
   --font-display: "Cormorant Garamond", ui-serif, Georgia, serif;
   --font-body: "Newsreader", Georgia, serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+:root {
+  --radius: 0;
+
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
+
+  --card: var(--color-paper);
+  --card-foreground: var(--color-ink);
+
+  --popover: var(--color-paper-2);
+  --popover-foreground: var(--color-ink);
+
+  --primary: var(--color-ink);
+  --primary-foreground: var(--color-paper);
+
+  --secondary: var(--color-paper-2);
+  --secondary-foreground: var(--color-ink);
+
+  --muted: var(--color-paper-2);
+  --muted-foreground: var(--color-graphite);
+
+  --accent: var(--color-paper-2);
+  --accent-foreground: var(--color-ink);
+
+  --destructive: var(--color-vermillion-dark);
+  --destructive-foreground: var(--color-paper);
+
+  --border: var(--color-rule);
+  --input: var(--color-rule);
+  --ring: var(--color-vermillion);
+
+  --chart-1: var(--color-vermillion);
+  --chart-2: var(--color-ochre);
+  --chart-3: var(--color-sage);
+  --chart-4: var(--color-plum);
+  --chart-5: var(--color-graphite);
+
+  --sidebar: var(--color-paper);
+  --sidebar-foreground: var(--color-ink);
+  --sidebar-primary: var(--color-ink);
+  --sidebar-primary-foreground: var(--color-paper);
+  --sidebar-accent: var(--color-paper-2);
+  --sidebar-accent-foreground: var(--color-ink);
+  --sidebar-border: var(--color-rule);
+  --sidebar-ring: var(--color-vermillion);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius);
+  --radius-xl: var(--radius);
 }
 
 html {
@@ -48,12 +135,12 @@ body {
   background: var(--color-paper-2);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-muted-2);
+  background: var(--color-graphite-2);
   border: 3px solid var(--color-paper-2);
   border-radius: 0;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-muted);
+  background: var(--color-graphite);
 }
 
 button:focus-visible,
@@ -90,7 +177,7 @@ select:focus {
 
   /* Rules */
   .rule-dotted {
-    background-image: linear-gradient(to right, var(--color-muted) 40%, transparent 40%);
+    background-image: linear-gradient(to right, var(--color-graphite) 40%, transparent 40%);
     background-size: 5px 1px;
     background-repeat: repeat-x;
     background-position: 0 50%;
@@ -170,7 +257,7 @@ select:focus {
   }
   .nav-item:hover:not(.active)::after {
     transform: translateY(-50%) scaleX(0.5);
-    background: var(--color-muted);
+    background: var(--color-graphite);
   }
 
   /* Tag pill */
