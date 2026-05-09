@@ -306,12 +306,12 @@ git commit -m "feat(web): initialize Vite + React 19 + TypeScript strict skeleto
 - Modify: `web/src/main.tsx` (import globals)
 - Modify: `web/src/App.tsx` (verify token usage)
 
-- [ ] **Step 1: Установить Tailwind v4**
+- [x] **Step 1: Установить Tailwind v4**
 
 Run: `cd web && npm install -D tailwindcss@^4 @tailwindcss/vite@^4`
 Expected: пакеты добавлены в devDependencies.
 
-- [ ] **Step 2: Подключить tailwind plugin в `web/vite.config.ts`**
+- [x] **Step 2: Подключить tailwind plugin в `web/vite.config.ts`**
 
 ```ts
 import { defineConfig } from "vite";
@@ -329,7 +329,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 3: Создать `web/src/styles/globals.css`**
+- [x] **Step 3: Создать `web/src/styles/globals.css`**
 
 ```css
 @import "tailwindcss";
@@ -404,7 +404,7 @@ select:focus {
 }
 ```
 
-- [ ] **Step 4: Импортировать globals в `web/src/main.tsx`**
+- [x] **Step 4: Импортировать globals в `web/src/main.tsx`**
 
 ```tsx
 import { StrictMode } from "react";
@@ -419,7 +419,7 @@ createRoot(document.getElementById("root")!).render(
 );
 ```
 
-- [ ] **Step 5: Использовать токены в `web/src/App.tsx` для проверки**
+- [x] **Step 5: Использовать токены в `web/src/App.tsx` для проверки**
 
 ```tsx
 export default function App() {
@@ -431,12 +431,12 @@ export default function App() {
 }
 ```
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 Run: `cd web && npm run dev`
 Expected: страница на тёплом бежевом фоне (paper), заголовок vermillion-цвета. Проверить в браузере, потом Ctrl+C.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add web/package.json web/package-lock.json web/vite.config.ts web/src/styles/globals.css web/src/main.tsx web/src/App.tsx
