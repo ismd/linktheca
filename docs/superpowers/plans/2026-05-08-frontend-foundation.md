@@ -859,7 +859,7 @@ git commit -m "feat(web): port editorial utility classes from prototype"
 **Files:**
 - Modify: `web/vite.config.ts`
 
-- [ ] **Step 1: Добавить proxy в `web/vite.config.ts`**
+- [x] **Step 1: Добавить proxy в `web/vite.config.ts`**
 
 ```ts
 import { defineConfig } from "vite";
@@ -887,7 +887,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 2: Verify proxy works**
+- [x] **Step 2: Verify proxy works**
 
 Поднять backend (отдельный терминал): `make dev-db && make run`
 Run в первом терминале: `cd web && npm run dev`
@@ -896,7 +896,7 @@ Expected: ответ `ok` (бэкенд `/healthz` возвращает `ok`).
 
 Завершить оба процесса.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/vite.config.ts
