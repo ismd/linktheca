@@ -507,7 +507,7 @@ git commit -m "feat(web): bundle Cormorant Garamond, Newsreader, IBM Plex Mono v
 **Files:**
 - Modify: `web/src/styles/globals.css`
 
-- [ ] **Step 1: Добавить `@layer components` блок в конец `globals.css`**
+- [x] **Step 1: Добавить `@layer components` блок в конец `globals.css`**
 
 ```css
 @layer components {
@@ -814,7 +814,7 @@ git commit -m "feat(web): bundle Cormorant Garamond, Newsreader, IBM Plex Mono v
 }
 ```
 
-- [ ] **Step 2: Verify в браузере, что классы работают (smoke check)**
+- [x] **Step 2: Verify в браузере, что классы работают (smoke check)**
 
 В `App.tsx` временно добавить:
 
@@ -833,7 +833,7 @@ export default function App() {
 
 Run: `cd web && npm run dev` — в браузере увидеть paper-surface фон, dotted-rule, наклонённый stamp с буквами «READ» в моно-шрифте. Ctrl+C.
 
-- [ ] **Step 3: Откатить временные изменения в App.tsx**
+- [x] **Step 3: Откатить временные изменения в App.tsx**
 
 ```tsx
 export default function App() {
@@ -845,7 +845,7 @@ export default function App() {
 }
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add web/src/styles/globals.css
