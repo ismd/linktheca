@@ -1849,7 +1849,7 @@ git commit -m "test(web): set up Vitest + RTL + MSW with jsdom environment"
 **Files:**
 - Create: `web/src/shared/layout/Sidebar.test.tsx`
 
-- [ ] **Step 1: Написать failing test `web/src/shared/layout/Sidebar.test.tsx`**
+- [x] **Step 1: Написать failing test `web/src/shared/layout/Sidebar.test.tsx`**
 
 ```tsx
 import { describe, it, expect } from "vitest";
@@ -1886,12 +1886,12 @@ describe("Sidebar", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests**
+- [x] **Step 2: Run tests**
 
 Run: `cd web && npm test`
 Expected: все Sidebar тесты PASS, smoke-tests тоже PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/shared/layout/Sidebar.test.tsx
