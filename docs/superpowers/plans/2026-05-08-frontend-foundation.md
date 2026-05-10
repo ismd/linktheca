@@ -2052,11 +2052,11 @@ git commit -m "feat(web): add apiFetch wrapper with ApiError normalization"
 - Create: `web/src/features/auth/store.ts`
 - Create: `web/src/features/auth/store.test.ts`
 
-- [ ] **Step 1: Установить Zustand**
+- [x] **Step 1: Установить Zustand**
 
 Run: `cd web && npm install zustand`
 
-- [ ] **Step 2: Failing test `web/src/features/auth/store.test.ts`**
+- [x] **Step 2: Failing test `web/src/features/auth/store.test.ts`**
 
 ```ts
 import { describe, it, expect, beforeEach } from "vitest";
@@ -2099,7 +2099,7 @@ describe("useAuthStore", () => {
 });
 ```
 
-- [ ] **Step 3: Создать `web/src/features/auth/store.ts`**
+- [x] **Step 3: Создать `web/src/features/auth/store.ts`**
 
 ```ts
 import { create } from "zustand";
@@ -2130,12 +2130,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 }));
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `cd web && npm test`
 Expected: store tests PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/package.json web/package-lock.json web/src/features/auth/
