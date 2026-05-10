@@ -1042,12 +1042,14 @@ git commit -m "feat(web): set up shadcn/ui with button, card, dialog, input, lab
 
 - [ ] **Step 1: Установить React Router**
 
-Run: `cd web && npm install react-router-dom@^7`
+Run: `cd web && npm install react-router@^7`
+
+> В v7 `react-router-dom` объединён в один пакет `react-router`. Все хуки и компоненты импортируются из `react-router`; единственное исключение — DOM-специфичный `RouterProvider`, который идёт из deep path `react-router/dom`.
 
 - [ ] **Step 2: Создать stub `web/src/routes/__root.tsx`**
 
 ```tsx
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 
 export default function RootLayout() {
   return (
@@ -1061,7 +1063,7 @@ export default function RootLayout() {
 - [ ] **Step 3: Создать `web/src/routes/_public.tsx`**
 
 ```tsx
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 
 export default function PublicLayout() {
   return (
@@ -1077,7 +1079,7 @@ export default function PublicLayout() {
 - [ ] **Step 3b: Создать `web/src/routes/__app.tsx` (stub до Task 12)**
 
 ```tsx
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 
 export default function AppLayout() {
   return <Outlet />;
@@ -1089,7 +1091,7 @@ export default function AppLayout() {
 `web/src/routes/index.tsx`:
 
 ```tsx
-import { Navigate } from "react-router-dom";
+import { Navigate } from "react-router";
 
 export default function IndexRoute() {
   return <Navigate to="/library" replace />;
@@ -1138,7 +1140,7 @@ export default function LibraryListRoute() {
 `web/src/routes/library.$id.tsx`:
 
 ```tsx
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 
 export default function LibraryItemRoute() {
   const { id } = useParams();
@@ -1166,7 +1168,7 @@ export default function SettingsRoute() {
 `web/src/routes/not-found.tsx`:
 
 ```tsx
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 export default function NotFoundRoute() {
   return (
@@ -1184,7 +1186,8 @@ export default function NotFoundRoute() {
 - [ ] **Step 5: Собрать router и подключить в `web/src/App.tsx`**
 
 ```tsx
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter } from "react-router";
+import { RouterProvider } from "react-router/dom";
 import RootLayout from "./routes/__root";
 import AppLayout from "./routes/__app";
 import PublicLayout from "./routes/_public";
@@ -1267,7 +1270,7 @@ export function PaperGrainOverlay() {
 - [ ] **Step 2: Подключить в `__root.tsx`**
 
 ```tsx
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import { PaperGrainOverlay } from "@/shared/layout/PaperGrainOverlay";
 
 export default function RootLayout() {
@@ -1302,7 +1305,7 @@ git commit -m "feat(web): add paper grain overlay to root layout"
 - [ ] **Step 1: Создать `web/src/shared/layout/Sidebar.tsx`**
 
 ```tsx
-import { NavLink } from "react-router-dom";
+import { NavLink } from "react-router";
 import { cn } from "@/shared/lib/cn";
 
 const navItems = [
@@ -1525,7 +1528,7 @@ export function AppShell({ children }: Props) {
 Изменить `web/src/routes/__app.tsx`:
 
 ```tsx
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import { AppShell } from "@/shared/layout/AppShell";
 
 export default function AppLayout() {
@@ -1687,7 +1690,8 @@ export class ApiError extends Error {
 - [ ] **Step 4: Обернуть App в `QueryClientProvider`**
 
 ```tsx
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter } from "react-router";
+import { RouterProvider } from "react-router/dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/shared/api/query-client";
 import RootLayout from "./routes/__root";
@@ -1850,7 +1854,7 @@ git commit -m "test(web): set up Vitest + RTL + MSW with jsdom environment"
 ```tsx
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter } from "react-router";
 import { Sidebar } from "./Sidebar";
 
 describe("Sidebar", () => {
