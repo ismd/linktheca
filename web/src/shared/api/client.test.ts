@@ -3,6 +3,7 @@ import { http, HttpResponse } from "msw";
 import { server } from "@/test/setup";
 import { apiFetch } from "./client";
 import { ApiError } from "./errors";
+import { useAuthStore } from "@/features/auth/store";
 
 describe("apiFetch", () => {
   beforeEach(() => {
@@ -40,5 +41,31 @@ describe("apiFetch", () => {
       status: 502,
       code: "http_error",
     });
+  });
+
+  beforeEach(() => {
+    useAuthStore.getState().clearSession();
+    server.use(
+      http.get("/api/echo-auth", ({ request }) => {
+        const auth = request.headers.get("Authorization");
+        return HttpResponse.json({ auth });
+      }),
+    );
+  });
+
+  it("omits Authorization header when no token", async () => {
+    const r = await apiFetch<{ auth: string | null }>("/echo-auth");
+    expect(r.auth).toBeNull();
+  });
+
+  it("sends Bearer token when set in store", async () => {
+    useAuthStore.getState().setSession("tok-xyz", {
+      id: 1,
+      email: "a@b.c",
+      displayName: "A",
+      isAdmin: false,
+    });
+    const r = await apiFetch<{ auth: string | null }>("/echo-auth");
+    expect(r.auth).toBe("Bearer tok-xyz");
   });
 });

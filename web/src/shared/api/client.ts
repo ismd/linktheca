@@ -1,4 +1,5 @@
 import { ApiError } from "./errors";
+import { useAuthStore } from "@/features/auth/store";
 
 const API_BASE = "/api";
 
@@ -7,11 +8,12 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   if (!headers.has("Content-Type") && init?.body) {
     headers.set("Content-Type", "application/json");
   }
+  const token = useAuthStore.getState().accessToken;
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers,
-  });
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
 
   if (res.ok) {
     if (res.status === 204) return undefined as T;
@@ -30,7 +32,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       if (typeof body.message === "string") message = body.message;
       details = body.details;
     } catch {
-      // fall through with synthetic code
+      // fall through
     }
   }
 

@@ -2150,7 +2150,7 @@ git commit -m "feat(web): add Zustand auth store with bootstrapping/authed/anony
 - Modify: `web/src/shared/api/client.ts`
 - Modify: `web/src/shared/api/client.test.ts`
 
-- [ ] **Step 1: Failing test — добавить кейсы в `client.test.ts`**
+- [x] **Step 1: Failing test — добавить кейсы в `client.test.ts`**
 
 В существующий `describe("apiFetch", ...)` добавить новый sub-describe в конец:
 
@@ -2186,12 +2186,12 @@ describe("apiFetch with auth token", () => {
 });
 ```
 
-- [ ] **Step 2: Run test, увидеть FAIL**
+- [x] **Step 2: Run test, увидеть FAIL**
 
 Run: `cd web && npm test src/shared/api/client.test.ts`
 Expected: новые «Bearer» тесты FAIL.
 
-- [ ] **Step 3: Обновить `web/src/shared/api/client.ts`**
+- [x] **Step 3: Обновить `web/src/shared/api/client.ts`**
 
 ```ts
 import { ApiError } from "./errors";
@@ -2236,12 +2236,12 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `cd web && npm test`
 Expected: все тесты PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/shared/api/client.ts web/src/shared/api/client.test.ts
