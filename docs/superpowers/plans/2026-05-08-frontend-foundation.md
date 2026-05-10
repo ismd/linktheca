@@ -1567,7 +1567,7 @@ git commit -m "feat(web): compose AppShell with responsive sidebar and mount via
 - Modify: `web/src/routes/library._index.tsx`
 - Modify: `web/src/routes/settings.tsx`
 
-- [ ] **Step 1: Создать `web/src/shared/layout/PageHeader.tsx`**
+- [x] **Step 1: Создать `web/src/shared/layout/PageHeader.tsx`**
 
 ```tsx
 type Props = {
@@ -1591,7 +1591,7 @@ export function PageHeader({ title, subtitle, actions }: Props) {
 }
 ```
 
-- [ ] **Step 2: Использовать в `library._index.tsx`**
+- [x] **Step 2: Использовать в `library._index.tsx`**
 
 ```tsx
 import { PageHeader } from "@/shared/layout/PageHeader";
@@ -1608,7 +1608,7 @@ export default function LibraryListRoute() {
 }
 ```
 
-- [ ] **Step 3: Использовать в `settings.tsx`**
+- [x] **Step 3: Использовать в `settings.tsx`**
 
 ```tsx
 import { PageHeader } from "@/shared/layout/PageHeader";
@@ -1622,11 +1622,11 @@ export default function SettingsRoute() {
 }
 ```
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 Run: `cd web && npm run dev`. На `/library` и `/settings` — большой Cormorant title и small-caps subtitle, разделитель снизу. Ctrl+C.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/shared/layout/PageHeader.tsx web/src/routes/library._index.tsx web/src/routes/settings.tsx
