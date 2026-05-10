@@ -1040,13 +1040,13 @@ git commit -m "feat(web): set up shadcn/ui with button, card, dialog, input, lab
 - Create: `web/src/routes/not-found.tsx`
 - Modify: `web/src/App.tsx`
 
-- [ ] **Step 1: Установить React Router**
+- [x] **Step 1: Установить React Router**
 
 Run: `cd web && npm install react-router@^7`
 
 > В v7 `react-router-dom` объединён в один пакет `react-router`. Все хуки и компоненты импортируются из `react-router`; единственное исключение — DOM-специфичный `RouterProvider`, который идёт из deep path `react-router/dom`.
 
-- [ ] **Step 2: Создать stub `web/src/routes/__root.tsx`**
+- [x] **Step 2: Создать stub `web/src/routes/__root.tsx`**
 
 ```tsx
 import { Outlet } from "react-router";
@@ -1060,7 +1060,7 @@ export default function RootLayout() {
 }
 ```
 
-- [ ] **Step 3: Создать `web/src/routes/_public.tsx`**
+- [x] **Step 3: Создать `web/src/routes/_public.tsx`**
 
 ```tsx
 import { Outlet } from "react-router";
@@ -1076,7 +1076,7 @@ export default function PublicLayout() {
 }
 ```
 
-- [ ] **Step 3b: Создать `web/src/routes/__app.tsx` (stub до Task 12)**
+- [x] **Step 3b: Создать `web/src/routes/__app.tsx` (stub до Task 12)**
 
 ```tsx
 import { Outlet } from "react-router";
@@ -1086,7 +1086,7 @@ export default function AppLayout() {
 }
 ```
 
-- [ ] **Step 4: Создать stubs для всех страниц**
+- [x] **Step 4: Создать stubs для всех страниц**
 
 `web/src/routes/index.tsx`:
 
@@ -1183,7 +1183,7 @@ export default function NotFoundRoute() {
 }
 ```
 
-- [ ] **Step 5: Собрать router и подключить в `web/src/App.tsx`**
+- [x] **Step 5: Собрать router и подключить в `web/src/App.tsx`**
 
 ```tsx
 import { createBrowserRouter } from "react-router";
@@ -1229,7 +1229,7 @@ export default function App() {
 }
 ```
 
-- [ ] **Step 6: Verify навигацию**
+- [x] **Step 6: Verify навигацию**
 
 Run: `cd web && npm run dev`. В браузере проверить:
 - `/` → редиректит на `/library` (видно «Library»).
@@ -1240,7 +1240,7 @@ Run: `cd web && npm run dev`. В браузере проверить:
 
 Ctrl+C.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add web/package.json web/package-lock.json web/src/routes/ web/src/App.tsx
