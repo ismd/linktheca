@@ -1491,7 +1491,7 @@ git commit -m "feat(web): add MobileDrawer hosting Sidebar on <lg via Radix Dial
 **Files:**
 - Create: `web/src/shared/layout/AppShell.tsx`
 
-- [ ] **Step 1: Создать `web/src/shared/layout/AppShell.tsx`**
+- [x] **Step 1: Создать `web/src/shared/layout/AppShell.tsx`**
 
 ```tsx
 import { useState } from "react";
@@ -1523,7 +1523,7 @@ export function AppShell({ children }: Props) {
 }
 ```
 
-- [ ] **Step 2: Подключить AppShell через `__app.tsx`** (route layout)
+- [x] **Step 2: Подключить AppShell через `__app.tsx`** (route layout)
 
 Изменить `web/src/routes/__app.tsx`:
 
@@ -1542,7 +1542,7 @@ export default function AppLayout() {
 
 `__root.tsx` остаётся без изменений (paper-grain + Outlet). Структура роутов уже разделяет public-ветку и app-ветку — никакой условной логики в layout не нужно.
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 Run: `cd web && npm run dev`. На `/library`:
 - На широком окне (≥1024px) — sidebar pinned слева, topbar сверху, контент справа от sidebar.
@@ -1551,7 +1551,7 @@ Run: `cd web && npm run dev`. На `/library`:
 
 Ctrl+C.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add web/src/shared/layout/AppShell.tsx web/src/routes/__app.tsx
