@@ -1259,7 +1259,7 @@ git commit -m "feat(web): wire React Router v7 with route stubs and 404 page"
 - Create: `web/src/shared/layout/PaperGrainOverlay.tsx`
 - Modify: `web/src/routes/__root.tsx`
 
-- [ ] **Step 1: Создать `web/src/shared/layout/PaperGrainOverlay.tsx`**
+- [x] **Step 1: Создать `web/src/shared/layout/PaperGrainOverlay.tsx`**
 
 ```tsx
 export function PaperGrainOverlay() {
@@ -1267,7 +1267,7 @@ export function PaperGrainOverlay() {
 }
 ```
 
-- [ ] **Step 2: Подключить в `__root.tsx`**
+- [x] **Step 2: Подключить в `__root.tsx`**
 
 ```tsx
 import { Outlet } from "react-router";
@@ -1283,11 +1283,11 @@ export default function RootLayout() {
 }
 ```
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 Run: `cd web && npm run dev`. Открыть `/library`. В DevTools видно `<div class="grain-overlay">` поверх контента, content интерактивен (overlay не блокирует клики). Ctrl+C.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add web/src/shared/layout/PaperGrainOverlay.tsx web/src/routes/__root.tsx
