@@ -1302,7 +1302,7 @@ git commit -m "feat(web): add paper grain overlay to root layout"
 - Create: `web/src/shared/layout/Sidebar.tsx`
 - Create: `web/src/shared/layout/Sidebar.test.tsx` (тест добавим в Task 16, когда vitest настроен)
 
-- [ ] **Step 1: Создать `web/src/shared/layout/Sidebar.tsx`**
+- [x] **Step 1: Создать `web/src/shared/layout/Sidebar.tsx`**
 
 ```tsx
 import { NavLink } from "react-router";
@@ -1364,7 +1364,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 }
 ```
 
-- [ ] **Step 2: Commit (тест добавим после Vitest setup)**
+- [x] **Step 2: Commit (тест добавим после Vitest setup)**
 
 ```bash
 git add web/src/shared/layout/Sidebar.tsx
