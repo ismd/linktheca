@@ -1907,7 +1907,7 @@ git commit -m "test(web): cover Sidebar nav rendering and Radar disabled state"
 - Create: `web/src/shared/api/client.ts`
 - Create: `web/src/shared/api/client.test.ts`
 
-- [ ] **Step 1: Failing test для ApiError `web/src/shared/api/errors.test.ts`**
+- [x] **Step 1: Failing test для ApiError `web/src/shared/api/errors.test.ts`**
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -1930,12 +1930,12 @@ describe("ApiError", () => {
 });
 ```
 
-- [ ] **Step 2: Run test (должен проходить — `errors.ts` уже создан в Task 14)**
+- [x] **Step 2: Run test (должен проходить — `errors.ts` уже создан в Task 14)**
 
 Run: `cd web && npm test src/shared/api/errors.test.ts`
 Expected: PASS.
 
-- [ ] **Step 3: Failing test для `apiFetch` `web/src/shared/api/client.test.ts`**
+- [x] **Step 3: Failing test для `apiFetch` `web/src/shared/api/client.test.ts`**
 
 ```ts
 import { describe, it, expect, beforeEach } from "vitest";
@@ -1988,7 +1988,7 @@ describe("apiFetch", () => {
 });
 ```
 
-- [ ] **Step 4: Создать `web/src/shared/api/client.ts`**
+- [x] **Step 4: Создать `web/src/shared/api/client.ts`**
 
 ```ts
 import { ApiError } from "./errors";
@@ -2031,12 +2031,12 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 }
 ```
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 Run: `cd web && npm test`
 Expected: все тесты PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/shared/api/errors.ts web/src/shared/api/errors.test.ts web/src/shared/api/client.ts web/src/shared/api/client.test.ts
