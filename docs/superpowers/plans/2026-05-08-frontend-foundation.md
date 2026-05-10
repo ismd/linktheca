@@ -1755,7 +1755,7 @@ git commit -m "feat(web): wire TanStack Query client with retry/staleTime config
 - Create: `web/src/test/setup.ts`
 - Create: `web/src/test/sanity.test.ts` (smoke check)
 
-- [ ] **Step 1: Установить тестовые зависимости**
+- [x] **Step 1: Установить тестовые зависимости**
 
 Run:
 ```bash
@@ -1766,7 +1766,7 @@ cd web && npm install -D \
   msw
 ```
 
-- [ ] **Step 2: Создать `web/vitest.config.ts`**
+- [x] **Step 2: Создать `web/vitest.config.ts`**
 
 ```ts
 import { defineConfig } from "vitest/config";
@@ -1789,7 +1789,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 3: Создать `web/src/test/setup.ts`**
+- [x] **Step 3: Создать `web/src/test/setup.ts`**
 
 ```ts
 import "@testing-library/jest-dom/vitest";
@@ -1803,7 +1803,7 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 ```
 
-- [ ] **Step 4: Добавить test scripts в `web/package.json`**
+- [x] **Step 4: Добавить test scripts в `web/package.json`**
 
 В блок `scripts`:
 
@@ -1812,7 +1812,7 @@ afterAll(() => server.close());
 "test:watch": "vitest"
 ```
 
-- [ ] **Step 5: Создать smoke-test `web/src/test/sanity.test.ts`**
+- [x] **Step 5: Создать smoke-test `web/src/test/sanity.test.ts`**
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -1830,12 +1830,12 @@ describe("test setup", () => {
 });
 ```
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
 
 Run: `cd web && npm test`
 Expected: 2 теста PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add web/package.json web/package-lock.json web/vitest.config.ts web/src/test/
