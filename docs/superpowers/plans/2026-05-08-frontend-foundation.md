@@ -1947,16 +1947,16 @@ import { ApiError } from "./errors";
 describe("apiFetch", () => {
   beforeEach(() => {
     server.use(
-      http.get("http://localhost/api/echo", () =>
+      http.get("/api/echo", () =>
         HttpResponse.json({ ok: true }),
       ),
-      http.get("http://localhost/api/forbidden", () =>
+      http.get("/api/forbidden", () =>
         HttpResponse.json({ code: "forbidden", message: "Nope" }, { status: 403 }),
       ),
-      http.get("http://localhost/api/server-error", () =>
+      http.get("/api/server-error", () =>
         HttpResponse.json({ code: "internal", message: "Boom" }, { status: 500 }),
       ),
-      http.get("http://localhost/api/no-json", () =>
+      http.get("/api/no-json", () =>
         new HttpResponse("plain text", { status: 502 }),
       ),
     );
@@ -2161,7 +2161,7 @@ describe("apiFetch with auth token", () => {
   beforeEach(() => {
     useAuthStore.getState().clearSession();
     server.use(
-      http.get("http://localhost/api/echo-auth", ({ request }) => {
+      http.get("/api/echo-auth", ({ request }) => {
         const auth = request.headers.get("Authorization");
         return HttpResponse.json({ auth });
       }),
