@@ -1438,7 +1438,7 @@ git commit -m "feat(web): add Topbar with hamburger and add-link button stubs"
 **Files:**
 - Create: `web/src/shared/layout/MobileDrawer.tsx`
 
-- [ ] **Step 1: Создать `web/src/shared/layout/MobileDrawer.tsx`**
+- [x] **Step 1: Создать `web/src/shared/layout/MobileDrawer.tsx`**
 
 ```tsx
 import * as Dialog from "@radix-ui/react-dialog";
@@ -1477,7 +1477,7 @@ export function MobileDrawer({ open, onOpenChange }: Props) {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add web/src/shared/layout/MobileDrawer.tsx
