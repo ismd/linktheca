@@ -1644,11 +1644,11 @@ git commit -m "feat(web): add PageHeader and apply to Library/Settings routes"
 - Create: `web/src/shared/api/query-client.ts`
 - Modify: `web/src/App.tsx`
 
-- [ ] **Step 1: Установить TanStack Query**
+- [x] **Step 1: Установить TanStack Query**
 
 Run: `cd web && npm install @tanstack/react-query`
 
-- [ ] **Step 2: Создать `web/src/shared/api/query-client.ts`**
+- [x] **Step 2: Создать `web/src/shared/api/query-client.ts`**
 
 ```ts
 import { QueryClient } from "@tanstack/react-query";
@@ -1669,7 +1669,7 @@ export const queryClient = new QueryClient({
 
 (Файл `errors.ts` ещё не существует — создаём в Task 17. Здесь делаем заглушку, которую заменим. Для разрыва циклов: создать `errors.ts` сейчас минимально.)
 
-- [ ] **Step 3: Создать минимальный `web/src/shared/api/errors.ts`**
+- [x] **Step 3: Создать минимальный `web/src/shared/api/errors.ts`**
 
 ```ts
 export class ApiError extends Error {
@@ -1687,7 +1687,7 @@ export class ApiError extends Error {
 
 (Полные тесты — в Task 17.)
 
-- [ ] **Step 4: Обернуть App в `QueryClientProvider`**
+- [x] **Step 4: Обернуть App в `QueryClientProvider`**
 
 ```tsx
 import { createBrowserRouter } from "react-router";
@@ -1733,12 +1733,12 @@ export default function App() {
 }
 ```
 
-- [ ] **Step 5: Verify build**
+- [x] **Step 5: Verify build**
 
 Run: `cd web && npm run build`
 Expected: build проходит без ошибок.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/package.json web/package-lock.json web/src/shared/api/ web/src/App.tsx
