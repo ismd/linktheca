@@ -1378,7 +1378,7 @@ git commit -m "feat(web): add Sidebar with nav items (Radar disabled stub)"
 **Files:**
 - Create: `web/src/shared/layout/Topbar.tsx`
 
-- [ ] **Step 1: Создать `web/src/shared/layout/Topbar.tsx`**
+- [x] **Step 1: Создать `web/src/shared/layout/Topbar.tsx`**
 
 ```tsx
 import { Menu, Plus } from "lucide-react";
@@ -1424,7 +1424,7 @@ export function Topbar({ onMenuClick }: Props) {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add web/src/shared/layout/Topbar.tsx
