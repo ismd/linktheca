@@ -28,7 +28,9 @@ describe("useAuthStore", () => {
   });
 
   it("clearSession resets to anonymous", () => {
-    useAuthStore.getState().setSession("t", { id: 1, email: "x", displayName: "X", isAdmin: false });
+    useAuthStore
+      .getState()
+      .setSession("t", { id: 1, email: "x", displayName: "X", isAdmin: false });
     useAuthStore.getState().clearSession();
     const s = useAuthStore.getState();
     expect(s.status).toBe("anonymous");

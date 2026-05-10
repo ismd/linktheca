@@ -412,8 +412,7 @@ select:focus {
   .img-6 {
     background:
       radial-gradient(circle at 30% 30%, rgba(200, 56, 50, 0.6), transparent 45%),
-      radial-gradient(circle at 70% 70%, rgba(200, 150, 50, 0.4), transparent 50%),
-      #1a1814;
+      radial-gradient(circle at 70% 70%, rgba(200, 150, 50, 0.4), transparent 50%), #1a1814;
   }
   .img-7 {
     background: conic-gradient(from 120deg at 40% 60%, #6b3a4e, #1a1814, #2d2a24, #6b3a4e);
@@ -426,13 +425,11 @@ select:focus {
   .img-9 {
     background:
       linear-gradient(135deg, rgba(200, 56, 50, 0.25), transparent 60%),
-      repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 8px),
-      #1a1814;
+      repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 8px), #1a1814;
   }
   .img-10 {
     background:
-      radial-gradient(circle at 50% 50%, rgba(200, 150, 50, 0.5), transparent 60%),
-      #241e18;
+      radial-gradient(circle at 50% 50%, rgba(200, 150, 50, 0.5), transparent 60%), #241e18;
   }
 }
 

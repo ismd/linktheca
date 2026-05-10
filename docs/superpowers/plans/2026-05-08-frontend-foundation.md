@@ -121,7 +121,9 @@ compose.prod.yaml                # на корне репо, для prod-деп�
 
 Канонический split-шаблон create-vite: корневой tsconfig — пустой контейнер с `references`, конкретные настройки живут в `tsconfig.app.json` и `tsconfig.node.json`. Это разделяет контексты `src/` (DOM) и `vite.config.ts` (Node), у которых разные `lib`/`module`.
 
-Дополнительно дублируем `baseUrl` + `paths` в корневом конфиге. Причина: shadcn CLI (`npx shadcn add ...`) резолвит alias из `components.json` через **корневой** `tsconfig.json` и не ходит по `references`. Без этого блока CLI не находит `@/*`, считает `@/shared/ui/...` буквальным путём и создаёт директорию `web/@/` вместо файлов в `web/src/shared/ui/`. Официальная shadcn Vite installation guide прямо требует прописать alias в обоих файлах.
+Дополнительно дублируем `paths` в корневом конфиге. Причина: shadcn CLI (`npx shadcn add ...`) резолвит alias из `components.json` через **корневой** `tsconfig.json` и не ходит по `references`. Без этого блока CLI не находит `@/*`, считает `@/shared/ui/...` буквальным путём и создаёт директорию `web/@/` вместо файлов в `web/src/shared/ui/`.
+
+`baseUrl` намеренно не указываем: TypeScript 5.5+ резолвит `paths` относительно самого `tsconfig.json` и без него, а в TypeScript 6 опция помечена как deprecated (TS5101) и будет удалена в TS 7. Современные версии shadcn CLI работают с `paths` без `baseUrl`.
 
 ```json
 {
@@ -131,7 +133,6 @@ compose.prod.yaml                # на корне репо, для prod-деп�
     { "path": "./tsconfig.node.json" }
   ],
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
@@ -176,7 +177,6 @@ compose.prod.yaml                # на корне репо, для prod-деп�
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
 
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
@@ -2260,17 +2260,19 @@ git commit -m "feat(web): inject Bearer token from auth store into apiFetch"
 - Create: `web/.prettierrc`
 - Create: `web/.prettierignore`
 
-- [ ] **Step 1: Установить зависимости**
+- [x] **Step 1: Установить зависимости**
 
 Run:
 ```bash
 cd web && npm install -D \
-  eslint @eslint/js typescript-eslint \
+  eslint@^9 @eslint/js@^9 typescript-eslint \
   eslint-plugin-react eslint-plugin-react-hooks eslint-plugin-jsx-a11y \
   prettier eslint-config-prettier
 ```
 
-- [ ] **Step 2: Создать `web/eslint.config.js`**
+> ESLint v10 пока не поддерживается `eslint-plugin-jsx-a11y` (≤v9) и `eslint-plugin-react` (≤v9.7+); `*` резолвится в v10 и npm падает с ERESOLVE. Пинуем `eslint`/`@eslint/js` на `^9` до выхода совместимых релизов плагинов.
+
+- [x] **Step 2: Создать `web/eslint.config.js`**
 
 ```js
 import js from "@eslint/js";
@@ -2284,26 +2286,18 @@ export default tseslint.config(
   { ignores: ["dist", "node_modules"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  react.configs.flat.recommended,
+  react.configs.flat["jsx-runtime"],
+  reactHooks.configs.flat.recommended,
+  jsxA11y.flatConfigs.recommended,
+  {
+    settings: {
+      react: { version: "detect" },
+    },
+  },
   {
     files: ["**/*.{ts,tsx}"],
-    languageOptions: {
-      parserOptions: {
-        ecmaFeatures: { jsx: true },
-      },
-    },
-    settings: {
-      react: { version: "19.0" },
-    },
-    plugins: {
-      react,
-      "react-hooks": reactHooks,
-      "jsx-a11y": jsxA11y,
-    },
     rules: {
-      ...react.configs.recommended.rules,
-      ...reactHooks.configs.recommended.rules,
-      ...jsxA11y.configs.recommended.rules,
-      "react/react-in-jsx-scope": "off",
       "react/prop-types": "off",
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
     },
@@ -2312,7 +2306,11 @@ export default tseslint.config(
 );
 ```
 
-- [ ] **Step 3: Создать `web/.prettierrc`**
+> Используем flat-config пресеты плагинов (`react.configs.flat.*`, `reactHooks.configs.flat.recommended`, `jsxA11y.flatConfigs.recommended`) — старая форма `configs.recommended.rules` это legacy eslintrc и в `eslint-plugin-react-hooks@7` её фактически нет. `jsx-runtime` сам отключает `react-in-jsx-scope`. `prop-types` выключен — типы покрывает TypeScript.
+
+> `settings.react.version` лежит в отдельном блоке без `files`-ограничения: `react.configs.flat.recommended` подключается ко всем файлам, и без глобального `settings` ESLint выдаёт «React version not specified» warning при `npm run lint`.
+
+- [x] **Step 3: Создать `web/.prettierrc`**
 
 ```json
 {
@@ -2323,7 +2321,7 @@ export default tseslint.config(
 }
 ```
 
-- [ ] **Step 4: Создать `web/.prettierignore`**
+- [x] **Step 4: Создать `web/.prettierignore`**
 
 ```
 dist
@@ -2331,7 +2329,7 @@ node_modules
 package-lock.json
 ```
 
-- [ ] **Step 5: Добавить scripts в `web/package.json`**
+- [x] **Step 5: Добавить scripts в `web/package.json`**
 
 ```json
 "lint": "eslint . --max-warnings 0",
@@ -2339,22 +2337,22 @@ package-lock.json
 "format": "prettier --write ."
 ```
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 Run: `cd web && npm run typecheck && npm run lint`
 Expected: оба PASS. Если lint ругается на несоблюдение правил — поправить точечно (не подавляя правила).
 
-- [ ] **Step 7: Run prettier один раз для нормализации стиля**
+- [x] **Step 7: Run prettier один раз для нормализации стиля**
 
 Run: `cd web && npm run format`
 Expected: некоторые файлы перепишутся.
 
-- [ ] **Step 8: Verify lint после форматирования**
+- [x] **Step 8: Verify lint после форматирования**
 
 Run: `cd web && npm run lint && npm test`
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add web/package.json web/package-lock.json web/eslint.config.js web/.prettierrc web/.prettierignore web/src/
