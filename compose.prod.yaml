@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.2-pg18-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: linktheca
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      POSTGRES_DB: linktheca
+    volumes:
+      - linktheca_pg_data:/var/lib/postgresql
+
+  tei:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
+    command: ["--model-id", "BAAI/bge-m3", "--port", "8080"]
+    volumes:
+      - linktheca_tei_data:/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+      - tei
+    environment:
+      LINKTHECA_DB_DSN: postgres://linktheca:${POSTGRES_PASSWORD}@postgres:5432/linktheca?sslmode=disable
+      LINKTHECA_JWT_SECRET: ${JWT_SECRET:?required}
+      LINKTHECA_TEI_URL: http://tei:8080
+    expose:
+      - "8080"
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  linktheca_pg_data:
+  linktheca_tei_data:

@@ -2455,7 +2455,7 @@ git commit -m "feat(web): add multi-stage Dockerfile and nginx config for SPA + 
 **Files:**
 - Create: `compose.prod.yaml` (в корне репо)
 
-- [ ] **Step 1: Создать `compose.prod.yaml` в корне репо**
+- [x] **Step 1: Создать `compose.prod.yaml` в корне репо**
 
 ```yaml
 services:
@@ -2505,12 +2505,12 @@ volumes:
 
 **Note:** root `Dockerfile` для backend в этом плане не создаётся (это вне scope frontend плана). Если его ещё нет — этот compose-файл будет некорректен до момента, пока backend Dockerfile не появится. Это допустимо — `compose.prod.yaml` фиксирует целевую конфигурацию, а не deployable-as-is состояние.
 
-- [ ] **Step 2: Verify compose syntax**
+- [x] **Step 2: Verify compose syntax**
 
 Run: `docker compose -f compose.prod.yaml config`
 Expected: compose валидируется (может ругаться на отсутствие переменных окружения — это OK для проверки синтаксиса; запустить с экспортом фиктивных значений если нужно: `POSTGRES_PASSWORD=p JWT_SECRET=s docker compose -f compose.prod.yaml config`).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add compose.prod.yaml
