@@ -1574,7 +1574,7 @@ git commit -m "feat(web): wire LoginForm into /login with from-location redirect
 
 Полностраничное сообщение «New accounts are disabled on this instance.», отображается, когда бэкенд возвращает 403 `registration_disabled` на `POST /auth/register`. Сообщение появляется ВНУТРИ public layout (masthead уже сверху), не вместо него.
 
-- [ ] **Step 1: Implement**
+- [x] **Step 1: Implement**
 
 ```tsx
 // web/src/features/auth/components/RegistrationDisabled.tsx
@@ -1597,7 +1597,7 @@ export function RegistrationDisabled() {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add web/src/features/auth/components/RegistrationDisabled.tsx
