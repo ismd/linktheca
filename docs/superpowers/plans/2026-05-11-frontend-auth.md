@@ -99,7 +99,7 @@ git commit -m "deps(web): add zod, react-hook-form, sonner, radix dropdown-menu"
 
 Backend serializes User in snake_case (`display_name`, `is_admin`, `created_at`, `updated_at`); TokenPair as `access_token`/`refresh_token`; AuthResponse as `{ user, tokens }`. На фронте мы используем camelCase для `User` (`displayName`, `isAdmin`). Zod-схемы парсят raw shape, маппинг к camelCase делаем в `mapUser()` ниже.
 
-- [ ] **Step 1: Write the file**
+- [x] **Step 1: Write the file**
 
 ```ts
 // web/src/features/auth/schemas.ts
@@ -139,12 +139,12 @@ export function mapUser(raw: RawUser): User {
 }
 ```
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/features/auth/schemas.ts
