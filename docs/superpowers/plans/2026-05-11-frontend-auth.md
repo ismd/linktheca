@@ -523,7 +523,7 @@ git commit -m "feat(web/auth): add login/register/refresh-aware me/logout API fu
 4. Ретрай оригинального запроса использует **новый** access-token из store (apiFetch читает токен в начале каждого вызова — уже так).
 5. Запросы с `_retry: true` НЕ инициируют второй refresh — если снова 401, бросаем ApiError.
 
-- [ ] **Step 1: Write failing tests (extend existing file)**
+- [x] **Step 1: Write failing tests (extend existing file)**
 
 Add to `web/src/shared/api/client.test.ts`, в конец файла:
 
@@ -656,12 +656,12 @@ describe("apiFetch refresh-on-401", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npm run test -- shared/api/client`
 Expected: FAIL — new describe-block fails (refresh-related behavior not yet implemented).
 
-- [ ] **Step 3: Implement refresh-on-401**
+- [x] **Step 3: Implement refresh-on-401**
 
 Replace `web/src/shared/api/client.ts` entirely:
 
@@ -772,7 +772,7 @@ export async function apiFetch<T>(
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `npm run test -- shared/api/client`
 Expected: PASS (all existing + 5 new refresh tests).
@@ -780,7 +780,7 @@ Expected: PASS (all existing + 5 new refresh tests).
 Run: `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/shared/api/client.ts web/src/shared/api/client.test.ts
