@@ -3,8 +3,6 @@ import { RouterProvider } from "react-router/dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/shared/api/query-client";
 import { useBootstrap } from "@/features/auth/use-bootstrap";
-import { useAuthStore } from "@/features/auth/store";
-import { FullPageSpinner } from "@/shared/layout/FullPageSpinner";
 import { ProtectedRoute } from "@/shared/layout/ProtectedRoute";
 import RootLayout from "./routes/__root";
 import PublicLayout from "./routes/_public";
@@ -49,8 +47,6 @@ const router = createBrowserRouter([
 
 function BootstrapGate({ children }: { children: React.ReactNode }) {
   useBootstrap();
-  const status = useAuthStore((s) => s.status);
-  if (status === "bootstrapping") return <FullPageSpinner />;
   return <>{children}</>;
 }
 
