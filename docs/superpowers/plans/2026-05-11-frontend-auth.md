@@ -1284,7 +1284,7 @@ git commit -m "feat(web): mount PublicMasthead in _public layout"
 - Submit-кнопка disabled пока `formState.isSubmitting`.
 - На success зовёт `onSuccess()`-callback (роут сам делает navigate).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 // web/src/features/auth/components/LoginForm.test.tsx
@@ -1380,12 +1380,12 @@ describe("LoginForm", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test -- LoginForm`
 Expected: FAIL with import error.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```tsx
 // web/src/features/auth/components/LoginForm.tsx
@@ -1504,7 +1504,7 @@ export function LoginForm({ onSuccess }: Props) {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `npm run test -- LoginForm`
 Expected: PASS (4 tests).
@@ -1512,7 +1512,7 @@ Expected: PASS (4 tests).
 Run: `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/auth/components/LoginForm.tsx web/src/features/auth/components/LoginForm.test.tsx
