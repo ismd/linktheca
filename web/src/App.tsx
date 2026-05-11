@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/shared/api/query-client";
 import RootLayout from "./routes/__root";
 import PublicLayout from "./routes/_public";
+import AppLayout from "./routes/__app";
 import IndexRoute from "./routes/index";
 import LoginRoute from "./routes/login";
 import RegisterRoute from "./routes/register";
@@ -24,9 +25,14 @@ const router = createBrowserRouter([
           { path: "register", element: <RegisterRoute /> },
         ],
       },
-      { path: "library", element: <LibraryListRoute /> },
-      { path: "library/:id", element: <LibraryItemRoute /> },
-      { path: "settings", element: <SettingsRoute /> },
+      {
+        element: <AppLayout />,
+        children: [
+          { path: "library", element: <LibraryListRoute /> },
+          { path: "library/:id", element: <LibraryItemRoute /> },
+          { path: "settings", element: <SettingsRoute /> },
+        ],
+      },
       { path: "*", element: <NotFoundRoute /> },
     ],
   },

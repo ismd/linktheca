@@ -1696,6 +1696,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/shared/api/query-client";
 import RootLayout from "./routes/__root";
 import PublicLayout from "./routes/_public";
+import AppLayout from "./routes/__app";
 import IndexRoute from "./routes/index";
 import LoginRoute from "./routes/login";
 import RegisterRoute from "./routes/register";
@@ -1716,9 +1717,14 @@ const router = createBrowserRouter([
           { path: "register", element: <RegisterRoute /> },
         ],
       },
-      { path: "library", element: <LibraryListRoute /> },
-      { path: "library/:id", element: <LibraryItemRoute /> },
-      { path: "settings", element: <SettingsRoute /> },
+      {
+        element: <AppLayout />,
+        children: [
+          { path: "library", element: <LibraryListRoute /> },
+          { path: "library/:id", element: <LibraryItemRoute /> },
+          { path: "settings", element: <SettingsRoute /> },
+        ],
+      },
       { path: "*", element: <NotFoundRoute /> },
     ],
   },
@@ -2607,7 +2613,7 @@ git commit -m "ci: add frontend job (lint, typecheck, test, build) on Node 24"
 
 ### Task 24: Финальная sanity-проверка плана
 
-- [ ] **Step 1: Проверить весь dev workflow с нуля**
+- [x] **Step 1: Проверить весь dev workflow с нуля**
 
 ```bash
 # в одном терминале
@@ -2625,13 +2631,13 @@ cd web && npm run dev
 - 404 на несуществующем пути.
 - DevTools Network: `/api/healthz` → 200 ok (через Vite proxy).
 
-- [ ] **Step 2: Прогнать всё CI-эквивалентно локально**
+- [x] **Step 2: Прогнать всё CI-эквивалентно локально**
 
 ```bash
 cd web && npm run lint && npm run typecheck && npm test && npm run build
 ```
 
-- [ ] **Step 3: Если что-то поломано — починить и закоммитить отдельно**
+- [x] **Step 3: Если что-то поломано — починить и закоммитить отдельно**
 
 Без TDD-ритуала на каждый микро-фикс — это plan-полировка, не feature-step.
 
