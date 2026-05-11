@@ -2020,7 +2020,7 @@ git commit -m "feat(web): add sonner Toaster and mount in App"
 
 Стандартный shadcn-snippet для Radix `DropdownMenu`, адаптированный к style file. Используем минимальный набор примитивов: `Root`, `Trigger`, `Portal`, `Content`, `Item`, `Label`, `Separator`. Без sub-menu, checkbox, radio — пока не нужны.
 
-- [ ] **Step 1: Implement**
+- [x] **Step 1: Implement**
 
 ```tsx
 // web/src/shared/ui/dropdown-menu.tsx
@@ -2119,12 +2119,12 @@ export {
 };
 ```
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/shared/ui/dropdown-menu.tsx
