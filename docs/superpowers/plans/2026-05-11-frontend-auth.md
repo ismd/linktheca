@@ -2146,7 +2146,7 @@ git commit -m "feat(web/ui): add shadcn dropdown-menu component"
 5. `navigate('/login', { replace: true })`.
 6. `toast.success('Signed out')`.
 
-- [ ] **Step 1: Implement**
+- [x] **Step 1: Implement**
 
 ```ts
 // web/src/features/auth/use-logout.ts
@@ -2176,12 +2176,12 @@ export function useLogout(): () => Promise<void> {
 }
 ```
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/features/auth/use-logout.ts
