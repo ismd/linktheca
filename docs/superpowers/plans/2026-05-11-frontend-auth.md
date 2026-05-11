@@ -2264,7 +2264,7 @@ git commit -m "feat(web/auth): add UserMenu with initial trigger and sign-out it
 **Files:**
 - Modify: `web/src/shared/layout/Topbar.tsx`
 
-- [ ] **Step 1: Edit**
+- [x] **Step 1: Edit**
 
 ```tsx
 // web/src/shared/layout/Topbar.tsx
@@ -2307,12 +2307,12 @@ export function Topbar({ onMenuClick }: Props) {
 }
 ```
 
-- [ ] **Step 2: Run tests + typecheck**
+- [x] **Step 2: Run tests + typecheck**
 
 Run: `npm run test` and `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 3: Smoke-test in dev (requires backend)**
+- [x] **Step 3: Smoke-test in dev (requires backend)**
 
 Run backend in another terminal (`go run ./cmd/linktheca-server` or via docker compose).
 Run `npm run dev` in `web/`.
@@ -2326,7 +2326,7 @@ Verify:
 
 If you don't have a backend handy, this manual smoke test can be skipped — the unit/component tests cover the contract. Note this in the commit message.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add web/src/shared/layout/Topbar.tsx

@@ -1,4 +1,5 @@
 import { Menu, Plus } from "lucide-react";
+import { UserMenu } from "@/features/auth/components/UserMenu";
 
 type Props = {
   onMenuClick: () => void;
@@ -29,12 +30,7 @@ export function Topbar({ onMenuClick }: Props) {
           <Plus className="h-5 w-5" strokeWidth={1.5} />
         </button>
 
-        <div
-          className="h-9 w-9 rounded-none border border-rule bg-paper flex items-center justify-center"
-          aria-label="User menu placeholder"
-        >
-          <span className="font-display text-lg text-ink">L</span>
-        </div>
+        <UserMenu />
       </div>
     </header>
   );
