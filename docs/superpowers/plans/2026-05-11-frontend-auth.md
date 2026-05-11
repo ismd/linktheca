@@ -1003,7 +1003,7 @@ git commit -m "feat(web/auth): add useBootstrap hook to restore session from ref
 
 `from`-location сохраняется в state, чтобы `/login` мог редиректить обратно после успеха.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 // web/src/shared/layout/ProtectedRoute.test.tsx
@@ -1058,12 +1058,12 @@ describe("ProtectedRoute", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test -- ProtectedRoute`
 Expected: FAIL with import error.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```tsx
 // web/src/shared/layout/ProtectedRoute.tsx
@@ -1083,12 +1083,12 @@ export function ProtectedRoute() {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `npm run test -- ProtectedRoute`
 Expected: PASS (3 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/shared/layout/ProtectedRoute.tsx web/src/shared/layout/ProtectedRoute.test.tsx
