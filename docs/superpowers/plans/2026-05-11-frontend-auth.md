@@ -2197,7 +2197,7 @@ git commit -m "feat(web/auth): add useLogout hook"
 
 Кнопка-trigger — 36px квадрат с инициалом `user.displayName[0]` Cormorant. Dropdown показывает: label `displayName` + `email` (muted), separator, item «Sign out».
 
-- [ ] **Step 1: Implement**
+- [x] **Step 1: Implement**
 
 ```tsx
 // web/src/features/auth/components/UserMenu.tsx
@@ -2245,12 +2245,12 @@ export function UserMenu() {
 }
 ```
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/features/auth/components/UserMenu.tsx
