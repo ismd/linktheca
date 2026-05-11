@@ -1619,7 +1619,7 @@ git commit -m "feat(web/auth): add RegistrationDisabled message"
 - На 400 `weak_password` → inline-ошибка под `password`.
 - На success → `onSuccess()`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 // web/src/features/auth/components/RegisterForm.test.tsx
@@ -1729,12 +1729,12 @@ describe("RegisterForm", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test -- RegisterForm`
 Expected: FAIL with import error.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```tsx
 // web/src/features/auth/components/RegisterForm.tsx
@@ -1887,12 +1887,12 @@ export function RegisterForm({ onSuccess, onRegistrationDisabled }: Props) {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `npm run test -- RegisterForm`
 Expected: PASS (4 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/auth/components/RegisterForm.tsx web/src/features/auth/components/RegisterForm.test.tsx
