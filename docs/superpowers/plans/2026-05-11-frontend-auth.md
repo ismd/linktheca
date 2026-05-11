@@ -1206,7 +1206,7 @@ git commit -m "feat(web): wire bootstrap and ProtectedRoute into router"
 
 «Linktheca» Cormorant italic + декоративный `.rule-double` ниже. Используем в `_public.tsx` (Login/Register).
 
-- [ ] **Step 1: Implement**
+- [x] **Step 1: Implement**
 
 ```tsx
 // web/src/features/auth/components/PublicMasthead.tsx
@@ -1221,7 +1221,7 @@ export function PublicMasthead() {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add web/src/features/auth/components/PublicMasthead.tsx
