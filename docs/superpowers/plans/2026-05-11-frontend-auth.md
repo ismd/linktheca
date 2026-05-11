@@ -1526,7 +1526,7 @@ git commit -m "feat(web/auth): add LoginForm with RHF+Zod validation and error m
 **Files:**
 - Modify: `web/src/routes/login.tsx`
 
-- [ ] **Step 1: Edit**
+- [x] **Step 1: Edit**
 
 ```tsx
 // web/src/routes/login.tsx
@@ -1551,12 +1551,12 @@ export default function LoginRoute() {
 }
 ```
 
-- [ ] **Step 2: Run tests + typecheck**
+- [x] **Step 2: Run tests + typecheck**
 
 Run: `npm run test` and `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/routes/login.tsx

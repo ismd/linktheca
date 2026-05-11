@@ -1,8 +1,19 @@
+import { useLocation, useNavigate } from "react-router";
+import { LoginForm } from "@/features/auth/components/LoginForm";
+
+type LocationState = { from?: { pathname?: string } } | null;
+
 export default function LoginRoute() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const state = location.state as LocationState;
+  const from = state?.from?.pathname ?? "/library";
+
   return (
-    <div>
-      <h1 className="font-display text-4xl text-ink">Sign in</h1>
-      <p className="label-sc mt-2 text-muted">Login form goes here.</p>
-    </div>
+    <LoginForm
+      onSuccess={() => {
+        navigate(from, { replace: true });
+      }}
+    />
   );
 }
