@@ -1104,7 +1104,7 @@ git commit -m "feat(web): add ProtectedRoute with bootstrapping/anonymous/authed
 
 В router-tree оборачиваем `AppLayout`-ветку в `ProtectedRoute`. `useBootstrap` зовём из тонкого компонента-обёртки внутри `<QueryClientProvider>`.
 
-- [ ] **Step 1: Update App.tsx**
+- [x] **Step 1: Update App.tsx**
 
 ```tsx
 // web/src/App.tsx
@@ -1171,7 +1171,7 @@ export default function App() {
 }
 ```
 
-- [ ] **Step 2: Run tests + typecheck**
+- [x] **Step 2: Run tests + typecheck**
 
 Run: `npm run test`
 Expected: PASS (all existing).
@@ -1179,7 +1179,7 @@ Expected: PASS (all existing).
 Run: `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 3: Smoke-test dev server**
+- [x] **Step 3: Smoke-test dev server**
 
 Run in one terminal: `npm run dev`
 Open `http://localhost:5173/`. With no backend running, Vite proxy will fail, but the page should render FullPageSpinner briefly then settle on `/login` (because `/auth/me` fails → bootstrap clears session → ProtectedRoute redirects). The current `/login` stub is still text; визуал в Task 11.
@@ -1188,7 +1188,7 @@ If you don't want to spin up the backend, you can also temporarily delete the re
 
 Stop the dev server (`Ctrl+C`).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add web/src/App.tsx
