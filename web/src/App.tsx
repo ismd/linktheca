@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/shared/api/query-client";
 import { useBootstrap } from "@/features/auth/use-bootstrap";
 import { ProtectedRoute } from "@/shared/layout/ProtectedRoute";
+import { Toaster } from "@/shared/ui/sonner";
 import RootLayout from "./routes/__root";
 import PublicLayout from "./routes/_public";
 import AppLayout from "./routes/__app";
@@ -55,6 +56,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BootstrapGate>
         <RouterProvider router={router} />
+        <Toaster />
       </BootstrapGate>
     </QueryClientProvider>
   );

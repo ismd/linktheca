@@ -1958,7 +1958,7 @@ git commit -m "feat(web): wire RegisterForm + RegistrationDisabled switch into /
 
 Стандартный shadcn-обвес: тонкий компонент `<Toaster />` поверх `sonner`. Mount внутри `<BootstrapGate>`. Position top-right, paper styling делаем через `richColors=false` + Tailwind в `toastOptions.className`.
 
-- [ ] **Step 1: Create wrapper**
+- [x] **Step 1: Create wrapper**
 
 ```tsx
 // web/src/shared/ui/sonner.tsx
@@ -1978,7 +1978,7 @@ export function Toaster() {
 }
 ```
 
-- [ ] **Step 2: Mount in App.tsx**
+- [x] **Step 2: Mount in App.tsx**
 
 In `web/src/App.tsx`, add import:
 ```tsx
@@ -1999,12 +1999,12 @@ export default function App() {
 }
 ```
 
-- [ ] **Step 3: Typecheck + tests**
+- [x] **Step 3: Typecheck + tests**
 
 Run: `npm run typecheck` and `npm run test`
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add web/src/shared/ui/sonner.tsx web/src/App.tsx
