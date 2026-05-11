@@ -260,7 +260,7 @@ git commit -m "feat(web/auth): add refresh token localStorage helpers"
 
 Этот модуль НЕ занимается refresh-логикой — он только зовёт `apiFetch` и парсит ответы. Refresh-on-401 живёт внутри `apiFetch` (Task 6). Login/Register **раньше bootstrap-а делают side-effects** (`setSession` + `writeRefreshToken`), потому что апп должен сразу стать authed. Logout наоборот — side-effects делает консамер (`use-logout`), потому что нужен `queryClient.clear()`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // web/src/features/auth/api.test.ts
@@ -366,12 +366,12 @@ describe("auth api", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test -- features/auth/api`
 Expected: FAIL with "Failed to resolve import ./api".
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```ts
 // web/src/features/auth/api.ts
@@ -492,14 +492,14 @@ export async function logout(refreshToken?: string): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `npm run test -- features/auth/api`
 Expected: PASS (5 tests).
 
 Also: `npm run typecheck` → PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/auth/api.ts web/src/features/auth/api.test.ts
