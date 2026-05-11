@@ -798,7 +798,7 @@ git commit -m "feat(web/api): refresh-on-401 with singleton in-flight Promise an
 
 Тонкий компонент, без логики. Визуально — paper-surface на весь экран, центрированная подпись «Linktheca» Cormorant italic + ниже маленький subtle pulse-dot ряд. Без зависимостей от lucide-spinner (статичные точки выглядят editorial-нее).
 
-- [ ] **Step 1: Implement**
+- [x] **Step 1: Implement**
 
 ```tsx
 // web/src/shared/layout/FullPageSpinner.tsx
@@ -827,12 +827,12 @@ export function FullPageSpinner() {
 }
 ```
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/shared/layout/FullPageSpinner.tsx
