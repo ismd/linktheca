@@ -853,7 +853,7 @@ git commit -m "feat(web): add FullPageSpinner for bootstrapping state"
 
 Тонкость: можно ли переиспользовать `apiFetch('/auth/me')`? Да: оно само словит 401, дёрнет refresh, ретрайнёт `/auth/me`. После успеха store будет authed. На провал — store anonymous. Этот путь короче.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 // web/src/features/auth/use-bootstrap.test.tsx
@@ -939,12 +939,12 @@ describe("useBootstrap", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test -- use-bootstrap`
 Expected: FAIL with "Failed to resolve import ./use-bootstrap".
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```ts
 // web/src/features/auth/use-bootstrap.ts
@@ -976,12 +976,12 @@ export function useBootstrap(): void {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `npm run test -- use-bootstrap`
 Expected: PASS (3 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/auth/use-bootstrap.ts web/src/features/auth/use-bootstrap.test.tsx
