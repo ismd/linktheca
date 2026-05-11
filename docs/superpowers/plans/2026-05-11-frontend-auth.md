@@ -161,7 +161,7 @@ git commit -m "feat(web/auth): add Zod schemas for auth responses and User mappe
 
 Зачем отдельный модуль: спрятать ключ `linktheca.refresh` за тремя функциями (`read`, `write`, `clear`), чтобы тесты могли мокать одно место и чтобы доступ к localStorage не разрастался.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // web/src/features/auth/storage.test.ts
@@ -202,12 +202,12 @@ describe("refresh token storage", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test -- storage`
 Expected: FAIL with "Failed to resolve import ./storage".
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```ts
 // web/src/features/auth/storage.ts
@@ -238,12 +238,12 @@ export function clearRefreshToken(): void {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `npm run test -- storage`
 Expected: PASS (4 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/auth/storage.ts web/src/features/auth/storage.test.ts
