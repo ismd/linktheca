@@ -2368,7 +2368,7 @@ git commit -m "chore(web): set up ESLint flat config + Prettier and run initial 
 - Create: `web/nginx.conf`
 - Create: `web/.dockerignore`
 
-- [ ] **Step 1: Создать `web/Dockerfile`**
+- [x] **Step 1: Создать `web/Dockerfile`**
 
 ```dockerfile
 FROM node:24-alpine AS builder
@@ -2384,7 +2384,9 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 ```
 
-- [ ] **Step 2: Создать `web/nginx.conf`**
+- [x] **Step 2: Создать `web/nginx.conf`**
+
+`resolver 127.0.0.11` + variable-based `proxy_pass` нужны, чтобы nginx стартовал без живого `backend` (иначе падает на startup-резолве upstream). `rewrite` стрипает `/api/` префикс — backend ожидает чистые пути (см. `vite.config.ts`: dev proxy делает то же самое).
 
 ```
 server {
@@ -2392,12 +2394,16 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    resolver 127.0.0.11 valid=10s ipv6=off;
+
     location / {
         try_files $uri /index.html;
     }
 
     location /api/ {
-        proxy_pass http://backend:8080/;
+        set $backend_upstream http://backend:8080;
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass $backend_upstream;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -2414,7 +2420,7 @@ server {
 }
 ```
 
-- [ ] **Step 3: Создать `web/.dockerignore`**
+- [x] **Step 3: Создать `web/.dockerignore`**
 
 ```
 node_modules
@@ -2424,18 +2430,18 @@ dist
 .git
 ```
 
-- [ ] **Step 4: Verify build (требует docker)**
+- [x] **Step 4: Verify build (требует docker)**
 
 Run: `cd web && docker build -t linktheca-web:test .`
 Expected: build проходит без ошибок (две стадии, итоговый образ на nginx:alpine).
 
-- [ ] **Step 5: Smoke run контейнера**
+- [x] **Step 5: Smoke run контейнера**
 
 Run: `docker run --rm -d --name linktheca-web-test -p 8090:80 linktheca-web:test`
 Затем: `curl -sI http://localhost:8090/` → ожидаем `200 OK` и `text/html`.
 Затем: `docker rm -f linktheca-web-test`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/Dockerfile web/nginx.conf web/.dockerignore
