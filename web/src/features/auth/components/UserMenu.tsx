@@ -30,7 +30,7 @@ export function UserMenu() {
           <span className="block text-ink-2 normal-case text-sm font-body tracking-normal">
             {user.displayName}
           </span>
-          <span className="block text-xs text-muted normal-case tracking-normal mt-0.5">
+          <span className="block text-xs text-muted-foreground normal-case tracking-normal mt-0.5">
             {user.email}
           </span>
         </DropdownMenuLabel>

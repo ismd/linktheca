@@ -12,7 +12,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     <aside className="flex h-full w-[280px] flex-col bg-paper-2 border-r border-rule">
       <div className="px-6 py-8 border-b border-rule">
         <p className="font-display italic text-3xl text-ink leading-none">Linktheca</p>
-        <p className="label-sc mt-2 text-muted">A private archive</p>
+        <p className="label-sc mt-2 text-muted-foreground">A private archive</p>
       </div>
 
       <nav className="flex-1 px-6 py-6">
@@ -25,9 +25,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     "nav-item flex items-baseline gap-3 px-4 py-2 cursor-not-allowed opacity-50",
                   )}
                 >
-                  <span className="font-mono text-xs text-muted">{item.number}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{item.number}</span>
                   <span className="nav-label font-display text-lg">{item.label}</span>
-                  <span className="label-sc text-muted ml-auto">soon</span>
+                  <span className="label-sc text-muted-foreground ml-auto">soon</span>
                 </span>
               ) : (
                 <NavLink
@@ -40,7 +40,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     )
                   }
                 >
-                  <span className="nav-number font-mono text-xs text-muted">{item.number}</span>
+                  <span className="nav-number font-mono text-xs text-muted-foreground">{item.number}</span>
                   <span className="nav-label font-display text-lg text-ink-3">{item.label}</span>
                 </NavLink>
               )}
@@ -50,7 +50,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="px-6 py-4 border-t border-rule">
-        <p className="label-sc text-muted">v0.1.0 · self-hosted</p>
+        <p className="label-sc text-muted-foreground">v0.1.0 · self-hosted</p>
       </div>
     </aside>
   );

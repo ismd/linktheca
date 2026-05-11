@@ -124,7 +124,7 @@ export function RegisterForm({ onSuccess, onRegistrationDisabled }: Props) {
           aria-describedby="password-help"
           {...register("password")}
         />
-        <p id="password-help" className="text-sm text-muted">
+        <p id="password-help" className="text-sm text-muted-foreground">
           {errors.password ? (
             <span className="text-vermillion-dark">{errors.password.message}</span>
           ) : (
@@ -137,7 +137,7 @@ export function RegisterForm({ onSuccess, onRegistrationDisabled }: Props) {
         {isSubmitting ? "Creating account…" : "Create account"}
       </Button>
 
-      <p className="label-sc text-center text-muted">
+      <p className="label-sc text-center text-muted-foreground">
         <Link to="/login" className="hover:text-ink-3">
           ← Back to sign in
         </Link>

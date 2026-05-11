@@ -103,7 +103,7 @@ export function LoginForm({ onSuccess }: Props) {
         {isSubmitting ? "Signing in…" : "Sign in"}
       </Button>
 
-      <p className="label-sc text-center text-muted">
+      <p className="label-sc text-center text-muted-foreground">
         <Link to="/register" className="hover:text-ink-3">
           Create account →
         </Link>
