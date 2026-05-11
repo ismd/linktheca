@@ -1908,7 +1908,7 @@ git commit -m "feat(web/auth): add RegisterForm with weak-password and email-tak
 
 Route хранит local state: `disabled: boolean`. Если `disabled` — рендерит `<RegistrationDisabled/>`, иначе `<RegisterForm/>`. Колбэк `onRegistrationDisabled` от формы переключает state.
 
-- [ ] **Step 1: Edit**
+- [x] **Step 1: Edit**
 
 ```tsx
 // web/src/routes/register.tsx
@@ -1934,12 +1934,12 @@ export default function RegisterRoute() {
 }
 ```
 
-- [ ] **Step 2: Run tests + typecheck**
+- [x] **Step 2: Run tests + typecheck**
 
 Run: `npm run test` and `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/routes/register.tsx
