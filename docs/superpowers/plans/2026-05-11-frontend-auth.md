@@ -66,7 +66,7 @@ web/
 - Modify: `web/package.json`
 - Modify: `web/package-lock.json`
 
-- [ ] **Step 1: Install packages**
+- [x] **Step 1: Install packages**
 
 Run from `/home/ismd/coding/linktheca/web`:
 ```bash
@@ -75,7 +75,7 @@ npm install zod react-hook-form @hookform/resolvers sonner @radix-ui/react-dropd
 
 Expected: `package.json` gets new entries in `dependencies`. Latest stable versions at time of writing: `zod@^3.23`, `react-hook-form@^7.55`, `@hookform/resolvers@^4.0`, `sonner@^1.7`, `@radix-ui/react-dropdown-menu@^2.1`. Don't pin patch — use caret as elsewhere.
 
-- [ ] **Step 2: Verify install**
+- [x] **Step 2: Verify install**
 
 Run: `npm run typecheck`
 Expected: PASS (no usage yet, just installs).
@@ -83,7 +83,7 @@ Expected: PASS (no usage yet, just installs).
 Run: `npm run test`
 Expected: PASS (existing tests unchanged).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/package.json web/package-lock.json
