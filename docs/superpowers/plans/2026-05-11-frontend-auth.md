@@ -2341,7 +2341,7 @@ git commit -m "feat(web): mount UserMenu in Topbar"
 
 **Files:** —
 
-- [ ] **Step 1: Full test run**
+- [x] **Step 1: Full test run**
 
 Run from `web/`:
 ```bash
@@ -2359,28 +2359,28 @@ Expected: ALL pass, including:
 - `LoginForm` (4)
 - `RegisterForm` (4)
 
-- [ ] **Step 2: Lint**
+- [x] **Step 2: Lint**
 
 ```bash
 npm run lint
 ```
 Expected: 0 warnings.
 
-- [ ] **Step 3: Typecheck**
+- [x] **Step 3: Typecheck**
 
 ```bash
 npm run typecheck
 ```
 Expected: 0 errors.
 
-- [ ] **Step 4: Build**
+- [x] **Step 4: Build**
 
 ```bash
 npm run build
 ```
 Expected: succeeds, produces `dist/` with `index.html` and assets bundle.
 
-- [ ] **Step 5: Spec coverage check**
+- [x] **Step 5: Spec coverage check**
 
 Walk through spec sections 3 and 4. Each requirement should be implementable from this plan:
 
@@ -2407,7 +2407,7 @@ Walk through spec sections 3 and 4. Each requirement should be implementable fro
 
 If any line above doesn't match the implementation, fix it before declaring complete.
 
-- [ ] **Step 6: Final commit (optional housekeeping)**
+- [x] **Step 6: Final commit (optional housekeeping)**
 
 If anything turned up — fix and commit. Otherwise this task is just a checkpoint.
 
