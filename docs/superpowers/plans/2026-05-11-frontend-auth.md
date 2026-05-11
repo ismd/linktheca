@@ -1235,7 +1235,7 @@ git commit -m "feat(web/auth): add PublicMasthead for login/register pages"
 **Files:**
 - Modify: `web/src/routes/_public.tsx`
 
-- [ ] **Step 1: Edit**
+- [x] **Step 1: Edit**
 
 ```tsx
 // web/src/routes/_public.tsx
@@ -1254,12 +1254,12 @@ export default function PublicLayout() {
 }
 ```
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/routes/_public.tsx
