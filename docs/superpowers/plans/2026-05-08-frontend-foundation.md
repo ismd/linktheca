@@ -2524,11 +2524,11 @@ git commit -m "feat(deploy): add compose.prod.yaml wiring web + backend + postgr
 **Files:**
 - Modify: `.github/workflows/ci.yml`
 
-- [ ] **Step 1: Read current `.github/workflows/ci.yml`**
+- [x] **Step 1: Read current `.github/workflows/ci.yml`**
 
 Тебе уже знаком текущий workflow с одним job `backend`. Добавляем второй job `frontend`.
 
-- [ ] **Step 2: Изменить `.github/workflows/ci.yml`**
+- [x] **Step 2: Изменить `.github/workflows/ci.yml`**
 
 ```yaml
 name: CI
@@ -2588,7 +2588,7 @@ jobs:
         run: npm run build
 ```
 
-- [ ] **Step 3: Verify locally before pushing**
+- [x] **Step 3: Verify locally before pushing**
 
 Run:
 ```bash
@@ -2596,7 +2596,7 @@ cd web && npm ci && npm run lint && npm run typecheck && npm test && npm run bui
 ```
 Expected: все шаги PASS — это и есть то, что прогонит CI.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add .github/workflows/ci.yml
