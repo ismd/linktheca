@@ -1018,7 +1018,7 @@ git commit -m "feat(web/library): add list/item/detail query hooks"
 - Create: `web/src/features/library/use-mutations.ts`
 - Create: `web/src/features/library/use-mutations.test.tsx`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```tsx
 // web/src/features/library/use-mutations.test.tsx
@@ -1218,14 +1218,14 @@ describe("useDeleteItem", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests, see failure**
+- [x] **Step 2: Run tests, see failure**
 
 ```bash
 npm run test -- features/library/use-mutations.test.tsx
 ```
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```ts
 // web/src/features/library/use-mutations.ts
@@ -1325,14 +1325,14 @@ export function useDeleteItem() {
 }
 ```
 
-- [ ] **Step 4: Run tests, see PASS**
+- [x] **Step 4: Run tests, see PASS**
 
 ```bash
 npm run test -- features/library/use-mutations.test.tsx
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/library/use-mutations.ts web/src/features/library/use-mutations.test.tsx
