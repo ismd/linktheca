@@ -1426,7 +1426,7 @@ git commit -m "feat(web/library): add SkeletonCard for list loading state"
 **Files:**
 - Create: `web/src/features/library/components/ErrorPanel.tsx`
 
-- [ ] **Step 1: Write the file**
+- [x] **Step 1: Write the file**
 
 ```tsx
 // web/src/features/library/components/ErrorPanel.tsx
@@ -1452,14 +1452,14 @@ export function ErrorPanel({ message, onRetry }: Props) {
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 npm run typecheck
 ```
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/features/library/components/ErrorPanel.tsx
