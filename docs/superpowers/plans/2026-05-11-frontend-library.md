@@ -1873,7 +1873,7 @@ git commit -m "feat(web/library): add FilterBar with state pills and favorite to
 - Create: `web/src/features/library/components/LibraryGrid.tsx`
 - Create: `web/src/features/library/components/LibraryGrid.test.tsx`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 // web/src/features/library/components/LibraryGrid.test.tsx
@@ -1991,14 +1991,14 @@ describe("LibraryGrid", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests, see failure**
+- [x] **Step 2: Run tests, see failure**
 
 ```bash
 npm run test -- features/library/components/LibraryGrid.test.tsx
 ```
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```tsx
 // web/src/features/library/components/LibraryGrid.tsx
@@ -2071,14 +2071,14 @@ export function LibraryGrid({ filters }: Props) {
 }
 ```
 
-- [ ] **Step 4: Run tests, see PASS**
+- [x] **Step 4: Run tests, see PASS**
 
 ```bash
 npm run test -- features/library/components/LibraryGrid.test.tsx
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/library/components/LibraryGrid.tsx web/src/features/library/components/LibraryGrid.test.tsx
