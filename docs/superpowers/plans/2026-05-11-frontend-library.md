@@ -3468,7 +3468,7 @@ If anything diverges from the spec (e.g. the prose-reader fonts look subtly diff
 
 **Files:** (none — wrap-up only)
 
-- [ ] **Step 1: Final status check**
+- [x] **Step 1: Final status check**
 
 ```bash
 git status
@@ -3476,7 +3476,7 @@ git log --oneline -30
 ```
 Expected: clean tree, all task commits visible.
 
-- [ ] **Step 2: Push and open PR**
+- [x] **Step 2: Push and open PR**
 
 When ready:
 ```bash
