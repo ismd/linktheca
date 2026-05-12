@@ -1346,7 +1346,7 @@ git commit -m "feat(web/library): add save/update/delete mutations with optimist
 **Files:**
 - Create: `web/src/features/library/use-add-link-store.ts`
 
-- [ ] **Step 1: Write the file**
+- [x] **Step 1: Write the file**
 
 ```ts
 // web/src/features/library/use-add-link-store.ts
@@ -1365,14 +1365,14 @@ export const useAddLinkStore = create<State>((set) => ({
 }));
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 npm run typecheck
 ```
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/features/library/use-add-link-store.ts
