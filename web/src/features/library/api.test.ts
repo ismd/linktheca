@@ -56,8 +56,9 @@ describe("library api", () => {
     expect(capturedUrl).toContain("state=unread");
     expect(capturedUrl).toContain("favorite=true");
     expect(page.total).toBe(1);
-    expect(page.items[0].savedAt).toBeInstanceOf(Date);
-    expect(page.items[0].isFavorite).toBe(false);
+    const first = page.items[0]!;
+    expect(first.savedAt).toBeInstanceOf(Date);
+    expect(first.isFavorite).toBe(false);
   });
 
   it("listLibrary omits filter params when not set", async () => {
