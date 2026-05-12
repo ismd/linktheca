@@ -223,7 +223,7 @@ git commit -m "feat(web/library): add camelCase types for items/detail/page"
 
 Backend returns snake_case. Парсим raw shape Zod'ом, маппим в `LibraryItem`/`LibraryItemDetail` функциями `mapItem`/`mapDetail`.
 
-- [ ] **Step 1: Write the file**
+- [x] **Step 1: Write the file**
 
 ```ts
 // web/src/features/library/schemas.ts
@@ -321,14 +321,14 @@ export function mapListPage(raw: RawListPage): ListPage {
 }
 ```
 
-- [ ] **Step 2: Verify typecheck**
+- [x] **Step 2: Verify typecheck**
 
 ```bash
 npm run typecheck
 ```
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/features/library/schemas.ts
