@@ -117,7 +117,7 @@ web/
 - Modify: `web/package.json`
 - Modify: `web/package-lock.json`
 
-- [ ] **Step 1: Install**
+- [x] **Step 1: Install**
 
 Run from `/home/ismd/coding/linktheca/web`:
 ```bash
@@ -126,7 +126,7 @@ npm install date-fns
 
 Expected: latest stable, на момент написания `^3.6` или `^4.x`. Caret-пин как у других зависимостей.
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 npm run typecheck
@@ -134,7 +134,7 @@ npm run test
 ```
 Expected: PASS, изменений в коде ещё нет.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/package.json web/package-lock.json
