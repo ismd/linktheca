@@ -2495,7 +2495,7 @@ git commit -m "feat(web/library): add AddLinkDialog with three-stage progress an
 **Files:**
 - Modify: `web/src/routes/__app.tsx`
 
-- [ ] **Step 1: Modify the file**
+- [x] **Step 1: Modify the file**
 
 ```tsx
 // web/src/routes/__app.tsx
@@ -2513,7 +2513,7 @@ export default function AppLayout() {
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 npm run typecheck
@@ -2521,7 +2521,7 @@ npm run test
 ```
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/routes/__app.tsx
