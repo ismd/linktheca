@@ -14,7 +14,7 @@ function wrapper() {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return ({ children }: { children: React.ReactNode }) => (
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <MemoryRouter>
       <QueryClientProvider client={qc}>
         {children}
@@ -22,6 +22,8 @@ function wrapper() {
       </QueryClientProvider>
     </MemoryRouter>
   );
+  Wrapper.displayName = "TestWrapper";
+  return Wrapper;
 }
 
 const itemBase: LibraryItem = {

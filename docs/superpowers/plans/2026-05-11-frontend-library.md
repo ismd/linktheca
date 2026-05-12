@@ -3386,7 +3386,7 @@ git commit -m "feat(web/library): wire reader route with detail query, mark-as-r
 
 **Files:** (none — verification only)
 
-- [ ] **Step 1: Run lint, typecheck, tests, build**
+- [x] **Step 1: Run lint, typecheck, tests, build**
 
 Run from `web/`:
 ```bash
@@ -3397,7 +3397,7 @@ npm run build
 ```
 Expected: all PASS, no warnings.
 
-- [ ] **Step 2: If anything fails**
+- [x] **Step 2: If anything fails**
 
 Fix in place. Common gotchas:
 - ESLint may complain about unused `vi` imports — remove them.

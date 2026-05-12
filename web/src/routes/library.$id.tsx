@@ -99,7 +99,7 @@ export default function LibraryItemRoute() {
           <div className="border border-rule bg-paper-2 px-5 py-6">
             <p className="label-sc text-muted-foreground mb-2">Extraction failed</p>
             <p className="font-body text-ink-3 mb-4">
-              We couldn't extract content from this page. Open the original to read it.
+              We couldn&apos;t extract content from this page. Open the original to read it.
             </p>
             <p className="font-mono text-xs text-muted-foreground">
               {d.content.fetchError}
