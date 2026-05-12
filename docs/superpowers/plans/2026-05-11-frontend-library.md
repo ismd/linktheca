@@ -643,7 +643,7 @@ git commit -m "feat(web/library): add API client with Zod validation"
 - Create: `web/src/features/library/time.ts`
 - Create: `web/src/features/library/time.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // web/src/features/library/time.test.ts
@@ -710,14 +710,14 @@ describe("readingTimeLabel", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests, see failure**
+- [x] **Step 2: Run tests, see failure**
 
 ```bash
 npm run test -- features/library/time.test.ts
 ```
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```ts
 // web/src/features/library/time.ts
@@ -742,14 +742,14 @@ export function readingTimeLabel(seconds: number | null): string {
 }
 ```
 
-- [ ] **Step 4: Run tests, see PASS**
+- [x] **Step 4: Run tests, see PASS**
 
 ```bash
 npm run test -- features/library/time.test.ts
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/library/time.ts web/src/features/library/time.test.ts
