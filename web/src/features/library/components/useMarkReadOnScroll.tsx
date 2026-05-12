@@ -10,7 +10,10 @@ type Args = {
 export function useMarkReadOnScroll({ enabled, onReach }: Args): void {
   const fired = useRef(false);
   const onReachRef = useRef(onReach);
-  onReachRef.current = onReach;
+
+  useEffect(() => {
+    onReachRef.current = onReach;
+  }, [onReach]);
 
   useEffect(() => {
     if (!enabled) return;
