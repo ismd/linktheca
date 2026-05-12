@@ -3228,7 +3228,7 @@ git commit -m "feat(web/library): add useMarkReadOnScroll hook for auto mark-as-
 **Files:**
 - Modify: `web/src/routes/library.$id.tsx`
 
-- [ ] **Step 1: Rewrite the file**
+- [x] **Step 1: Rewrite the file**
 
 ```tsx
 // web/src/routes/library.$id.tsx
@@ -3363,7 +3363,7 @@ export default function LibraryItemRoute() {
 
 > Note: `dangerouslySetInnerHTML` is acceptable here because the backend already sanitizes article HTML via the readability extractor before persisting it. If that assumption changes in the future, swap to a frontend sanitizer (DOMPurify) — out of scope here.
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 npm run typecheck
@@ -3371,7 +3371,7 @@ npm run test
 ```
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/routes/library.$id.tsx
