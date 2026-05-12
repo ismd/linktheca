@@ -2535,7 +2535,7 @@ git commit -m "feat(web): mount AddLinkDialog in AppLayout"
 **Files:**
 - Modify: `web/src/shared/layout/Topbar.tsx`
 
-- [ ] **Step 1: Replace the placeholder onClick**
+- [x] **Step 1: Replace the placeholder onClick**
 
 ```tsx
 // web/src/shared/layout/Topbar.tsx
@@ -2578,7 +2578,7 @@ export function Topbar({ onMenuClick }: Props) {
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 npm run typecheck
@@ -2586,7 +2586,7 @@ npm run test
 ```
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/shared/layout/Topbar.tsx
