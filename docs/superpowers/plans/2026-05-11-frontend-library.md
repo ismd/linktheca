@@ -2174,7 +2174,7 @@ git commit -m "feat(web/library): wire library list route with URL-driven filter
 - Create: `web/src/features/library/components/AddLinkDialog.tsx`
 - Create: `web/src/features/library/components/AddLinkDialog.test.tsx`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 // web/src/features/library/components/AddLinkDialog.test.tsx
@@ -2295,14 +2295,14 @@ describe("AddLinkDialog", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests, see failure**
+- [x] **Step 2: Run tests, see failure**
 
 ```bash
 npm run test -- features/library/components/AddLinkDialog.test.tsx
 ```
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```tsx
 // web/src/features/library/components/AddLinkDialog.tsx
@@ -2474,14 +2474,14 @@ export function AddLinkDialog() {
 }
 ```
 
-- [ ] **Step 4: Run tests, see PASS**
+- [x] **Step 4: Run tests, see PASS**
 
 ```bash
 npm run test -- features/library/components/AddLinkDialog.test.tsx
 ```
 Expected: PASS (6 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/library/components/AddLinkDialog.tsx web/src/features/library/components/AddLinkDialog.test.tsx
