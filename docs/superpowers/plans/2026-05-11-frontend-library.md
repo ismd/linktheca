@@ -343,7 +343,7 @@ git commit -m "feat(web/library): add Zod schemas and snake→camel mappers"
 - Create: `web/src/features/library/api.ts`
 - Create: `web/src/features/library/api.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // web/src/features/library/api.test.ts
@@ -515,14 +515,14 @@ describe("library api", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests, see failure**
+- [x] **Step 2: Run tests, see failure**
 
 ```bash
 npm run test -- features/library/api.test.ts
 ```
 Expected: FAIL (file `./api` does not exist).
 
-- [ ] **Step 3: Implement api.ts**
+- [x] **Step 3: Implement api.ts**
 
 ```ts
 // web/src/features/library/api.ts
@@ -614,21 +614,21 @@ export async function deleteItem(id: number): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Run tests, see PASS**
+- [x] **Step 4: Run tests, see PASS**
 
 ```bash
 npm run test -- features/library/api.test.ts
 ```
 Expected: PASS (8 tests).
 
-- [ ] **Step 5: Run typecheck**
+- [x] **Step 5: Run typecheck**
 
 ```bash
 npm run typecheck
 ```
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/features/library/api.ts web/src/features/library/api.test.ts
