@@ -112,7 +112,7 @@ describe("useUpdateItem (optimistic favorite)", () => {
 
     await waitFor(() => {
       const data = qc.getQueryData<{ pages: ListPage[] }>(libraryKeys.list({}));
-      expect(data?.pages[0].items[0].isFavorite).toBe(true);
+      expect(data!.pages[0]!.items[0]!.isFavorite).toBe(true);
     });
 
     // resolve to make mutation finish
@@ -166,7 +166,7 @@ describe("useUpdateItem (optimistic favorite)", () => {
     });
 
     const data = qc.getQueryData<{ pages: ListPage[] }>(libraryKeys.list({}));
-    expect(data?.pages[0].items[0].isFavorite).toBe(false);
+    expect(data!.pages[0]!.items[0]!.isFavorite).toBe(false);
   });
 });
 
