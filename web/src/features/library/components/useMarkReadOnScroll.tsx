@@ -9,6 +9,8 @@ type Args = {
 
 export function useMarkReadOnScroll({ enabled, onReach }: Args): void {
   const fired = useRef(false);
+  const onReachRef = useRef(onReach);
+  onReachRef.current = onReach;
 
   useEffect(() => {
     if (!enabled) return;
@@ -22,12 +24,12 @@ export function useMarkReadOnScroll({ enabled, onReach }: Args): void {
       const ratio = doc.scrollTop / max;
       if (ratio >= THRESHOLD) {
         fired.current = true;
-        onReach();
+        onReachRef.current();
       }
     }
 
     window.addEventListener("scroll", handler, { passive: true });
     handler(); // run once in case already scrolled past
     return () => window.removeEventListener("scroll", handler);
-  }, [enabled, onReach]);
+  }, [enabled]);
 }

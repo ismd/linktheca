@@ -58,4 +58,21 @@ describe("useMarkReadOnScroll", () => {
     });
     expect(fn).not.toHaveBeenCalled();
   });
+
+  it("does not re-fire when onReach identity changes while scrolled past threshold", () => {
+    const fn = vi.fn();
+    setScrollMetrics(500, 1000, 500);
+    const { rerender } = renderHook(
+      ({ onReach }: { onReach: () => void }) =>
+        useMarkReadOnScroll({ enabled: true, onReach }),
+      { initialProps: { onReach: fn as () => void } },
+    );
+    expect(fn).toHaveBeenCalledTimes(1);
+
+    // Simulate parent re-render producing a brand-new onReach reference
+    // (e.g. useCallback dep churn from an unstable mutation object).
+    rerender({ onReach: () => fn() });
+    rerender({ onReach: () => fn() });
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
 });
