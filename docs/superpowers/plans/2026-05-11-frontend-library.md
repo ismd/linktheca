@@ -3094,7 +3094,7 @@ git commit -m "feat(web/library): add ReaderActions footer with favorite/archive
 - Create: `web/src/features/library/components/useMarkReadOnScroll.ts`
 - Create: `web/src/features/library/components/useMarkReadOnScroll.test.tsx`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```tsx
 // web/src/features/library/components/useMarkReadOnScroll.test.tsx
@@ -3161,14 +3161,14 @@ describe("useMarkReadOnScroll", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests, see failure**
+- [x] **Step 2: Run tests, see failure**
 
 ```bash
 npm run test -- features/library/components/useMarkReadOnScroll.test.tsx
 ```
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```ts
 // web/src/features/library/components/useMarkReadOnScroll.ts
@@ -3207,14 +3207,14 @@ export function useMarkReadOnScroll({ enabled, onReach }: Args): void {
 }
 ```
 
-- [ ] **Step 4: Run tests, see PASS**
+- [x] **Step 4: Run tests, see PASS**
 
 ```bash
 npm run test -- features/library/components/useMarkReadOnScroll.test.tsx
 ```
 Expected: PASS (3 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/library/components/useMarkReadOnScroll.ts web/src/features/library/components/useMarkReadOnScroll.test.tsx
