@@ -148,7 +148,7 @@ git commit -m "deps(web): add date-fns for relative time"
 **Files:**
 - Create: `web/src/features/library/types.ts`
 
-- [ ] **Step 1: Write the file**
+- [x] **Step 1: Write the file**
 
 ```ts
 // web/src/features/library/types.ts
@@ -200,14 +200,14 @@ export type FilterParams = {
 export const PAGE_SIZE = 20;
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 npm run typecheck
 ```
 Expected: PASS — никто ещё не импортирует, изменений нет.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/features/library/types.ts
