@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
@@ -10,11 +10,13 @@ import { LibraryGrid } from "./LibraryGrid";
 
 function wrapper() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return ({ children }: { children: React.ReactNode }) => (
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <MemoryRouter>
       <QueryClientProvider client={qc}>{children}</QueryClientProvider>
     </MemoryRouter>
   );
+  Wrapper.displayName = "TestWrapper";
+  return Wrapper;
 }
 
 const rawItem = (id: number) => ({
