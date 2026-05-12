@@ -2092,7 +2092,7 @@ git commit -m "feat(web/library): add LibraryGrid with loading/empty/error/load-
 **Files:**
 - Modify: `web/src/routes/library._index.tsx`
 
-- [ ] **Step 1: Rewrite the file**
+- [x] **Step 1: Rewrite the file**
 
 Replace the placeholder contents with:
 
@@ -2149,7 +2149,7 @@ export default function LibraryListRoute() {
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 ```bash
 npm run typecheck
@@ -2157,7 +2157,7 @@ npm run test
 ```
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/routes/library._index.tsx
