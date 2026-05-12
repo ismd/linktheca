@@ -3416,7 +3416,7 @@ git commit -m "chore(web): fix lint/typecheck/test issues after library wiring"
 
 **Files:** (none — manual verification only)
 
-- [ ] **Step 1: Start backend stack**
+- [x] **Step 1: Start backend stack**
 
 Run from repo root:
 ```bash
@@ -3424,14 +3424,14 @@ docker compose -f compose.dev.yaml up -d
 ```
 Wait until `linktheca-server` is healthy.
 
-- [ ] **Step 2: Start frontend dev server**
+- [x] **Step 2: Start frontend dev server**
 
 ```bash
 cd web && npm run dev
 ```
 Open `http://localhost:5173`.
 
-- [ ] **Step 3: Verify the golden path**
+- [x] **Step 3: Verify the golden path**
 
 In the browser, perform the following and confirm each works:
 - Log in. You see `/library` with the empty state «Nothing here yet».
@@ -3450,7 +3450,7 @@ In the browser, perform the following and confirm each works:
 - In reader, click «Delete» → confirm → toast «Deleted» → redirected to `/library` → card no longer present.
 - Try saving the same URL twice — error «This article is already in your library» appears inside the dialog.
 
-- [ ] **Step 4: Verify mobile breakpoint**
+- [x] **Step 4: Verify mobile breakpoint**
 
 In dev tools, set viewport to 375×800.
 - Library grid collapses to 1 column.
@@ -3458,7 +3458,7 @@ In dev tools, set viewport to 375×800.
 - Reader chrome stays readable; reading-progress bar still works.
 - Add Link modal sits within the viewport with backdrop blur.
 
-- [ ] **Step 5: Document anything off-spec**
+- [x] **Step 5: Document anything off-spec**
 
 If anything diverges from the spec (e.g. the prose-reader fonts look subtly different than the prototype, or the gradient hero feels too dark on a light-mode tab), note it in the PR description rather than chasing pixels in this plan — the foundation already established the visual tokens.
 
