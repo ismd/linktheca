@@ -763,7 +763,7 @@ git commit -m "feat(web/library): add relative-time and reading-time helpers"
 **Files:**
 - Create: `web/src/features/library/image.ts`
 
-- [ ] **Step 1: Write the file**
+- [x] **Step 1: Write the file**
 
 ```ts
 // web/src/features/library/image.ts
@@ -776,14 +776,14 @@ export function gradientClassFor(id: number): string {
 }
 ```
 
-- [ ] **Step 2: Verify typecheck**
+- [x] **Step 2: Verify typecheck**
 
 ```bash
 npm run typecheck
 ```
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/features/library/image.ts
