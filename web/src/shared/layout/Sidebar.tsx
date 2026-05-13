@@ -26,7 +26,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                   )}
                 >
                   <span className="font-mono text-xs text-muted-foreground">{item.number}</span>
-                  <span className="nav-label font-display text-lg">{item.label}</span>
+                  <span className="nav-label font-display text-xl">{item.label}</span>
                   <span className="label-sc text-muted-foreground ml-auto">soon</span>
                 </span>
               ) : (
@@ -41,7 +41,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                   }
                 >
                   <span className="nav-number font-mono text-xs text-muted-foreground">{item.number}</span>
-                  <span className="nav-label font-display text-lg text-ink-3">{item.label}</span>
+                  <span className="nav-label font-display text-xl text-ink-3">{item.label}</span>
                 </NavLink>
               )}
             </li>

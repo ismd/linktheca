@@ -30,7 +30,7 @@ export function FilterBar({ state, favorite, onChange }: Props) {
               }
               className={
                 active
-                  ? "px-3 py-1.5 label-sc bg-ink text-paper"
+                  ? "px-3 py-1.5 label-sc bg-ink text-paper cursor-auto"
                   : "px-3 py-1.5 label-sc text-ink-3 hover:bg-paper-2"
               }
             >

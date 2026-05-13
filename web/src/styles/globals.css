@@ -17,7 +17,7 @@
   --color-sage: #6e8458;
   --color-plum: #6b3a4e;
 
-  --font-display: "Cormorant Garamond", ui-serif, Georgia, serif;
+  --font-display: "Newsreader", ui-serif, Georgia, serif;
   --font-body: "Newsreader", Georgia, serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
@@ -147,13 +147,19 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid var(--color-vermillion);
-  outline-offset: 2px;
+  outline: none;
 }
 input:focus,
 textarea:focus,
 select:focus {
   outline: none;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
 @layer components {
