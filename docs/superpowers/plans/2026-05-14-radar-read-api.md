@@ -65,7 +65,7 @@ No migrations. No new packages.
 
 Types are inert — no tests for them directly; they're exercised by every subsequent task. Single commit at the end.
 
-- [ ] **Step 1: Append new types to `internal/radar/types.go`**
+- [x] **Step 1: Append new types to `internal/radar/types.go`**
 
 Add the following at the end of the file (after the existing `FindingUpsert` type):
 
@@ -166,12 +166,12 @@ type RadarStatus struct {
 }
 ```
 
-- [ ] **Step 2: Verify compilation**
+- [x] **Step 2: Verify compilation**
 
 Run: `go build ./internal/radar/...`
 Expected: PASS (types compile in isolation).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/radar/types.go
