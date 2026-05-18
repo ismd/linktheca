@@ -971,7 +971,7 @@ git commit -m "feat(radar): add ListMatches and UpdateMatchState store methods"
 
 Two small, independent queries.
 
-- [ ] **Step 1: Write failing tests for `LastSweepAt` and `ListFeeds`**
+- [x] **Step 1: Write failing tests for `LastSweepAt` and `ListFeeds`**
 
 Append to `store_test.go`:
 
@@ -1039,12 +1039,12 @@ func TestStore_ListFeeds_pagination(t *testing.T) {
 
 Add `"fmt"` and `"time"` to `store_test.go`'s import block if not already present.
 
-- [ ] **Step 2: Run tests; verify failure**
+- [x] **Step 2: Run tests; verify failure**
 
 Run: `go test ./internal/radar/ -run 'TestStore_(LastSweepAt|ListFeeds)' -v`
 Expected: FAIL — methods undefined.
 
-- [ ] **Step 3: Implement `LastSweepAt` and `ListFeeds`**
+- [x] **Step 3: Implement `LastSweepAt` and `ListFeeds`**
 
 Append to `internal/radar/store.go`. Add `time` import if not yet present (it is, indirectly, but make sure the line compiles).
 
@@ -1098,12 +1098,12 @@ func (s *Store) ListFeeds(ctx context.Context, p ListFeedsParams) ([]Feed, int, 
 
 Add to the import block in `store.go` if not already there: `"time"`.
 
-- [ ] **Step 4: Run tests; verify pass**
+- [x] **Step 4: Run tests; verify pass**
 
 Run: `go test ./internal/radar/ -run 'TestStore_(LastSweepAt|ListFeeds)' -v`
 Expected: PASS for all three tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/radar/store.go internal/radar/store_test.go

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/ismd/linktheca/internal/radar"
 	"github.com/ismd/linktheca/internal/testing/testdb"
@@ -586,4 +587,64 @@ func TestStore_UpdateMatchState_idempotent(t *testing.T) {
 
 	require.NoError(t, store.UpdateMatchState(ctx, userID, matchID, "seen"))
 	require.NoError(t, store.UpdateMatchState(ctx, userID, matchID, "seen"))
+}
+
+func TestStore_LastSweepAt_noSubs(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+
+	last, err := store.LastSweepAt(ctx, userID)
+	require.NoError(t, err)
+	require.Nil(t, last)
+}
+
+func TestStore_LastSweepAt_picksMax(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	feed1 := seedFeed(t, pool, "https://f1.example/rss", "F1")
+	feed2 := seedFeed(t, pool, "https://f2.example/rss", "F2")
+	seedSubscription(t, pool, userID, feed1)
+	seedSubscription(t, pool, userID, feed2)
+
+	// Set distinct fetch timestamps; feed2 is most recent.
+	_, err := pool.Exec(ctx,
+		`UPDATE radar_feeds SET last_fetched_at = $1 WHERE id = $2`,
+		time.Date(2026, 5, 14, 10, 0, 0, 0, time.UTC), feed1)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx,
+		`UPDATE radar_feeds SET last_fetched_at = $1 WHERE id = $2`,
+		time.Date(2026, 5, 14, 12, 0, 0, 0, time.UTC), feed2)
+	require.NoError(t, err)
+
+	last, err := store.LastSweepAt(ctx, userID)
+	require.NoError(t, err)
+	require.NotNil(t, last)
+	require.Equal(t, 12, last.UTC().Hour())
+}
+
+func TestStore_ListFeeds_pagination(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	for i := 0; i < 4; i++ {
+		seedFeed(t, pool,
+			fmt.Sprintf("https://feed-%d.example/rss", i),
+			fmt.Sprintf("Feed %d", i))
+	}
+
+	items, total, err := store.ListFeeds(ctx, radar.ListFeedsParams{Limit: 2, Offset: 0})
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+	require.Equal(t, 4, total)
+
+	items, _, err = store.ListFeeds(ctx, radar.ListFeedsParams{Limit: 2, Offset: 3})
+	require.NoError(t, err)
+	require.Len(t, items, 1)
 }

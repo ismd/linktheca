@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -482,4 +483,50 @@ func (s *Store) UpdateMatchState(ctx context.Context, userID, matchID int64, sta
 		return ErrNotFound
 	}
 	return nil
+}
+
+func (s *Store) LastSweepAt(ctx context.Context, userID int64) (*time.Time, error) {
+	var last *time.Time
+	err := s.db.QueryRow(ctx, `
+		SELECT MAX(f.last_fetched_at)
+		FROM radar_feeds f
+		JOIN radar_feed_subscriptions s ON s.feed_id = f.id
+		WHERE s.user_id = $1 AND f.is_active`, userID).Scan(&last)
+	if err != nil {
+		return nil, fmt.Errorf("last sweep at: %w", err)
+	}
+	return last, nil
+}
+
+func (s *Store) ListFeeds(ctx context.Context, p ListFeedsParams) ([]Feed, int, error) {
+	var total int
+	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM radar_feeds`).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count feeds: %w", err)
+	}
+
+	rows, err := s.db.Query(ctx, `
+		SELECT id, url, kind, title, fetch_interval_seconds, is_active,
+		       last_fetched_at, last_error, created_at
+		FROM radar_feeds
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2`, p.Limit, p.Offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list feeds: %w", err)
+	}
+	defer rows.Close()
+
+	items := []Feed{}
+	for rows.Next() {
+		var f Feed
+		if err := rows.Scan(&f.ID, &f.URL, &f.Kind, &f.Title,
+			&f.FetchIntervalSeconds, &f.IsActive,
+			&f.LastFetchedAt, &f.LastError, &f.CreatedAt); err != nil {
+			return nil, 0, fmt.Errorf("scan feed: %w", err)
+		}
+		items = append(items, f)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows: %w", err)
+	}
+	return items, total, nil
 }
