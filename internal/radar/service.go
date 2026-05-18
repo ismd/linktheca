@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ismd/linktheca/internal/core/embeddings"
 	"github.com/pgvector/pgvector-go"
@@ -20,6 +21,16 @@ type StoreAPI interface {
 	UpdateTopicEmbedding(ctx context.Context, topicID int64, vec pgvector.Vector) error
 	AddFeed(ctx context.Context, p AddFeedParams) (*Feed, error)
 	Subscribe(ctx context.Context, userID, feedID int64) (*Subscription, error)
+
+	// Read-API extensions:
+	ListTopicsWithStats(ctx context.Context, userID int64) ([]TopicWithStats, error)
+	GetTopicWithStats(ctx context.Context, userID, topicID int64) (*TopicWithStats, error)
+	UpdateTopic(ctx context.Context, userID, topicID int64, p UpdateTopicParams) (*Topic, error)
+	DeleteTopic(ctx context.Context, userID, topicID int64) error
+	ListMatches(ctx context.Context, userID int64, p ListMatchesParams) ([]MatchView, int, error)
+	UpdateMatchState(ctx context.Context, userID, matchID int64, state string) error
+	LastSweepAt(ctx context.Context, userID int64) (*time.Time, error)
+	ListFeeds(ctx context.Context, p ListFeedsParams) ([]Feed, int, error)
 }
 
 type Service struct {

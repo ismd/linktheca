@@ -1120,7 +1120,7 @@ git commit -m "feat(radar): add LastSweepAt and ListFeeds store methods"
 
 Service tests use a mockStore that satisfies `StoreAPI`. Before adding service methods we must extend the interface and add stubs (returning sentinel errors) so the package keeps compiling.
 
-- [ ] **Step 1: Extend `StoreAPI` in `service.go`**
+- [x] **Step 1: Extend `StoreAPI` in `service.go`**
 
 Replace the existing `StoreAPI` interface block:
 
@@ -1145,7 +1145,7 @@ type StoreAPI interface {
 
 Add `"time"` to `service.go`'s import block if not present.
 
-- [ ] **Step 2: Add mockStore stubs in `service_test.go`**
+- [x] **Step 2: Add mockStore stubs in `service_test.go`**
 
 Append to the mockStore in `service_test.go` (after the existing methods). The stubs return zero values + sentinel errors that tests can override per scenario via fields. For simplicity start with simple "return nil" or "return errStub". Add the following fields to the `mockStore` struct definition (find it and extend):
 
@@ -1261,17 +1261,17 @@ func (m *mockStore) ListFeeds(_ context.Context, _ radar.ListFeedsParams) ([]rad
 
 Make sure `service_test.go` imports `"time"` (it already does — used by existing mock methods).
 
-- [ ] **Step 3: Compile to verify interface satisfaction**
+- [x] **Step 3: Compile to verify interface satisfaction**
 
 Run: `go build ./internal/radar/...`
 Expected: PASS — both the real `Store` and `mockStore` now satisfy `StoreAPI`.
 
-- [ ] **Step 4: Re-run existing tests; verify nothing broke**
+- [x] **Step 4: Re-run existing tests; verify nothing broke**
 
 Run: `go test ./internal/radar/... -v -short`
 Expected: PASS for all pre-existing tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/radar/service.go internal/radar/service_test.go

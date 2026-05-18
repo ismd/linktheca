@@ -15,17 +15,42 @@ import (
 // --- mock store ---
 
 type mockStore struct {
-	topics        map[int64]*radar.Topic
-	topicEmb      map[int64]pgvector.Vector
-	feeds         map[int64]*radar.Feed
-	feedsByURL    map[string]*radar.Feed
-	subs          map[string]*radar.Subscription
-	nextTopicID   int64
-	nextFeedID    int64
+	topics         map[int64]*radar.Topic
+	topicEmb       map[int64]pgvector.Vector
+	feeds          map[int64]*radar.Feed
+	feedsByURL     map[string]*radar.Feed
+	subs           map[string]*radar.Subscription
+	nextTopicID    int64
+	nextFeedID     int64
 	createTopicErr error
 	addFeedErr     error
 	subscribeErr   error
 	updateEmbErr   error
+
+	// Read-API recording / overrides:
+	listTopicsResult   []radar.TopicWithStats
+	listTopicsErr      error
+	getTopicResult     *radar.TopicWithStats
+	getTopicErr        error
+	updateTopicResult  *radar.Topic
+	updateTopicErr     error
+	updateTopicCalled  bool
+	updateTopicParams  radar.UpdateTopicParams
+	deleteTopicErr     error
+	deleteTopicCalled  bool
+	listMatchesResult  []radar.MatchView
+	listMatchesTotal   int
+	listMatchesErr     error
+	listMatchesCalled  bool
+	listMatchesParams  radar.ListMatchesParams
+	updateMatchErr     error
+	updateMatchCalled  bool
+	updateMatchState   string
+	lastSweepResult    *time.Time
+	lastSweepErr       error
+	listFeedsResult    []radar.Feed
+	listFeedsTotal     int
+	listFeedsErr       error
 }
 
 func newMockStore() *mockStore {
@@ -292,4 +317,69 @@ func TestService_Subscribe_Validation(t *testing.T) {
 
 	_, err := svc.Subscribe(context.Background(), 1, radar.SubscribeRequest{FeedID: 0})
 	require.ErrorIs(t, err, radar.ErrInvalidInput)
+}
+
+func (m *mockStore) ListTopicsWithStats(_ context.Context, _ int64) ([]radar.TopicWithStats, error) {
+	return m.listTopicsResult, m.listTopicsErr
+}
+
+func (m *mockStore) GetTopicWithStats(_ context.Context, _, _ int64) (*radar.TopicWithStats, error) {
+	if m.getTopicErr != nil {
+		return nil, m.getTopicErr
+	}
+	if m.getTopicResult == nil {
+		return nil, radar.ErrNotFound
+	}
+	return m.getTopicResult, nil
+}
+
+func (m *mockStore) UpdateTopic(_ context.Context, _, _ int64, p radar.UpdateTopicParams) (*radar.Topic, error) {
+	m.updateTopicCalled = true
+	m.updateTopicParams = p
+	if m.updateTopicErr != nil {
+		return nil, m.updateTopicErr
+	}
+	if m.updateTopicResult != nil {
+		return m.updateTopicResult, nil
+	}
+	// Default: synthesize a Topic reflecting params.
+	t := radar.Topic{ID: 1, Name: "default"}
+	if p.Name != nil {
+		t.Name = *p.Name
+	}
+	if p.Description != nil {
+		t.Description = *p.Description
+	}
+	if p.MatchThreshold != nil {
+		t.MatchThreshold = *p.MatchThreshold
+	}
+	if p.IsActive != nil {
+		t.IsActive = *p.IsActive
+	}
+	return &t, nil
+}
+
+func (m *mockStore) DeleteTopic(_ context.Context, _, _ int64) error {
+	m.deleteTopicCalled = true
+	return m.deleteTopicErr
+}
+
+func (m *mockStore) ListMatches(_ context.Context, _ int64, p radar.ListMatchesParams) ([]radar.MatchView, int, error) {
+	m.listMatchesCalled = true
+	m.listMatchesParams = p
+	return m.listMatchesResult, m.listMatchesTotal, m.listMatchesErr
+}
+
+func (m *mockStore) UpdateMatchState(_ context.Context, _, _ int64, state string) error {
+	m.updateMatchCalled = true
+	m.updateMatchState = state
+	return m.updateMatchErr
+}
+
+func (m *mockStore) LastSweepAt(_ context.Context, _ int64) (*time.Time, error) {
+	return m.lastSweepResult, m.lastSweepErr
+}
+
+func (m *mockStore) ListFeeds(_ context.Context, _ radar.ListFeedsParams) ([]radar.Feed, int, error) {
+	return m.listFeedsResult, m.listFeedsTotal, m.listFeedsErr
 }
