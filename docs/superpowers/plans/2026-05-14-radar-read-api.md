@@ -680,7 +680,7 @@ git commit -m "feat(radar): add UpdateTopic and DeleteTopic store methods"
 
 `ListMatches` joins topics+findings+feeds; ownership through `t.user_id`. `UpdateMatchState` uses subselect for ownership.
 
-- [ ] **Step 1: Write failing test `TestStore_ListMatches_filters`**
+- [x] **Step 1: Write failing test `TestStore_ListMatches_filters`**
 
 Append to `store_test.go`:
 
@@ -732,7 +732,7 @@ func TestStore_ListMatches_filters(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Write failing test `TestStore_ListMatches_denormalization`**
+- [x] **Step 2: Write failing test `TestStore_ListMatches_denormalization`**
 
 ```go
 func TestStore_ListMatches_denormalization(t *testing.T) {
@@ -760,7 +760,7 @@ func TestStore_ListMatches_denormalization(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Write failing test `TestStore_ListMatches_isolation`**
+- [x] **Step 3: Write failing test `TestStore_ListMatches_isolation`**
 
 ```go
 func TestStore_ListMatches_isolation(t *testing.T) {
@@ -790,7 +790,7 @@ func TestStore_ListMatches_isolation(t *testing.T) {
 }
 ```
 
-- [ ] **Step 4: Write failing test `TestStore_ListMatches_pagination`**
+- [x] **Step 4: Write failing test `TestStore_ListMatches_pagination`**
 
 ```go
 func TestStore_ListMatches_pagination(t *testing.T) {
@@ -823,7 +823,7 @@ func TestStore_ListMatches_pagination(t *testing.T) {
 
 If `"fmt"` is not yet in `store_test.go`'s import block, add it.
 
-- [ ] **Step 5: Write failing test `TestStore_UpdateMatchState_ownership`**
+- [x] **Step 5: Write failing test `TestStore_UpdateMatchState_ownership`**
 
 ```go
 func TestStore_UpdateMatchState_ownership(t *testing.T) {
@@ -847,7 +847,7 @@ func TestStore_UpdateMatchState_ownership(t *testing.T) {
 }
 ```
 
-- [ ] **Step 6: Write failing test `TestStore_UpdateMatchState_idempotent`**
+- [x] **Step 6: Write failing test `TestStore_UpdateMatchState_idempotent`**
 
 ```go
 func TestStore_UpdateMatchState_idempotent(t *testing.T) {
@@ -866,12 +866,12 @@ func TestStore_UpdateMatchState_idempotent(t *testing.T) {
 }
 ```
 
-- [ ] **Step 7: Run tests; verify failure**
+- [x] **Step 7: Run tests; verify failure**
 
 Run: `go test ./internal/radar/ -run 'TestStore_(ListMatches|UpdateMatchState)' -v`
 Expected: FAIL — methods undefined.
 
-- [ ] **Step 8: Implement `ListMatches` and `UpdateMatchState` in `store.go`**
+- [x] **Step 8: Implement `ListMatches` and `UpdateMatchState` in `store.go`**
 
 Append to `internal/radar/store.go`:
 
@@ -949,12 +949,12 @@ func (s *Store) UpdateMatchState(ctx context.Context, userID, matchID int64, sta
 }
 ```
 
-- [ ] **Step 9: Run tests; verify pass**
+- [x] **Step 9: Run tests; verify pass**
 
 Run: `go test ./internal/radar/ -run 'TestStore_(ListMatches|UpdateMatchState)' -v`
 Expected: PASS for all six tests.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add internal/radar/store.go internal/radar/store_test.go

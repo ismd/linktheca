@@ -411,3 +411,75 @@ func (s *Store) DeleteTopic(ctx context.Context, userID, topicID int64) error {
 	}
 	return nil
 }
+
+func (s *Store) ListMatches(ctx context.Context, userID int64, p ListMatchesParams) ([]MatchView, int, error) {
+	// total
+	countQuery := `
+		SELECT count(*)
+		FROM radar_topic_matches m
+		JOIN radar_topics t ON t.id = m.topic_id
+		WHERE t.user_id = $1
+		  AND ($2::bigint IS NULL OR m.topic_id = $2)
+		  AND ($3::text   IS NULL OR m.state    = $3)`
+	var total int
+	if err := s.db.QueryRow(ctx, countQuery, userID, p.TopicID, p.State).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count matches: %w", err)
+	}
+
+	rows, err := s.db.Query(ctx, `
+		SELECT
+		  m.id, m.topic_id, t.name AS topic_name,
+		  m.similarity, m.state, m.matched_at,
+		  f.id, f.feed_id, fd.title AS feed_title,
+		  f.url, f.title, f.summary,
+		  f.published_at, f.discovered_at
+		FROM radar_topic_matches m
+		JOIN radar_topics t   ON t.id = m.topic_id
+		JOIN radar_findings f ON f.id = m.finding_id
+		JOIN radar_feeds fd   ON fd.id = f.feed_id
+		WHERE t.user_id = $1
+		  AND ($2::bigint IS NULL OR m.topic_id = $2)
+		  AND ($3::text   IS NULL OR m.state    = $3)
+		ORDER BY m.matched_at DESC
+		LIMIT $4 OFFSET $5`,
+		userID, p.TopicID, p.State, p.Limit, p.Offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list matches: %w", err)
+	}
+	defer rows.Close()
+
+	items := []MatchView{}
+	for rows.Next() {
+		var m MatchView
+		if err := rows.Scan(
+			&m.ID, &m.TopicID, &m.TopicName,
+			&m.Similarity, &m.State, &m.MatchedAt,
+			&m.Finding.ID, &m.Finding.FeedID, &m.Finding.FeedTitle,
+			&m.Finding.URL, &m.Finding.Title, &m.Finding.Summary,
+			&m.Finding.PublishedAt, &m.Finding.DiscoveredAt,
+		); err != nil {
+			return nil, 0, fmt.Errorf("scan match: %w", err)
+		}
+		items = append(items, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows: %w", err)
+	}
+	return items, total, nil
+}
+
+func (s *Store) UpdateMatchState(ctx context.Context, userID, matchID int64, state string) error {
+	tag, err := s.db.Exec(ctx, `
+		UPDATE radar_topic_matches
+		SET state = $1
+		WHERE id = $2
+		  AND topic_id IN (SELECT id FROM radar_topics WHERE user_id = $3)`,
+		state, matchID, userID)
+	if err != nil {
+		return fmt.Errorf("update match state: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}

@@ -429,3 +429,161 @@ func TestStore_DeleteTopic_otherUser(t *testing.T) {
 	err := store.DeleteTopic(ctx, userA, topicID)
 	require.ErrorIs(t, err, radar.ErrNotFound)
 }
+
+func TestStore_ListMatches_filters(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	topicA := seedTopic(t, pool, userID, "A", "desc-a", 0.55, true)
+	topicB := seedTopic(t, pool, userID, "B", "desc-b", 0.55, true)
+	feedID := seedFeed(t, pool, "https://x.example/rss", "X-feed")
+	f1 := seedFinding(t, pool, feedID, "https://x.example/1", "title-1")
+	f2 := seedFinding(t, pool, feedID, "https://x.example/2", "title-2")
+	f3 := seedFinding(t, pool, feedID, "https://x.example/3", "title-3")
+	seedMatch(t, pool, topicA, f1, "new", 0.7)
+	seedMatch(t, pool, topicA, f2, "seen", 0.71)
+	seedMatch(t, pool, topicB, f3, "new", 0.72)
+
+	// No filters → all 3
+	items, total, err := store.ListMatches(ctx, userID, radar.ListMatchesParams{Limit: 50})
+	require.NoError(t, err)
+	require.Len(t, items, 3)
+	require.Equal(t, 3, total)
+
+	// Filter by topic A → 2
+	items, total, err = store.ListMatches(ctx, userID,
+		radar.ListMatchesParams{TopicID: &topicA, Limit: 50})
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+	require.Equal(t, 2, total)
+
+	// Filter by state=new → 2 (topicA-f1 + topicB-f3)
+	stateNew := "new"
+	items, total, err = store.ListMatches(ctx, userID,
+		radar.ListMatchesParams{State: &stateNew, Limit: 50})
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+	require.Equal(t, 2, total)
+
+	// Combined: topic A + state=seen → 1
+	stateSeen := "seen"
+	items, total, err = store.ListMatches(ctx, userID,
+		radar.ListMatchesParams{TopicID: &topicA, State: &stateSeen, Limit: 50})
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	require.Equal(t, 1, total)
+}
+
+func TestStore_ListMatches_denormalization(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	topicID := seedTopic(t, pool, userID, "Local-first", "local-first software", 0.55, true)
+	feedID := seedFeed(t, pool, "https://hn.example/rss", "Hacker News")
+	findingID := seedFinding(t, pool, feedID, "https://hn.example/a", "article-title")
+	seedMatch(t, pool, topicID, findingID, "new", 0.73)
+
+	items, _, err := store.ListMatches(ctx, userID, radar.ListMatchesParams{Limit: 50})
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	m := items[0]
+	require.Equal(t, "Local-first", m.TopicName)
+	require.Equal(t, findingID, m.Finding.ID)
+	require.Equal(t, feedID, m.Finding.FeedID)
+	require.NotNil(t, m.Finding.FeedTitle)
+	require.Equal(t, "Hacker News", *m.Finding.FeedTitle)
+	require.NotNil(t, m.Finding.Title)
+	require.Equal(t, "article-title", *m.Finding.Title)
+}
+
+func TestStore_ListMatches_isolation(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userA := seedUser(t, pool)
+	userB := seedUser(t, pool)
+	topicB := seedTopic(t, pool, userB, "B's topic", "B's desc", 0.55, true)
+	feedID := seedFeed(t, pool, "https://x.example/rss", "X")
+	findingID := seedFinding(t, pool, feedID, "https://x.example/a", "a")
+	seedMatch(t, pool, topicB, findingID, "new", 0.7)
+
+	// userA sees nothing globally
+	items, total, err := store.ListMatches(ctx, userA, radar.ListMatchesParams{Limit: 50})
+	require.NoError(t, err)
+	require.Empty(t, items)
+	require.Equal(t, 0, total)
+
+	// userA cannot peek into B's topic by passing topic_id
+	items, total, err = store.ListMatches(ctx, userA,
+		radar.ListMatchesParams{TopicID: &topicB, Limit: 50})
+	require.NoError(t, err)
+	require.Empty(t, items)
+	require.Equal(t, 0, total)
+}
+
+func TestStore_ListMatches_pagination(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	topicID := seedTopic(t, pool, userID, "T", "desc-t", 0.55, true)
+	feedID := seedFeed(t, pool, "https://x.example/rss", "X")
+	for i := 0; i < 5; i++ {
+		fid := seedFinding(t, pool, feedID,
+			fmt.Sprintf("https://x.example/a%d", i),
+			fmt.Sprintf("title-%d", i))
+		seedMatch(t, pool, topicID, fid, "new", 0.7)
+	}
+
+	items, total, err := store.ListMatches(ctx, userID,
+		radar.ListMatchesParams{Limit: 2, Offset: 0})
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+	require.Equal(t, 5, total)
+
+	items, _, err = store.ListMatches(ctx, userID,
+		radar.ListMatchesParams{Limit: 2, Offset: 4})
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+}
+
+func TestStore_UpdateMatchState_ownership(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userA := seedUser(t, pool)
+	userB := seedUser(t, pool)
+	topicB := seedTopic(t, pool, userB, "B", "B's desc", 0.55, true)
+	feedID := seedFeed(t, pool, "https://x.example/rss", "X")
+	findingID := seedFinding(t, pool, feedID, "https://x.example/a", "a")
+	matchID := seedMatch(t, pool, topicB, findingID, "new", 0.7)
+
+	err := store.UpdateMatchState(ctx, userA, matchID, "seen")
+	require.ErrorIs(t, err, radar.ErrNotFound)
+
+	// B can update
+	err = store.UpdateMatchState(ctx, userB, matchID, "seen")
+	require.NoError(t, err)
+}
+
+func TestStore_UpdateMatchState_idempotent(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	topicID := seedTopic(t, pool, userID, "T", "desc", 0.55, true)
+	feedID := seedFeed(t, pool, "https://x.example/rss", "X")
+	findingID := seedFinding(t, pool, feedID, "https://x.example/a", "a")
+	matchID := seedMatch(t, pool, topicID, findingID, "seen", 0.7)
+
+	require.NoError(t, store.UpdateMatchState(ctx, userID, matchID, "seen"))
+	require.NoError(t, store.UpdateMatchState(ctx, userID, matchID, "seen"))
+}
