@@ -340,3 +340,92 @@ func TestStore_GetTopicWithStats_notFound(t *testing.T) {
 	_, err := store.GetTopicWithStats(ctx, userA, otherTopic)
 	require.ErrorIs(t, err, radar.ErrNotFound)
 }
+
+func TestStore_UpdateTopic_partial(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	topicID := seedTopic(t, pool, userID, "orig", "orig description", 0.55, true)
+
+	newName := "renamed"
+	updated, err := store.UpdateTopic(ctx, userID, topicID, radar.UpdateTopicParams{
+		Name: &newName,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "renamed", updated.Name)
+	require.Equal(t, "orig description", updated.Description) // unchanged
+	require.Equal(t, float32(0.55), updated.MatchThreshold)
+	require.True(t, updated.IsActive)
+}
+
+func TestStore_UpdateTopic_allFields(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	topicID := seedTopic(t, pool, userID, "orig", "orig description", 0.55, true)
+
+	name := "new-name"
+	desc := "new description"
+	threshold := float32(0.7)
+	active := false
+	updated, err := store.UpdateTopic(ctx, userID, topicID, radar.UpdateTopicParams{
+		Name: &name, Description: &desc, MatchThreshold: &threshold, IsActive: &active,
+	})
+	require.NoError(t, err)
+	require.Equal(t, name, updated.Name)
+	require.Equal(t, desc, updated.Description)
+	require.Equal(t, threshold, updated.MatchThreshold)
+	require.False(t, updated.IsActive)
+}
+
+func TestStore_UpdateTopic_otherUser(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userA := seedUser(t, pool)
+	userB := seedUser(t, pool)
+	topicID := seedTopic(t, pool, userB, "B's topic", "B's description", 0.55, true)
+
+	name := "stolen"
+	_, err := store.UpdateTopic(ctx, userA, topicID, radar.UpdateTopicParams{Name: &name})
+	require.ErrorIs(t, err, radar.ErrNotFound)
+}
+
+func TestStore_DeleteTopic_cascades(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	topicID := seedTopic(t, pool, userID, "doomed", "to be deleted", 0.55, true)
+	feedID := seedFeed(t, pool, "https://x.example/rss", "X")
+	findingID := seedFinding(t, pool, feedID, "https://x.example/a", "a")
+	matchID := seedMatch(t, pool, topicID, findingID, "new", 0.7)
+
+	require.NoError(t, store.DeleteTopic(ctx, userID, topicID))
+
+	// match is gone via CASCADE
+	var count int
+	err := pool.QueryRow(ctx,
+		`SELECT count(*) FROM radar_topic_matches WHERE id=$1`, matchID).Scan(&count)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+}
+
+func TestStore_DeleteTopic_otherUser(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userA := seedUser(t, pool)
+	userB := seedUser(t, pool)
+	topicID := seedTopic(t, pool, userB, "B's", "B's desc", 0.55, true)
+
+	err := store.DeleteTopic(ctx, userA, topicID)
+	require.ErrorIs(t, err, radar.ErrNotFound)
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -342,4 +343,71 @@ func (s *Store) GetTopicWithStats(ctx context.Context, userID, topicID int64) (*
 		return nil, fmt.Errorf("get topic with stats: %w", err)
 	}
 	return t, nil
+}
+
+func (s *Store) UpdateTopic(ctx context.Context, userID, topicID int64, p UpdateTopicParams) (*Topic, error) {
+	setClauses := []string{}
+	args := []any{}
+	argIdx := 1
+
+	if p.Name != nil {
+		setClauses = append(setClauses, fmt.Sprintf("name = $%d", argIdx))
+		args = append(args, *p.Name)
+		argIdx++
+	}
+	if p.Description != nil {
+		setClauses = append(setClauses, fmt.Sprintf("description = $%d", argIdx))
+		args = append(args, *p.Description)
+		argIdx++
+	}
+	if p.MatchThreshold != nil {
+		setClauses = append(setClauses, fmt.Sprintf("match_threshold = $%d", argIdx))
+		args = append(args, *p.MatchThreshold)
+		argIdx++
+	}
+	if p.IsActive != nil {
+		setClauses = append(setClauses, fmt.Sprintf("is_active = $%d", argIdx))
+		args = append(args, *p.IsActive)
+		argIdx++
+	}
+
+	if len(setClauses) == 0 {
+		// Defensive: caller (service) is expected to validate non-empty patch.
+		return nil, fmt.Errorf("%w: no fields to update", ErrInvalidInput)
+	}
+
+	setClauses = append(setClauses, "updated_at = now()")
+
+	query := fmt.Sprintf(`UPDATE radar_topics
+		SET %s
+		WHERE id = $%d AND user_id = $%d
+		RETURNING id, user_id, name, description, match_threshold, is_active,
+		          embedding IS NOT NULL, created_at, updated_at`,
+		strings.Join(setClauses, ", "), argIdx, argIdx+1)
+	args = append(args, topicID, userID)
+
+	var t Topic
+	err := s.db.QueryRow(ctx, query, args...).Scan(
+		&t.ID, &t.UserID, &t.Name, &t.Description,
+		&t.MatchThreshold, &t.IsActive, &t.HasEmbedding,
+		&t.CreatedAt, &t.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("update topic: %w", err)
+	}
+	return &t, nil
+}
+
+func (s *Store) DeleteTopic(ctx context.Context, userID, topicID int64) error {
+	tag, err := s.db.Exec(ctx,
+		`DELETE FROM radar_topics WHERE id=$1 AND user_id=$2`, topicID, userID)
+	if err != nil {
+		return fmt.Errorf("delete topic: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

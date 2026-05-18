@@ -453,7 +453,7 @@ git commit -m "feat(radar): add ListTopicsWithStats and GetTopicWithStats store 
 
 `UpdateTopic` dynamically builds the SET clause from non-nil fields (pattern from `library.UpdateItem`). `DeleteTopic` is a one-shot DELETE with ownership.
 
-- [ ] **Step 1: Write failing test `TestStore_UpdateTopic_partial`**
+- [x] **Step 1: Write failing test `TestStore_UpdateTopic_partial`**
 
 Append to `store_test.go`:
 
@@ -478,7 +478,7 @@ func TestStore_UpdateTopic_partial(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Write failing test `TestStore_UpdateTopic_allFields`**
+- [x] **Step 2: Write failing test `TestStore_UpdateTopic_allFields`**
 
 ```go
 func TestStore_UpdateTopic_allFields(t *testing.T) {
@@ -504,7 +504,7 @@ func TestStore_UpdateTopic_allFields(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Write failing test `TestStore_UpdateTopic_otherUser`**
+- [x] **Step 3: Write failing test `TestStore_UpdateTopic_otherUser`**
 
 ```go
 func TestStore_UpdateTopic_otherUser(t *testing.T) {
@@ -522,7 +522,7 @@ func TestStore_UpdateTopic_otherUser(t *testing.T) {
 }
 ```
 
-- [ ] **Step 4: Write failing test `TestStore_DeleteTopic_cascades`**
+- [x] **Step 4: Write failing test `TestStore_DeleteTopic_cascades`**
 
 ```go
 func TestStore_DeleteTopic_cascades(t *testing.T) {
@@ -547,7 +547,7 @@ func TestStore_DeleteTopic_cascades(t *testing.T) {
 }
 ```
 
-- [ ] **Step 5: Write failing test `TestStore_DeleteTopic_otherUser`**
+- [x] **Step 5: Write failing test `TestStore_DeleteTopic_otherUser`**
 
 ```go
 func TestStore_DeleteTopic_otherUser(t *testing.T) {
@@ -564,12 +564,12 @@ func TestStore_DeleteTopic_otherUser(t *testing.T) {
 }
 ```
 
-- [ ] **Step 6: Run tests; verify failure**
+- [x] **Step 6: Run tests; verify failure**
 
 Run: `go test ./internal/radar/ -run 'TestStore_(UpdateTopic|DeleteTopic)' -v`
 Expected: FAIL — methods undefined.
 
-- [ ] **Step 7: Implement `UpdateTopic` and `DeleteTopic` in `store.go`**
+- [x] **Step 7: Implement `UpdateTopic` and `DeleteTopic` in `store.go`**
 
 Append to `internal/radar/store.go`. The `strings` package must be imported (it isn't currently — add to the existing import block):
 
@@ -658,12 +658,12 @@ func (s *Store) DeleteTopic(ctx context.Context, userID, topicID int64) error {
 }
 ```
 
-- [ ] **Step 8: Run tests; verify pass**
+- [x] **Step 8: Run tests; verify pass**
 
 Run: `go test ./internal/radar/ -run 'TestStore_(UpdateTopic|DeleteTopic)' -v`
 Expected: PASS for all five tests.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add internal/radar/store.go internal/radar/store_test.go
