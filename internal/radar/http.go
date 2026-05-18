@@ -183,3 +183,99 @@ func (h *HTTP) deleteTopic(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// ListMatchesHandler returns the http.HandlerFunc for GET /radar/matches.
+func (h *HTTP) ListMatchesHandler() http.HandlerFunc { return h.listMatches }
+
+// UpdateMatchHandler returns the http.HandlerFunc for PATCH /radar/matches/{id}.
+func (h *HTTP) UpdateMatchHandler() http.HandlerFunc { return h.updateMatch }
+
+// StatusHandler returns the http.HandlerFunc for GET /radar/status.
+func (h *HTTP) StatusHandler() http.HandlerFunc { return h.status }
+
+// ListFeedsHandler returns the http.HandlerFunc for GET /radar/feeds (admin).
+func (h *HTTP) ListFeedsHandler() http.HandlerFunc { return h.listFeeds }
+
+func (h *HTTP) listMatches(w http.ResponseWriter, r *http.Request) {
+	userID := coreauth.UserID(r.Context())
+	q := r.URL.Query()
+
+	params := ListMatchesParams{UserID: userID}
+
+	if topicStr := q.Get("topic_id"); topicStr != "" {
+		topicID, err := strconv.ParseInt(topicStr, 10, 64)
+		if err != nil || topicID <= 0 {
+			httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid topic_id")
+			return
+		}
+		params.TopicID = &topicID
+	}
+
+	if state := q.Get("state"); state != "" {
+		if state != "new" && state != "seen" {
+			httpx.WriteError(w, http.StatusBadRequest, "bad_request", "state must be new|seen")
+			return
+		}
+		params.State = &state
+	}
+
+	if l, err := strconv.Atoi(q.Get("limit")); err == nil {
+		params.Limit = l
+	}
+	if o, err := strconv.Atoi(q.Get("offset")); err == nil {
+		params.Offset = o
+	}
+
+	result, err := h.svc.ListMatches(r.Context(), params)
+	if err != nil {
+		writeRadarError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, result)
+}
+
+func (h *HTTP) updateMatch(w http.ResponseWriter, r *http.Request) {
+	userID := coreauth.UserID(r.Context())
+	id, err := parseRadarID(r)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid id")
+		return
+	}
+	var req UpdateMatchRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid json body")
+		return
+	}
+	if err := h.svc.SetMatchState(r.Context(), userID, id, req.State); err != nil {
+		writeRadarError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *HTTP) status(w http.ResponseWriter, r *http.Request) {
+	userID := coreauth.UserID(r.Context())
+	last, err := h.svc.LastSweep(r.Context(), userID)
+	if err != nil {
+		writeRadarError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, RadarStatus{LastSweepAt: last})
+}
+
+func (h *HTTP) listFeeds(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	params := ListFeedsParams{}
+	if l, err := strconv.Atoi(q.Get("limit")); err == nil {
+		params.Limit = l
+	}
+	if o, err := strconv.Atoi(q.Get("offset")); err == nil {
+		params.Offset = o
+	}
+	result, err := h.svc.ListFeeds(r.Context(), params)
+	if err != nil {
+		writeRadarError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, result)
+}

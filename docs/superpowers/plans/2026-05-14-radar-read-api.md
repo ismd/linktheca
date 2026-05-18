@@ -2092,7 +2092,7 @@ git commit -m "feat(radar): add topic read-API HTTP handlers"
 
 `ListMatches` parses `topic_id`, `state`, `limit`, `offset` from query. `UpdateMatch` reads body. `Status` is parameterless. `ListFeeds` is admin-only (middleware enforces, not handler).
 
-- [ ] **Step 1: Write failing tests for matches**
+- [x] **Step 1: Write failing tests for matches**
 
 Append to `http_test.go`:
 
@@ -2188,7 +2188,7 @@ func TestHTTP_UpdateMatch_404(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Write failing tests for status + feeds**
+- [x] **Step 2: Write failing tests for status + feeds**
 
 ```go
 func TestHTTP_Status_200_withLastSweep(t *testing.T) {
@@ -2242,12 +2242,12 @@ func TestHTTP_ListFeeds_200(t *testing.T) {
 
 Add `"time"` to `http_test.go`'s import block if not yet present.
 
-- [ ] **Step 3: Run tests; verify failure**
+- [x] **Step 3: Run tests; verify failure**
 
 Run: `go test ./internal/radar/ -run 'TestHTTP_(ListMatches|UpdateMatch|Status|ListFeeds)' -v -short`
 Expected: FAIL.
 
-- [ ] **Step 4: Implement match + status + feeds handlers**
+- [x] **Step 4: Implement match + status + feeds handlers**
 
 Append to `internal/radar/http.go`:
 
@@ -2349,12 +2349,12 @@ func (h *HTTP) listFeeds(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 5: Run tests; verify pass**
+- [x] **Step 5: Run tests; verify pass**
 
 Run: `go test ./internal/radar/ -run 'TestHTTP_(ListMatches|UpdateMatch|Status|ListFeeds)' -v -short`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/radar/http.go internal/radar/http_test.go

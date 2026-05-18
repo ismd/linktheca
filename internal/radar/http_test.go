@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/ismd/linktheca/internal/core/embeddings"
@@ -299,4 +300,142 @@ func TestHTTP_DeleteTopic_404(t *testing.T) {
 	rec := httptest.NewRecorder()
 	h.DeleteTopicHandler()(rec, req)
 	require.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestHTTP_ListMatches_200_filters(t *testing.T) {
+	store := newMockStore()
+	store.listMatchesResult = []radar.MatchView{{ID: 1, TopicID: 7, State: "new"}}
+	store.listMatchesTotal = 1
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/matches?topic_id=7&state=new&limit=10", nil)
+	req = req.WithContext(userOnlyContext(req.Context(), 1, false))
+	rec := httptest.NewRecorder()
+	h.ListMatchesHandler()(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	require.NotNil(t, store.listMatchesParams.TopicID)
+	require.Equal(t, int64(7), *store.listMatchesParams.TopicID)
+	require.NotNil(t, store.listMatchesParams.State)
+	require.Equal(t, "new", *store.listMatchesParams.State)
+	require.Equal(t, 10, store.listMatchesParams.Limit)
+}
+
+func TestHTTP_ListMatches_200_noFilters(t *testing.T) {
+	store := newMockStore()
+	store.listMatchesResult = []radar.MatchView{}
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/matches", nil)
+	req = req.WithContext(userOnlyContext(req.Context(), 1, false))
+	rec := httptest.NewRecorder()
+	h.ListMatchesHandler()(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	require.Nil(t, store.listMatchesParams.TopicID)
+	require.Nil(t, store.listMatchesParams.State)
+	require.Equal(t, 50, store.listMatchesParams.Limit) // service default
+}
+
+func TestHTTP_ListMatches_400_badTopicID(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/matches?topic_id=abc", nil)
+	req = req.WithContext(userOnlyContext(req.Context(), 1, false))
+	rec := httptest.NewRecorder()
+	h.ListMatchesHandler()(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestHTTP_UpdateMatch_200(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	body, _ := json.Marshal(radar.UpdateMatchRequest{State: "seen"})
+	req := httptest.NewRequest(http.MethodPatch, "/radar/matches/42", bytes.NewReader(body))
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 1, false), "42"))
+	rec := httptest.NewRecorder()
+	h.UpdateMatchHandler()(rec, req)
+	require.Equal(t, http.StatusNoContent, rec.Code)
+	require.Equal(t, "seen", store.updateMatchState)
+}
+
+func TestHTTP_UpdateMatch_400_badEnum(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	body, _ := json.Marshal(radar.UpdateMatchRequest{State: "archived"})
+	req := httptest.NewRequest(http.MethodPatch, "/radar/matches/42", bytes.NewReader(body))
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 1, false), "42"))
+	rec := httptest.NewRecorder()
+	h.UpdateMatchHandler()(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestHTTP_UpdateMatch_404(t *testing.T) {
+	store := newMockStore()
+	store.updateMatchErr = radar.ErrNotFound
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	body, _ := json.Marshal(radar.UpdateMatchRequest{State: "seen"})
+	req := httptest.NewRequest(http.MethodPatch, "/radar/matches/42", bytes.NewReader(body))
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 1, false), "42"))
+	rec := httptest.NewRecorder()
+	h.UpdateMatchHandler()(rec, req)
+	require.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestHTTP_Status_200_withLastSweep(t *testing.T) {
+	store := newMockStore()
+	when := time.Date(2026, 5, 14, 12, 0, 0, 0, time.UTC)
+	store.lastSweepResult = &when
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/status", nil)
+	req = req.WithContext(userOnlyContext(req.Context(), 1, false))
+	rec := httptest.NewRecorder()
+	h.StatusHandler()(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var body radar.RadarStatus
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
+	require.NotNil(t, body.LastSweepAt)
+}
+
+func TestHTTP_Status_200_null(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/status", nil)
+	req = req.WithContext(userOnlyContext(req.Context(), 1, false))
+	rec := httptest.NewRecorder()
+	h.StatusHandler()(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var body radar.RadarStatus
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
+	require.Nil(t, body.LastSweepAt)
+}
+
+func TestHTTP_ListFeeds_200(t *testing.T) {
+	store := newMockStore()
+	store.listFeedsResult = []radar.Feed{{ID: 1, URL: "https://x.example/rss"}}
+	store.listFeedsTotal = 1
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/feeds?limit=10", nil)
+	req = req.WithContext(userOnlyContext(req.Context(), 1, true))
+	rec := httptest.NewRecorder()
+	h.ListFeedsHandler()(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 }
