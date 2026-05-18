@@ -2370,7 +2370,7 @@ git commit -m "feat(radar): add match, status, feeds HTTP handlers"
 
 Extend the existing `r.Route("/radar", …)` block. Disabled-wildcard already covers the new paths.
 
-- [ ] **Step 1: Add new routes inside the existing `/radar` route block**
+- [x] **Step 1: Add new routes inside the existing `/radar` route block**
 
 Open `internal/server/server.go` and locate the existing `if cfg.RadarEnabled && deps.Radar != nil { … }` block (around line 105). Inside the `r.Route("/radar", …)` callback, between the existing handler registrations and the existing admin Group, add the new routes. The final block should look like this:
 
@@ -2399,17 +2399,17 @@ r.Route("/radar", func(r chi.Router) {
 })
 ```
 
-- [ ] **Step 2: Verify compilation**
+- [x] **Step 2: Verify compilation**
 
 Run: `go build ./...`
 Expected: PASS.
 
-- [ ] **Step 3: Run the full radar test suite to confirm no regression**
+- [x] **Step 3: Run the full radar test suite to confirm no regression**
 
 Run: `go test ./internal/radar/... -v -short`
 Expected: PASS for all existing + new tests.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/server/server.go

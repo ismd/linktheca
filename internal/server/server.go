@@ -102,18 +102,31 @@ func New(deps Deps) *http.Server {
 		r.Delete("/{id}", libHTTP.DeleteHandler())
 	})
 
-    if cfg.RadarEnabled && deps.Radar != nil {
+	if cfg.RadarEnabled && deps.Radar != nil {
 		radarStore := radar.NewStore(deps.DB)
 		radarSvc := radar.NewService(radarStore, deps.Radar.Embedder)
 		radarHTTP := radar.NewHTTP(radarSvc)
 
 		r.Route("/radar", func(r chi.Router) {
 			r.Use(coreauth.RequireUser(issuer))
+
 			r.Post("/topics", radarHTTP.CreateTopicHandler())
+			r.Get("/topics", radarHTTP.ListTopicsHandler())
+			r.Get("/topics/{id}", radarHTTP.GetTopicHandler())
+			r.Patch("/topics/{id}", radarHTTP.UpdateTopicHandler())
+			r.Delete("/topics/{id}", radarHTTP.DeleteTopicHandler())
+
 			r.Post("/subscriptions", radarHTTP.SubscribeHandler())
+
+			r.Get("/matches", radarHTTP.ListMatchesHandler())
+			r.Patch("/matches/{id}", radarHTTP.UpdateMatchHandler())
+
+			r.Get("/status", radarHTTP.StatusHandler())
+
 			r.Group(func(r chi.Router) {
 				r.Use(coreauth.RequireAdmin)
 				r.Post("/feeds", radarHTTP.AddFeedHandler())
+				r.Get("/feeds", radarHTTP.ListFeedsHandler())
 			})
 		})
 	} else {
