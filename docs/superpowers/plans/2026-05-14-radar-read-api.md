@@ -2598,8 +2598,8 @@ git commit -m "test(radar): add integration test for read-API flow"
 
 - [x] Run `go vet ./...` — expect no warnings.
 - [x] Run `golangci-lint run ./...` if available — expect no new findings.
-- [ ] Verify `LINKTHECA_RADAR_ENABLED=false` mode still works: `LINKTHECA_RADAR_ENABLED=false go test ./internal/server/...` (existing tests cover this; no changes needed).
-- [ ] Update `MEMORY.md` only if a real surprise emerged during implementation. Routine "added endpoints" is not a memory.
+- [x] Verify `LINKTHECA_RADAR_ENABLED=false` mode still works: `LINKTHECA_RADAR_ENABLED=false go test ./internal/server/...` (existing tests cover this; no changes needed).
+- [x] Update `MEMORY.md` only if a real surprise emerged during implementation. Routine "added endpoints" is not a memory.
 
 ## Self-review
 
