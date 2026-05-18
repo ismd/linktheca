@@ -340,6 +340,7 @@ func (m *mockStore) UpdateTopic(_ context.Context, _, _ int64, p radar.UpdateTop
 		return nil, m.updateTopicErr
 	}
 	if m.updateTopicResult != nil {
+		m.topics[m.updateTopicResult.ID] = m.updateTopicResult
 		return m.updateTopicResult, nil
 	}
 	// Default: synthesize a Topic reflecting params.
@@ -356,6 +357,7 @@ func (m *mockStore) UpdateTopic(_ context.Context, _, _ int64, p radar.UpdateTop
 	if p.IsActive != nil {
 		t.IsActive = *p.IsActive
 	}
+	m.topics[t.ID] = &t
 	return &t, nil
 }
 
@@ -418,4 +420,88 @@ func TestService_DeleteTopic_passesThrough(t *testing.T) {
 	store.deleteTopicCalled = false
 	require.ErrorIs(t, svc.DeleteTopic(context.Background(), 1, 7), radar.ErrNotFound)
 	require.True(t, store.deleteTopicCalled)
+}
+
+func TestService_UpdateTopic_noFields(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	_, err := svc.UpdateTopic(context.Background(), 1, 7, radar.UpdateTopicRequest{})
+	require.ErrorIs(t, err, radar.ErrInvalidInput)
+	require.False(t, store.updateTopicCalled)
+}
+
+func TestService_UpdateTopic_validation(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	emptyName := ""
+	_, err := svc.UpdateTopic(context.Background(), 1, 7,
+		radar.UpdateTopicRequest{Name: &emptyName})
+	require.ErrorIs(t, err, radar.ErrInvalidInput)
+
+	bad := float32(1.5)
+	_, err = svc.UpdateTopic(context.Background(), 1, 7,
+		radar.UpdateTopicRequest{MatchThreshold: &bad})
+	require.ErrorIs(t, err, radar.ErrInvalidInput)
+
+	shortDesc := "tiny"
+	_, err = svc.UpdateTopic(context.Background(), 1, 7,
+		radar.UpdateTopicRequest{Description: &shortDesc})
+	require.ErrorIs(t, err, radar.ErrInvalidInput)
+
+	require.False(t, store.updateTopicCalled)
+}
+
+func TestService_UpdateTopic_nameOnly_noEmbed(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+
+	name := "new name"
+	got, err := svc.UpdateTopic(context.Background(), 1, 7,
+		radar.UpdateTopicRequest{Name: &name})
+	require.NoError(t, err)
+	require.Equal(t, "new name", got.Name)
+	require.True(t, store.updateTopicCalled)
+	require.NotNil(t, store.updateTopicParams.Name)
+	require.Equal(t, "new name", *store.updateTopicParams.Name)
+	require.Nil(t, store.updateTopicParams.Description)
+	// embedder was not invoked: UpdateTopicEmbedding stores nothing in mock.
+	// Confirm topicEmb is empty.
+	require.Empty(t, store.topicEmb)
+}
+
+func TestService_UpdateTopic_descriptionTriggersEmbed(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+
+	// updateTopicResult dictates what UpdateTopic returns (used to derive
+	// embedder input "name: description").
+	store.updateTopicResult = &radar.Topic{
+		ID: 7, Name: "name", Description: "new long description here",
+	}
+
+	desc := "new long description here"
+	got, err := svc.UpdateTopic(context.Background(), 1, 7,
+		radar.UpdateTopicRequest{Description: &desc})
+	require.NoError(t, err)
+	require.Equal(t, "new long description here", got.Description)
+	require.True(t, store.updateTopicCalled)
+	require.NotEmpty(t, store.topicEmb, "embedder should have written via UpdateTopicEmbedding")
+}
+
+func TestService_UpdateTopic_embedderUnavailable(t *testing.T) {
+	store := newMockStore()
+	store.updateTopicResult = &radar.Topic{
+		ID: 7, Name: "name", Description: "new long description here",
+	}
+	svc := radar.NewService(store, &errEmbedder{err: errors.New("conn refused")})
+
+	desc := "new long description here"
+	_, err := svc.UpdateTopic(context.Background(), 1, 7,
+		radar.UpdateTopicRequest{Description: &desc})
+	require.ErrorIs(t, err, radar.ErrEmbedderUnavailable)
+	require.True(t, store.updateTopicCalled, "fields are persisted before embed attempt")
 }

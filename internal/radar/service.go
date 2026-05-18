@@ -154,3 +154,61 @@ func (s *Service) GetTopic(ctx context.Context, userID, topicID int64) (*TopicWi
 func (s *Service) DeleteTopic(ctx context.Context, userID, topicID int64) error {
 	return s.store.DeleteTopic(ctx, userID, topicID)
 }
+
+// UpdateTopic validates the patch, persists changed fields, and — if
+// `description` was in the patch — re-embeds the topic. Mirrors CreateTopic:
+// embedder failure leaves the topic's fields updated and embedding stale, and
+// returns ErrEmbedderUnavailable. The caller can retry with the same payload.
+func (s *Service) UpdateTopic(ctx context.Context, userID, topicID int64, req UpdateTopicRequest) (*Topic, error) {
+	p := UpdateTopicParams{
+		Name:           req.Name,
+		Description:    req.Description,
+		MatchThreshold: req.MatchThreshold,
+		IsActive:       req.IsActive,
+	}
+
+	if p.Name == nil && p.Description == nil && p.MatchThreshold == nil && p.IsActive == nil {
+		return nil, fmt.Errorf("%w: no fields to update", ErrInvalidInput)
+	}
+
+	if p.Name != nil {
+		n := strings.TrimSpace(*p.Name)
+		if n == "" || len(n) > 200 {
+			return nil, fmt.Errorf("%w: name must be 1..200 chars", ErrInvalidInput)
+		}
+		p.Name = &n
+	}
+	if p.Description != nil {
+		d := strings.TrimSpace(*p.Description)
+		if len(d) < 10 || len(d) > 2000 {
+			return nil, fmt.Errorf("%w: description must be 10..2000 chars", ErrInvalidInput)
+		}
+		p.Description = &d
+	}
+	if p.MatchThreshold != nil {
+		if *p.MatchThreshold < 0 || *p.MatchThreshold > 1 {
+			return nil, fmt.Errorf("%w: match_threshold must be in [0,1]", ErrInvalidInput)
+		}
+	}
+
+	topic, err := s.store.UpdateTopic(ctx, userID, topicID, p)
+	if err != nil {
+		return nil, err
+	}
+
+	if p.Description != nil {
+		vec, err := s.embedder.Embed(ctx, topic.Name+": "+topic.Description)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
+		}
+		if err := s.store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec)); err != nil {
+			if errors.Is(err, ErrNotFound) {
+				return nil, err
+			}
+			return nil, fmt.Errorf("save embedding: %w", err)
+		}
+		topic.HasEmbedding = true
+	}
+
+	return topic, nil
+}

@@ -1386,7 +1386,7 @@ git commit -m "feat(radar): add ListTopics, GetTopic, DeleteTopic service method
 
 This is the most subtle method: validates fields, calls `store.UpdateTopic`, and if `description` was in the patch, calls `embedder.Embed` and `store.UpdateTopicEmbedding`. Mirrors `CreateTopic` behavior on embedder failure (fields persisted, embedding stale, `ErrEmbedderUnavailable` returned).
 
-- [ ] **Step 1: Write failing test `TestService_UpdateTopic_noFields`**
+- [x] **Step 1: Write failing test `TestService_UpdateTopic_noFields`**
 
 Append to `service_test.go`:
 
@@ -1401,7 +1401,7 @@ func TestService_UpdateTopic_noFields(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Write failing test `TestService_UpdateTopic_validation`**
+- [x] **Step 2: Write failing test `TestService_UpdateTopic_validation`**
 
 ```go
 func TestService_UpdateTopic_validation(t *testing.T) {
@@ -1427,7 +1427,7 @@ func TestService_UpdateTopic_validation(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Write failing test `TestService_UpdateTopic_nameOnly_noEmbed`**
+- [x] **Step 3: Write failing test `TestService_UpdateTopic_nameOnly_noEmbed`**
 
 ```go
 func TestService_UpdateTopic_nameOnly_noEmbed(t *testing.T) {
@@ -1450,7 +1450,7 @@ func TestService_UpdateTopic_nameOnly_noEmbed(t *testing.T) {
 }
 ```
 
-- [ ] **Step 4: Write failing test `TestService_UpdateTopic_descriptionTriggersEmbed`**
+- [x] **Step 4: Write failing test `TestService_UpdateTopic_descriptionTriggersEmbed`**
 
 ```go
 func TestService_UpdateTopic_descriptionTriggersEmbed(t *testing.T) {
@@ -1474,7 +1474,7 @@ func TestService_UpdateTopic_descriptionTriggersEmbed(t *testing.T) {
 }
 ```
 
-- [ ] **Step 5: Write failing test `TestService_UpdateTopic_embedderUnavailable`**
+- [x] **Step 5: Write failing test `TestService_UpdateTopic_embedderUnavailable`**
 
 ```go
 func TestService_UpdateTopic_embedderUnavailable(t *testing.T) {
@@ -1494,12 +1494,12 @@ func TestService_UpdateTopic_embedderUnavailable(t *testing.T) {
 
 `errEmbedder` already exists in `service_test.go` (used by existing CreateTopic tests).
 
-- [ ] **Step 6: Run tests; verify failure**
+- [x] **Step 6: Run tests; verify failure**
 
 Run: `go test ./internal/radar/ -run 'TestService_UpdateTopic' -v -short`
 Expected: FAIL — `UpdateTopic` undefined.
 
-- [ ] **Step 7: Implement `Service.UpdateTopic`**
+- [x] **Step 7: Implement `Service.UpdateTopic`**
 
 Append to `internal/radar/service.go`:
 
@@ -1563,12 +1563,12 @@ func (s *Service) UpdateTopic(ctx context.Context, userID, topicID int64, req Up
 }
 ```
 
-- [ ] **Step 8: Run tests; verify pass**
+- [x] **Step 8: Run tests; verify pass**
 
 Run: `go test ./internal/radar/ -run 'TestService_UpdateTopic' -v -short`
 Expected: PASS for all five tests.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add internal/radar/service.go internal/radar/service_test.go
