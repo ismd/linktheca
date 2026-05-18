@@ -1585,7 +1585,7 @@ git commit -m "feat(radar): add UpdateTopic service method with embedder re-comp
 
 `ListMatches` clamps `limit` and defaults to 50 / 0. `SetMatchState` validates the enum.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Append to `service_test.go`:
 
@@ -1645,12 +1645,12 @@ func TestService_SetMatchState_propagatesNotFound(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run tests; verify failure**
+- [x] **Step 2: Run tests; verify failure**
 
 Run: `go test ./internal/radar/ -run 'TestService_(ListMatches|SetMatchState)' -v -short`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement `ListMatches` and `SetMatchState`**
+- [x] **Step 3: Implement `ListMatches` and `SetMatchState`**
 
 Append to `internal/radar/service.go`:
 
@@ -1685,12 +1685,12 @@ func (s *Service) SetMatchState(ctx context.Context, userID, matchID int64, stat
 }
 ```
 
-- [ ] **Step 4: Run tests; verify pass**
+- [x] **Step 4: Run tests; verify pass**
 
 Run: `go test ./internal/radar/ -run 'TestService_(ListMatches|SetMatchState)' -v -short`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/radar/service.go internal/radar/service_test.go

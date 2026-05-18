@@ -505,3 +505,57 @@ func TestService_UpdateTopic_embedderUnavailable(t *testing.T) {
 	require.ErrorIs(t, err, radar.ErrEmbedderUnavailable)
 	require.True(t, store.updateTopicCalled, "fields are persisted before embed attempt")
 }
+
+func TestService_ListMatches_clampLimit(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	_, err := svc.ListMatches(context.Background(), radar.ListMatchesParams{UserID: 1, Limit: 200})
+	require.NoError(t, err)
+	require.Equal(t, 100, store.listMatchesParams.Limit)
+
+	store.listMatchesCalled = false
+	_, err = svc.ListMatches(context.Background(), radar.ListMatchesParams{UserID: 1, Limit: 0})
+	require.NoError(t, err)
+	require.Equal(t, 50, store.listMatchesParams.Limit)
+
+	store.listMatchesCalled = false
+	_, err = svc.ListMatches(context.Background(), radar.ListMatchesParams{UserID: 1, Limit: 25, Offset: -3})
+	require.NoError(t, err)
+	require.Equal(t, 25, store.listMatchesParams.Limit)
+	require.Equal(t, 0, store.listMatchesParams.Offset)
+}
+
+func TestService_ListMatches_returnsResult(t *testing.T) {
+	store := newMockStore()
+	store.listMatchesResult = []radar.MatchView{{ID: 1}, {ID: 2}}
+	store.listMatchesTotal = 2
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	got, err := svc.ListMatches(context.Background(), radar.ListMatchesParams{UserID: 1, Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, got.Items, 2)
+	require.Equal(t, 2, got.Total)
+}
+
+func TestService_SetMatchState_validation(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	err := svc.SetMatchState(context.Background(), 1, 9, "foo")
+	require.ErrorIs(t, err, radar.ErrInvalidInput)
+	require.False(t, store.updateMatchCalled)
+
+	require.NoError(t, svc.SetMatchState(context.Background(), 1, 9, "new"))
+	require.NoError(t, svc.SetMatchState(context.Background(), 1, 9, "seen"))
+	require.True(t, store.updateMatchCalled)
+}
+
+func TestService_SetMatchState_propagatesNotFound(t *testing.T) {
+	store := newMockStore()
+	store.updateMatchErr = radar.ErrNotFound
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	err := svc.SetMatchState(context.Background(), 1, 9, "seen")
+	require.ErrorIs(t, err, radar.ErrNotFound)
+}

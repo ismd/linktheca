@@ -212,3 +212,32 @@ func (s *Service) UpdateTopic(ctx context.Context, userID, topicID int64, req Up
 
 	return topic, nil
 }
+
+// ListMatches returns paginated matches for a user, optionally filtered by
+// topic and/or state. Clamps Limit to [1,100] (default 50) and Offset to >=0.
+func (s *Service) ListMatches(ctx context.Context, p ListMatchesParams) (*MatchList, error) {
+	if p.Limit <= 0 || p.Limit > 100 {
+		if p.Limit > 100 {
+			p.Limit = 100
+		} else {
+			p.Limit = 50
+		}
+	}
+	if p.Offset < 0 {
+		p.Offset = 0
+	}
+
+	items, total, err := s.store.ListMatches(ctx, p.UserID, p)
+	if err != nil {
+		return nil, err
+	}
+	return &MatchList{Items: items, Total: total}, nil
+}
+
+// SetMatchState updates a match's state. Valid states: "new", "seen".
+func (s *Service) SetMatchState(ctx context.Context, userID, matchID int64, state string) error {
+	if state != "new" && state != "seen" {
+		return fmt.Errorf("%w: state must be new|seen", ErrInvalidInput)
+	}
+	return s.store.UpdateMatchState(ctx, userID, matchID, state)
+}
