@@ -241,3 +241,28 @@ func (s *Service) SetMatchState(ctx context.Context, userID, matchID int64, stat
 	}
 	return s.store.UpdateMatchState(ctx, userID, matchID, state)
 }
+
+// LastSweep returns the latest fetch timestamp across the user's active
+// subscribed feeds, or nil if there are no subscriptions.
+func (s *Service) LastSweep(ctx context.Context, userID int64) (*time.Time, error) {
+	return s.store.LastSweepAt(ctx, userID)
+}
+
+// ListFeeds returns paginated feeds (admin scope; middleware enforces).
+func (s *Service) ListFeeds(ctx context.Context, p ListFeedsParams) (*FeedList, error) {
+	if p.Limit <= 0 || p.Limit > 100 {
+		if p.Limit > 100 {
+			p.Limit = 100
+		} else {
+			p.Limit = 50
+		}
+	}
+	if p.Offset < 0 {
+		p.Offset = 0
+	}
+	items, total, err := s.store.ListFeeds(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+	return &FeedList{Items: items, Total: total}, nil
+}

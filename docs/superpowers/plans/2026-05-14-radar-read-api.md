@@ -1707,7 +1707,7 @@ git commit -m "feat(radar): add ListMatches and SetMatchState service methods"
 
 Two thin wrappers; `ListFeeds` clamps pagination.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Append to `service_test.go`:
 
@@ -1737,12 +1737,12 @@ func TestService_ListFeeds_clampsPagination(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run tests; verify failure**
+- [x] **Step 2: Run tests; verify failure**
 
 Run: `go test ./internal/radar/ -run 'TestService_(LastSweep|ListFeeds)' -v -short`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement `LastSweep` and `ListFeeds`**
+- [x] **Step 3: Implement `LastSweep` and `ListFeeds`**
 
 Append to `internal/radar/service.go`:
 
@@ -1775,12 +1775,12 @@ func (s *Service) ListFeeds(ctx context.Context, p ListFeedsParams) (*FeedList, 
 
 Add `"time"` to `service.go` import block if not already there.
 
-- [ ] **Step 4: Run tests; verify pass**
+- [x] **Step 4: Run tests; verify pass**
 
 Run: `go test ./internal/radar/ -run 'TestService_(LastSweep|ListFeeds)' -v -short`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/radar/service.go internal/radar/service_test.go

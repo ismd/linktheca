@@ -559,3 +559,27 @@ func TestService_SetMatchState_propagatesNotFound(t *testing.T) {
 	err := svc.SetMatchState(context.Background(), 1, 9, "seen")
 	require.ErrorIs(t, err, radar.ErrNotFound)
 }
+
+func TestService_LastSweep_passesThrough(t *testing.T) {
+	store := newMockStore()
+	when := time.Date(2026, 5, 14, 12, 0, 0, 0, time.UTC)
+	store.lastSweepResult = &when
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	got, err := svc.LastSweep(context.Background(), 1)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, when, *got)
+}
+
+func TestService_ListFeeds_clampsPagination(t *testing.T) {
+	store := newMockStore()
+	store.listFeedsResult = []radar.Feed{{ID: 1}}
+	store.listFeedsTotal = 1
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	got, err := svc.ListFeeds(context.Background(), radar.ListFeedsParams{Limit: 0, Offset: -1})
+	require.NoError(t, err)
+	require.Len(t, got.Items, 1)
+	require.Equal(t, 1, got.Total)
+}
