@@ -78,11 +78,7 @@ func (s *Service) GetByID(ctx context.Context, userID, itemID int64) (*Item, err
 
 // Update partially updates a library item
 func (s *Service) Update(ctx context.Context, userID, itemID int64, req UpdateRequest) (*Item, error) {
-	p := UpdateParams{
-		State:      req.State,
-		IsFavorite: req.IsFavorite,
-		Note:       req.Note,
-	}
+	p := UpdateParams(req)
 
 	if p.State != nil {
 		switch *p.State {

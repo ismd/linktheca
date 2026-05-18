@@ -160,12 +160,7 @@ func (s *Service) DeleteTopic(ctx context.Context, userID, topicID int64) error 
 // embedder failure leaves the topic's fields updated and embedding stale, and
 // returns ErrEmbedderUnavailable. The caller can retry with the same payload.
 func (s *Service) UpdateTopic(ctx context.Context, userID, topicID int64, req UpdateTopicRequest) (*Topic, error) {
-	p := UpdateTopicParams{
-		Name:           req.Name,
-		Description:    req.Description,
-		MatchThreshold: req.MatchThreshold,
-		IsActive:       req.IsActive,
-	}
+	p := UpdateTopicParams(req)
 
 	if p.Name == nil && p.Description == nil && p.MatchThreshold == nil && p.IsActive == nil {
 		return nil, fmt.Errorf("%w: no fields to update", ErrInvalidInput)

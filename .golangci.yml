@@ -1,0 +1,9 @@
+version: "2"
+
+linters:
+  exclusions:
+    rules:
+      - source: '\.Close\(\)$'
+        linters: [errcheck]
+      - path: _test\.go
+        linters: [errcheck]

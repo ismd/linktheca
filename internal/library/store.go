@@ -133,7 +133,6 @@ func (s *Store) ListItems(ctx context.Context, p ListParams) (*ListResult, error
 	if p.Favorite != nil {
 		countQuery += fmt.Sprintf(` AND is_favorite = $%d`, argIdx)
 		countArgs = append(countArgs, *p.Favorite)
-		argIdx++
 	}
 
 	var total int
