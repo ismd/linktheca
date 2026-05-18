@@ -1809,11 +1809,11 @@ func withRouteID(ctx context.Context, id string) context.Context {
 
 This requires `"github.com/go-chi/chi/v5"` in the imports — add if not present.
 
-- [ ] **Step 1: Add `withRouteID` helper to `http_test.go`**
+- [x] **Step 1: Add `withRouteID` helper to `http_test.go`**
 
 Add the helper function (and import) as shown above.
 
-- [ ] **Step 2: Write failing test `TestHTTP_ListTopics_200`**
+- [x] **Step 2: Write failing test `TestHTTP_ListTopics_200`**
 
 Append to `http_test.go`:
 
@@ -1841,7 +1841,7 @@ func TestHTTP_ListTopics_200(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Write failing test `TestHTTP_GetTopic_200_and_404`**
+- [x] **Step 3: Write failing test `TestHTTP_GetTopic_200_and_404`**
 
 ```go
 func TestHTTP_GetTopic_200(t *testing.T) {
@@ -1885,7 +1885,7 @@ func TestHTTP_GetTopic_400_badID(t *testing.T) {
 }
 ```
 
-- [ ] **Step 4: Write failing test `TestHTTP_UpdateTopic_*`**
+- [x] **Step 4: Write failing test `TestHTTP_UpdateTopic_*`**
 
 ```go
 func TestHTTP_UpdateTopic_200(t *testing.T) {
@@ -1935,7 +1935,7 @@ func TestHTTP_UpdateTopic_404(t *testing.T) {
 }
 ```
 
-- [ ] **Step 5: Write failing test `TestHTTP_DeleteTopic_*`**
+- [x] **Step 5: Write failing test `TestHTTP_DeleteTopic_*`**
 
 ```go
 func TestHTTP_DeleteTopic_204(t *testing.T) {
@@ -1964,12 +1964,12 @@ func TestHTTP_DeleteTopic_404(t *testing.T) {
 }
 ```
 
-- [ ] **Step 6: Run tests; verify failure**
+- [x] **Step 6: Run tests; verify failure**
 
 Run: `go test ./internal/radar/ -run 'TestHTTP_(ListTopics|GetTopic|UpdateTopic|DeleteTopic)' -v -short`
 Expected: FAIL — handlers undefined.
 
-- [ ] **Step 7: Implement topic handlers in `http.go`**
+- [x] **Step 7: Implement topic handlers in `http.go`**
 
 Append to `internal/radar/http.go`. The `chi/v5` import is needed — add if absent:
 
@@ -2070,12 +2070,12 @@ func (h *HTTP) deleteTopic(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 8: Run tests; verify pass**
+- [x] **Step 8: Run tests; verify pass**
 
 Run: `go test ./internal/radar/ -run 'TestHTTP_(ListTopics|GetTopic|UpdateTopic|DeleteTopic)' -v -short`
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add internal/radar/http.go internal/radar/http_test.go

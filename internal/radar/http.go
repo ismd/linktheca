@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	coreauth "github.com/ismd/linktheca/internal/core/auth"
 	"github.com/ismd/linktheca/internal/core/httpx"
 )
@@ -100,4 +102,84 @@ func (h *HTTP) subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.WriteJSON(w, http.StatusCreated, sub)
+}
+
+// ListTopicsHandler returns the http.HandlerFunc for GET /radar/topics.
+func (h *HTTP) ListTopicsHandler() http.HandlerFunc { return h.listTopics }
+
+// GetTopicHandler returns the http.HandlerFunc for GET /radar/topics/{id}.
+func (h *HTTP) GetTopicHandler() http.HandlerFunc { return h.getTopic }
+
+// UpdateTopicHandler returns the http.HandlerFunc for PATCH /radar/topics/{id}.
+func (h *HTTP) UpdateTopicHandler() http.HandlerFunc { return h.updateTopic }
+
+// DeleteTopicHandler returns the http.HandlerFunc for DELETE /radar/topics/{id}.
+func (h *HTTP) DeleteTopicHandler() http.HandlerFunc { return h.deleteTopic }
+
+func parseRadarID(r *http.Request) (int64, error) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		return 0, errors.New("invalid id")
+	}
+	return id, nil
+}
+
+func (h *HTTP) listTopics(w http.ResponseWriter, r *http.Request) {
+	userID := coreauth.UserID(r.Context())
+	items, err := h.svc.ListTopics(r.Context(), userID)
+	if err != nil {
+		writeRadarError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (h *HTTP) getTopic(w http.ResponseWriter, r *http.Request) {
+	userID := coreauth.UserID(r.Context())
+	id, err := parseRadarID(r)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid id")
+		return
+	}
+	topic, err := h.svc.GetTopic(r.Context(), userID, id)
+	if err != nil {
+		writeRadarError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, topic)
+}
+
+func (h *HTTP) updateTopic(w http.ResponseWriter, r *http.Request) {
+	userID := coreauth.UserID(r.Context())
+	id, err := parseRadarID(r)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid id")
+		return
+	}
+	var req UpdateTopicRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid json body")
+		return
+	}
+	topic, err := h.svc.UpdateTopic(r.Context(), userID, id, req)
+	if err != nil {
+		writeRadarError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, topic)
+}
+
+func (h *HTTP) deleteTopic(w http.ResponseWriter, r *http.Request) {
+	userID := coreauth.UserID(r.Context())
+	id, err := parseRadarID(r)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid id")
+		return
+	}
+	if err := h.svc.DeleteTopic(r.Context(), userID, id); err != nil {
+		writeRadarError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

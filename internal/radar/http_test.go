@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/ismd/linktheca/internal/core/embeddings"
 	"github.com/ismd/linktheca/internal/radar"
 	"github.com/stretchr/testify/require"
@@ -18,6 +19,14 @@ import (
 // userOnlyContext attaches a user_id to ctx without parsing a JWT.
 func userOnlyContext(ctx context.Context, userID int64, isAdmin bool) context.Context {
 	return coreauthWithUser(ctx, userID, isAdmin)
+}
+
+// withRouteID attaches a chi.RouteContext with the named URL param to ctx.
+// Use for handlers that read chi.URLParam(r, "id").
+func withRouteID(ctx context.Context, id string) context.Context {
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", id)
+	return context.WithValue(ctx, chi.RouteCtxKey, rctx)
 }
 
 func TestHTTP_CreateTopic_201(t *testing.T) {
@@ -156,5 +165,138 @@ func TestHTTP_Subscribe_404_FeedMissing(t *testing.T) {
 	req = req.WithContext(userOnlyContext(req.Context(), 1, false))
 	rec := httptest.NewRecorder()
 	h.SubscribeHandler()(rec, req)
+	require.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestHTTP_ListTopics_200(t *testing.T) {
+	store := newMockStore()
+	store.listTopicsResult = []radar.TopicWithStats{
+		{Topic: radar.Topic{ID: 1, Name: "A"}},
+	}
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/topics", nil)
+	req = req.WithContext(userOnlyContext(req.Context(), 1, false))
+	rec := httptest.NewRecorder()
+	h.ListTopicsHandler()(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	var body struct {
+		Items []radar.TopicWithStats `json:"items"`
+	}
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&body))
+	require.Len(t, body.Items, 1)
+	require.Equal(t, "A", body.Items[0].Name)
+}
+
+func TestHTTP_GetTopic_200(t *testing.T) {
+	store := newMockStore()
+	store.getTopicResult = &radar.TopicWithStats{Topic: radar.Topic{ID: 7, Name: "X"}}
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/topics/7", nil)
+	ctx := userOnlyContext(req.Context(), 1, false)
+	ctx = withRouteID(ctx, "7")
+	req = req.WithContext(ctx)
+	rec := httptest.NewRecorder()
+	h.GetTopicHandler()(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+}
+
+func TestHTTP_GetTopic_404(t *testing.T) {
+	store := newMockStore()
+	store.getTopicErr = radar.ErrNotFound
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/topics/7", nil)
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 1, false), "7"))
+	rec := httptest.NewRecorder()
+	h.GetTopicHandler()(rec, req)
+	require.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestHTTP_GetTopic_400_badID(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/topics/abc", nil)
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 1, false), "abc"))
+	rec := httptest.NewRecorder()
+	h.GetTopicHandler()(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestHTTP_UpdateTopic_200(t *testing.T) {
+	store := newMockStore()
+	store.updateTopicResult = &radar.Topic{ID: 7, Name: "renamed", IsActive: true}
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	name := "renamed"
+	body, _ := json.Marshal(radar.UpdateTopicRequest{Name: &name})
+	req := httptest.NewRequest(http.MethodPatch, "/radar/topics/7", bytes.NewReader(body))
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 1, false), "7"))
+	rec := httptest.NewRecorder()
+	h.UpdateTopicHandler()(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	var got radar.Topic
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&got))
+	require.Equal(t, "renamed", got.Name)
+}
+
+func TestHTTP_UpdateTopic_400_emptyPatch(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodPatch, "/radar/topics/7", strings.NewReader(`{}`))
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 1, false), "7"))
+	rec := httptest.NewRecorder()
+	h.UpdateTopicHandler()(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestHTTP_UpdateTopic_404(t *testing.T) {
+	store := newMockStore()
+	store.updateTopicErr = radar.ErrNotFound
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	name := "renamed"
+	body, _ := json.Marshal(radar.UpdateTopicRequest{Name: &name})
+	req := httptest.NewRequest(http.MethodPatch, "/radar/topics/7", bytes.NewReader(body))
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 1, false), "7"))
+	rec := httptest.NewRecorder()
+	h.UpdateTopicHandler()(rec, req)
+	require.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestHTTP_DeleteTopic_204(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/radar/topics/7", nil)
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 1, false), "7"))
+	rec := httptest.NewRecorder()
+	h.DeleteTopicHandler()(rec, req)
+	require.Equal(t, http.StatusNoContent, rec.Code)
+}
+
+func TestHTTP_DeleteTopic_404(t *testing.T) {
+	store := newMockStore()
+	store.deleteTopicErr = radar.ErrNotFound
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/radar/topics/7", nil)
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 1, false), "7"))
+	rec := httptest.NewRecorder()
+	h.DeleteTopicHandler()(rec, req)
 	require.Equal(t, http.StatusNotFound, rec.Code)
 }
