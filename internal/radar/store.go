@@ -273,3 +273,73 @@ func (s *Store) GetFindingForEmbed(ctx context.Context, findingID int64) (*Findi
 
 	return &f, nil
 }
+
+const topicsWithStatsSQL = `
+SELECT
+  t.id, t.user_id, t.name, t.description,
+  t.match_threshold, t.is_active,
+  t.embedding IS NOT NULL AS has_embedding,
+  t.created_at, t.updated_at,
+  COALESCE(m.new_count, 0)    AS new_count,
+  COALESCE(m.total_count, 0)  AS total_count,
+  COALESCE(m.source_count, 0) AS source_count,
+  m.last_match_at
+FROM radar_topics t
+LEFT JOIN LATERAL (
+  SELECT
+    COUNT(*) FILTER (WHERE state = 'new') AS new_count,
+    COUNT(*)                              AS total_count,
+    COUNT(DISTINCT f.feed_id)             AS source_count,
+    MAX(matched_at)                       AS last_match_at
+  FROM radar_topic_matches m
+  JOIN radar_findings f ON f.id = m.finding_id
+  WHERE m.topic_id = t.id
+) m ON true
+WHERE t.user_id = $1`
+
+func scanTopicWithStats(row pgx.Row) (*TopicWithStats, error) {
+	var t TopicWithStats
+	if err := row.Scan(
+		&t.ID, &t.UserID, &t.Name, &t.Description,
+		&t.MatchThreshold, &t.IsActive, &t.HasEmbedding,
+		&t.CreatedAt, &t.UpdatedAt,
+		&t.Stats.NewCount, &t.Stats.TotalCount, &t.Stats.SourceCount, &t.Stats.LastMatchAt,
+	); err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+func (s *Store) ListTopicsWithStats(ctx context.Context, userID int64) ([]TopicWithStats, error) {
+	rows, err := s.db.Query(ctx,
+		topicsWithStatsSQL+` ORDER BY t.is_active DESC, t.created_at DESC`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list topics with stats: %w", err)
+	}
+	defer rows.Close()
+
+	items := []TopicWithStats{}
+	for rows.Next() {
+		t, err := scanTopicWithStats(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan topic: %w", err)
+		}
+		items = append(items, *t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows: %w", err)
+	}
+	return items, nil
+}
+
+func (s *Store) GetTopicWithStats(ctx context.Context, userID, topicID int64) (*TopicWithStats, error) {
+	row := s.db.QueryRow(ctx, topicsWithStatsSQL+` AND t.id = $2`, userID, topicID)
+	t, err := scanTopicWithStats(row)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("get topic with stats: %w", err)
+	}
+	return t, nil
+}

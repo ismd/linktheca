@@ -188,7 +188,7 @@ git commit -m "feat(radar): add read-API types and DTOs"
 
 Adds the topic-list query with one-shot aggregation via `LEFT JOIN LATERAL`. Single-topic getter reuses the same SQL with an extra `AND t.id = $2`.
 
-- [ ] **Step 1: Add seed helpers to `store_test.go`**
+- [x] **Step 1: Add seed helpers to `store_test.go`**
 
 Add the following helpers right after the existing `seedUser`:
 
@@ -244,7 +244,7 @@ func seedSubscription(t *testing.T, pool *pgxpool.Pool, userID, feedID int64) {
 }
 ```
 
-- [ ] **Step 2: Write failing test `TestStore_ListTopicsWithStats_empty`**
+- [x] **Step 2: Write failing test `TestStore_ListTopicsWithStats_empty`**
 
 Append to `internal/radar/store_test.go`:
 
@@ -262,7 +262,7 @@ func TestStore_ListTopicsWithStats_empty(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Write failing test `TestStore_ListTopicsWithStats_aggregates`**
+- [x] **Step 3: Write failing test `TestStore_ListTopicsWithStats_aggregates`**
 
 Append:
 
@@ -311,7 +311,7 @@ func TestStore_ListTopicsWithStats_aggregates(t *testing.T) {
 }
 ```
 
-- [ ] **Step 4: Write failing test `TestStore_ListTopicsWithStats_isolation`**
+- [x] **Step 4: Write failing test `TestStore_ListTopicsWithStats_isolation`**
 
 Append:
 
@@ -331,7 +331,7 @@ func TestStore_ListTopicsWithStats_isolation(t *testing.T) {
 }
 ```
 
-- [ ] **Step 5: Write failing test `TestStore_GetTopicWithStats_notFound`**
+- [x] **Step 5: Write failing test `TestStore_GetTopicWithStats_notFound`**
 
 Append:
 
@@ -350,12 +350,12 @@ func TestStore_GetTopicWithStats_notFound(t *testing.T) {
 }
 ```
 
-- [ ] **Step 6: Run tests; verify failure**
+- [x] **Step 6: Run tests; verify failure**
 
 Run: `go test ./internal/radar/ -run 'TestStore_(ListTopicsWithStats|GetTopicWithStats)' -v`
 Expected: FAIL (methods undefined).
 
-- [ ] **Step 7: Implement `ListTopicsWithStats` and `GetTopicWithStats` in `store.go`**
+- [x] **Step 7: Implement `ListTopicsWithStats` and `GetTopicWithStats` in `store.go`**
 
 Append to `internal/radar/store.go`:
 
@@ -431,12 +431,12 @@ func (s *Store) GetTopicWithStats(ctx context.Context, userID, topicID int64) (*
 }
 ```
 
-- [ ] **Step 8: Run tests; verify pass**
+- [x] **Step 8: Run tests; verify pass**
 
 Run: `go test ./internal/radar/ -run 'TestStore_(ListTopicsWithStats|GetTopicWithStats)' -v`
 Expected: PASS for all four tests.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add internal/radar/store.go internal/radar/store_test.go

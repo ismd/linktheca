@@ -2,6 +2,8 @@ package radar_test
 
 import (
 	"context"
+	"fmt"
+	"sync/atomic"
 	"testing"
 
 	"github.com/ismd/linktheca/internal/radar"
@@ -11,13 +13,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var seedUserCounter atomic.Uint64
+
 func seedUser(t *testing.T, pool *pgxpool.Pool) int64 {
 	t.Helper()
+	email := fmt.Sprintf("u+%s+%d@example.com", t.Name(), seedUserCounter.Add(1))
 	var id int64
 	err := pool.QueryRow(context.Background(),
 		`INSERT INTO users (email, password_hash, display_name)
 		 VALUES ($1, $2, $3) RETURNING id`,
-		"u+"+t.Name()+"@example.com", "x", "Tester").Scan(&id)
+		email, "x", "Tester").Scan(&id)
 	require.NoError(t, err)
 	return id
 }
@@ -202,4 +207,136 @@ func TestStore_UpdateFindingEmbedding_AndMatch(t *testing.T) {
 		topic.ID, f.ID).Scan(&sim)
 	require.NoError(t, err)
 	require.InDelta(t, 1.0, sim, 0.001)
+}
+
+func seedTopic(t *testing.T, pool *pgxpool.Pool, userID int64, name, desc string, threshold float32, active bool) int64 {
+	t.Helper()
+	var id int64
+	err := pool.QueryRow(context.Background(),
+		`INSERT INTO radar_topics (user_id, name, description, match_threshold, is_active)
+		 VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		userID, name, desc, threshold, active).Scan(&id)
+	require.NoError(t, err)
+	return id
+}
+
+func seedFeed(t *testing.T, pool *pgxpool.Pool, url, title string) int64 {
+	t.Helper()
+	var id int64
+	err := pool.QueryRow(context.Background(),
+		`INSERT INTO radar_feeds (url, kind, title) VALUES ($1, 'rss', $2) RETURNING id`,
+		url, title).Scan(&id)
+	require.NoError(t, err)
+	return id
+}
+
+func seedFinding(t *testing.T, pool *pgxpool.Pool, feedID int64, url, title string) int64 {
+	t.Helper()
+	var id int64
+	err := pool.QueryRow(context.Background(),
+		`INSERT INTO radar_findings (feed_id, url, title) VALUES ($1, $2, $3) RETURNING id`,
+		feedID, url, title).Scan(&id)
+	require.NoError(t, err)
+	return id
+}
+
+func seedMatch(t *testing.T, pool *pgxpool.Pool, topicID, findingID int64, state string, similarity float32) int64 {
+	t.Helper()
+	var id int64
+	err := pool.QueryRow(context.Background(),
+		`INSERT INTO radar_topic_matches (topic_id, finding_id, similarity, state)
+		 VALUES ($1, $2, $3, $4) RETURNING id`,
+		topicID, findingID, similarity, state).Scan(&id)
+	require.NoError(t, err)
+	return id
+}
+
+func seedSubscription(t *testing.T, pool *pgxpool.Pool, userID, feedID int64) {
+	t.Helper()
+	_, err := pool.Exec(context.Background(),
+		`INSERT INTO radar_feed_subscriptions (user_id, feed_id) VALUES ($1, $2)`,
+		userID, feedID)
+	require.NoError(t, err)
+}
+
+func TestStore_ListTopicsWithStats_empty(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+
+	items, err := store.ListTopicsWithStats(ctx, userID)
+	require.NoError(t, err)
+	require.Empty(t, items)
+}
+
+func TestStore_ListTopicsWithStats_aggregates(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	topicA := seedTopic(t, pool, userID, "A", "desc-a", 0.55, true)
+	topicB := seedTopic(t, pool, userID, "B", "desc-b", 0.6, true)
+
+	feed1 := seedFeed(t, pool, "https://f1.example/rss", "Feed1")
+	feed2 := seedFeed(t, pool, "https://f2.example/rss", "Feed2")
+	f1a := seedFinding(t, pool, feed1, "https://x.example/1", "t1")
+	f1b := seedFinding(t, pool, feed1, "https://x.example/2", "t2")
+	f2a := seedFinding(t, pool, feed2, "https://x.example/3", "t3")
+
+	// topicA: 2 new + 1 seen across 2 feeds
+	seedMatch(t, pool, topicA, f1a, "new", 0.7)
+	seedMatch(t, pool, topicA, f1b, "new", 0.71)
+	seedMatch(t, pool, topicA, f2a, "seen", 0.65)
+	// topicB: no matches
+
+	items, err := store.ListTopicsWithStats(ctx, userID)
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+
+	byID := make(map[int64]radar.TopicWithStats, len(items))
+	for _, it := range items {
+		byID[it.ID] = it
+	}
+
+	a := byID[topicA]
+	require.Equal(t, 2, a.Stats.NewCount)
+	require.Equal(t, 3, a.Stats.TotalCount)
+	require.Equal(t, 2, a.Stats.SourceCount)
+	require.NotNil(t, a.Stats.LastMatchAt)
+
+	b := byID[topicB]
+	require.Equal(t, 0, b.Stats.NewCount)
+	require.Equal(t, 0, b.Stats.TotalCount)
+	require.Equal(t, 0, b.Stats.SourceCount)
+	require.Nil(t, b.Stats.LastMatchAt)
+}
+
+func TestStore_ListTopicsWithStats_isolation(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userA := seedUser(t, pool)
+	userB := seedUser(t, pool)
+	seedTopic(t, pool, userB, "OtherB", "other-desc", 0.55, true)
+
+	items, err := store.ListTopicsWithStats(ctx, userA)
+	require.NoError(t, err)
+	require.Empty(t, items)
+}
+
+func TestStore_GetTopicWithStats_notFound(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userA := seedUser(t, pool)
+	userB := seedUser(t, pool)
+	otherTopic := seedTopic(t, pool, userB, "OtherB", "other-desc", 0.55, true)
+
+	_, err := store.GetTopicWithStats(ctx, userA, otherTopic)
+	require.ErrorIs(t, err, radar.ErrNotFound)
 }
