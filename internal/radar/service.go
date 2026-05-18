@@ -139,3 +139,18 @@ func (s *Service) Subscribe(ctx context.Context, userID int64, req SubscribeRequ
 
 	return s.store.Subscribe(ctx, userID, req.FeedID)
 }
+
+// ListTopics returns all topics of a user with aggregate match stats.
+func (s *Service) ListTopics(ctx context.Context, userID int64) ([]TopicWithStats, error) {
+	return s.store.ListTopicsWithStats(ctx, userID)
+}
+
+// GetTopic returns a single topic with aggregate match stats, or ErrNotFound.
+func (s *Service) GetTopic(ctx context.Context, userID, topicID int64) (*TopicWithStats, error) {
+	return s.store.GetTopicWithStats(ctx, userID, topicID)
+}
+
+// DeleteTopic removes a topic and CASCADEs its matches.
+func (s *Service) DeleteTopic(ctx context.Context, userID, topicID int64) error {
+	return s.store.DeleteTopic(ctx, userID, topicID)
+}

@@ -383,3 +383,39 @@ func (m *mockStore) LastSweepAt(_ context.Context, _ int64) (*time.Time, error) 
 func (m *mockStore) ListFeeds(_ context.Context, _ radar.ListFeedsParams) ([]radar.Feed, int, error) {
 	return m.listFeedsResult, m.listFeedsTotal, m.listFeedsErr
 }
+
+func TestService_ListTopics_passesThrough(t *testing.T) {
+	store := newMockStore()
+	store.listTopicsResult = []radar.TopicWithStats{
+		{Topic: radar.Topic{ID: 1, Name: "A"}},
+		{Topic: radar.Topic{ID: 2, Name: "B"}},
+	}
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	got, err := svc.ListTopics(context.Background(), 42)
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	require.Equal(t, int64(1), got[0].ID)
+}
+
+func TestService_GetTopic_notFound(t *testing.T) {
+	store := newMockStore()
+	store.getTopicErr = radar.ErrNotFound
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	_, err := svc.GetTopic(context.Background(), 1, 999)
+	require.ErrorIs(t, err, radar.ErrNotFound)
+}
+
+func TestService_DeleteTopic_passesThrough(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	require.NoError(t, svc.DeleteTopic(context.Background(), 1, 7))
+	require.True(t, store.deleteTopicCalled)
+
+	store.deleteTopicErr = radar.ErrNotFound
+	store.deleteTopicCalled = false
+	require.ErrorIs(t, svc.DeleteTopic(context.Background(), 1, 7), radar.ErrNotFound)
+	require.True(t, store.deleteTopicCalled)
+}

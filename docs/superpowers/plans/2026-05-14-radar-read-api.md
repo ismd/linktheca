@@ -1288,7 +1288,7 @@ git commit -m "refactor(radar): extend StoreAPI and mockStore with read-API stub
 
 Thin wrappers; validation lives at HTTP layer only for empty/path errors. These three don't touch the embedder.
 
-- [ ] **Step 1: Write failing test `TestService_ListTopics_passesThrough`**
+- [x] **Step 1: Write failing test `TestService_ListTopics_passesThrough`**
 
 Append to `service_test.go`:
 
@@ -1308,7 +1308,7 @@ func TestService_ListTopics_passesThrough(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Write failing test `TestService_GetTopic_notFound`**
+- [x] **Step 2: Write failing test `TestService_GetTopic_notFound`**
 
 ```go
 func TestService_GetTopic_notFound(t *testing.T) {
@@ -1321,7 +1321,7 @@ func TestService_GetTopic_notFound(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Write failing test `TestService_DeleteTopic_passesThrough`**
+- [x] **Step 3: Write failing test `TestService_DeleteTopic_passesThrough`**
 
 ```go
 func TestService_DeleteTopic_passesThrough(t *testing.T) {
@@ -1338,12 +1338,12 @@ func TestService_DeleteTopic_passesThrough(t *testing.T) {
 }
 ```
 
-- [ ] **Step 4: Run tests; verify failure**
+- [x] **Step 4: Run tests; verify failure**
 
 Run: `go test ./internal/radar/ -run 'TestService_(ListTopics|GetTopic|DeleteTopic)' -v -short`
 Expected: FAIL — methods undefined.
 
-- [ ] **Step 5: Implement the three service methods**
+- [x] **Step 5: Implement the three service methods**
 
 Append to `internal/radar/service.go`:
 
@@ -1364,12 +1364,12 @@ func (s *Service) DeleteTopic(ctx context.Context, userID, topicID int64) error 
 }
 ```
 
-- [ ] **Step 6: Run tests; verify pass**
+- [x] **Step 6: Run tests; verify pass**
 
 Run: `go test ./internal/radar/ -run 'TestService_(ListTopics|GetTopic|DeleteTopic)' -v -short`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/radar/service.go internal/radar/service_test.go
