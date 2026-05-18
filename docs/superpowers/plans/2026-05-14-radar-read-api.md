@@ -2425,7 +2425,7 @@ git commit -m "feat(server): wire Radar read-API routes"
 
 One scenario that walks through the full new surface. Reuses existing `seedRadarUser` and the chi router pattern.
 
-- [ ] **Step 1: Write the failing integration scenario**
+- [x] **Step 1: Write the failing integration scenario**
 
 Append to `internal/radar/integration_test.go` (after the existing `TestIntegrationRadarFlow`):
 
@@ -2575,17 +2575,17 @@ func TestIntegrationRadarReadAPI(t *testing.T) {
 
 Add `"fmt"` to the integration_test.go import block if not already present.
 
-- [ ] **Step 2: Run the integration test**
+- [x] **Step 2: Run the integration test**
 
 Run: `go test ./internal/radar/ -run 'TestIntegrationRadarReadAPI' -v`
 Expected: PASS.
 
-- [ ] **Step 3: Run the entire test suite to confirm no regression**
+- [x] **Step 3: Run the entire test suite to confirm no regression**
 
 Run: `go test ./...`
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/radar/integration_test.go
