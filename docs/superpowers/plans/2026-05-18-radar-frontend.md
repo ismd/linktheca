@@ -305,72 +305,56 @@ git commit -m "feat(radar): add Service.GetMatch and StoreAPI extension"
 - Modify: `internal/radar/http.go`
 - Test: `internal/radar/http_test.go`
 
-- [ ] **Step 1: Write failing tests in `http_test.go`** (append after the existing `TestHTTP_UpdateMatch_*` tests):
+- [x] **Step 1: Write failing tests in `http_test.go`** (append after the existing `TestHTTP_UpdateMatch_*` tests):
+
+Existing HTTP tests in this file don't use a `fakeService`; they wire the real `radar.NewService(...)` over `newMockStore()` (from `service_test.go`) and set up the request context with `userOnlyContext` + `withRouteID`. After Task 2 the mock has `getMatchResult`/`getMatchErr`/`getMatchCalled` and a `GetMatch` method, so no new helpers are needed.
 
 ```go
 func TestHTTP_GetMatch_ok(t *testing.T) {
-	svc := &fakeService{getMatchResult: &radar.MatchView{
+	store := newMockStore()
+	store.getMatchResult = &radar.MatchView{
 		ID: 42, TopicID: 7, TopicName: "T",
 		Similarity: 0.7, State: "new", MatchedAt: time.Now(),
-	}}
+	}
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
 	h := radar.NewHTTP(svc)
-	r := chi.NewRouter()
-	r.Use(injectUser(11))
-	r.Get("/radar/matches/{id}", h.GetMatchHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/radar/matches/42", nil)
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 11, false), "42"))
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
+	h.GetMatchHandler()(rec, req)
 
-	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"id":42`)
 }
 
 func TestHTTP_GetMatch_badID(t *testing.T) {
-	svc := &fakeService{}
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
 	h := radar.NewHTTP(svc)
-	r := chi.NewRouter()
-	r.Use(injectUser(11))
-	r.Get("/radar/matches/{id}", h.GetMatchHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/radar/matches/abc", nil)
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 11, false), "abc"))
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
+	h.GetMatchHandler()(rec, req)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestHTTP_GetMatch_notFound(t *testing.T) {
-	svc := &fakeService{getMatchErr: radar.ErrNotFound}
+	store := newMockStore()
+	store.getMatchErr = radar.ErrNotFound
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
 	h := radar.NewHTTP(svc)
-	r := chi.NewRouter()
-	r.Use(injectUser(11))
-	r.Get("/radar/matches/{id}", h.GetMatchHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/radar/matches/42", nil)
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 11, false), "42"))
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
+	h.GetMatchHandler()(rec, req)
 	require.Equal(t, http.StatusNotFound, rec.Code)
 }
 ```
 
-**Note:** if `fakeService` is the test double for the HTTP layer (check existing tests). Add fields to it:
-
-```go
-	getMatchResult *radar.MatchView
-	getMatchErr    error
-```
-
-And the method:
-
-```go
-func (f *fakeService) GetMatch(_ context.Context, _, _ int64) (*radar.MatchView, error) {
-	return f.getMatchResult, f.getMatchErr
-}
-```
-
-(Patterns: match the layout of existing `fakeService` methods like `ListMatches`/`SetMatchState`.)
-
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```bash
 go test ./internal/radar -run 'TestHTTP_GetMatch' -count=1
@@ -378,7 +362,7 @@ go test ./internal/radar -run 'TestHTTP_GetMatch' -count=1
 
 Expected: FAIL — `h.GetMatchHandler undefined`.
 
-- [ ] **Step 3: Add handler in `http.go`** (next to `ListMatchesHandler` getter and impl):
+- [x] **Step 3: Add handler in `http.go`** (next to `ListMatchesHandler` getter and impl):
 
 ```go
 // GetMatchHandler returns the http.HandlerFunc for GET /radar/matches/{id}.
@@ -402,7 +386,7 @@ func (h *HTTP) getMatch(w http.ResponseWriter, r *http.Request) {
 
 Also extend the service interface inside `http.go` (the unexported `serviceAPI` or analogue — check around the top of the file for the local interface name). Add `GetMatch(ctx context.Context, userID, matchID int64) (*MatchView, error)` to it.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```bash
 go test ./internal/radar -run 'TestHTTP_GetMatch' -count=1 -v
@@ -410,7 +394,7 @@ go test ./internal/radar -run 'TestHTTP_GetMatch' -count=1 -v
 
 Expected: PASS (3 tests).
 
-- [ ] **Step 5: Run full radar package tests**
+- [x] **Step 5: Run full radar package tests**
 
 ```bash
 go test ./internal/radar -count=1
@@ -418,7 +402,7 @@ go test ./internal/radar -count=1
 
 Expected: all pass (no regressions in other tests).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/radar/http.go internal/radar/http_test.go

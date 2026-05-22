@@ -187,6 +187,24 @@ func (h *HTTP) deleteTopic(w http.ResponseWriter, r *http.Request) {
 // ListMatchesHandler returns the http.HandlerFunc for GET /radar/matches.
 func (h *HTTP) ListMatchesHandler() http.HandlerFunc { return h.listMatches }
 
+// GetMatchHandler returns the http.HandlerFunc for GET /radar/matches/{id}.
+func (h *HTTP) GetMatchHandler() http.HandlerFunc { return h.getMatch }
+
+func (h *HTTP) getMatch(w http.ResponseWriter, r *http.Request) {
+	userID := coreauth.UserID(r.Context())
+	id, err := parseRadarID(r)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid id")
+		return
+	}
+	mv, err := h.svc.GetMatch(r.Context(), userID, id)
+	if err != nil {
+		writeRadarError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, mv)
+}
+
 // UpdateMatchHandler returns the http.HandlerFunc for PATCH /radar/matches/{id}.
 func (h *HTTP) UpdateMatchHandler() http.HandlerFunc { return h.updateMatch }
 

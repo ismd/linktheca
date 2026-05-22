@@ -392,6 +392,49 @@ func TestHTTP_UpdateMatch_404(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, rec.Code)
 }
 
+func TestHTTP_GetMatch_ok(t *testing.T) {
+	store := newMockStore()
+	store.getMatchResult = &radar.MatchView{
+		ID: 42, TopicID: 7, TopicName: "T",
+		Similarity: 0.7, State: "new", MatchedAt: time.Now(),
+	}
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/matches/42", nil)
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 11, false), "42"))
+	rec := httptest.NewRecorder()
+	h.GetMatchHandler()(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"id":42`)
+}
+
+func TestHTTP_GetMatch_badID(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/matches/abc", nil)
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 11, false), "abc"))
+	rec := httptest.NewRecorder()
+	h.GetMatchHandler()(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestHTTP_GetMatch_notFound(t *testing.T) {
+	store := newMockStore()
+	store.getMatchErr = radar.ErrNotFound
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/matches/42", nil)
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 11, false), "42"))
+	rec := httptest.NewRecorder()
+	h.GetMatchHandler()(rec, req)
+	require.Equal(t, http.StatusNotFound, rec.Code)
+}
+
 func TestHTTP_Status_200_withLastSweep(t *testing.T) {
 	store := newMockStore()
 	when := time.Date(2026, 5, 14, 12, 0, 0, 0, time.UTC)
