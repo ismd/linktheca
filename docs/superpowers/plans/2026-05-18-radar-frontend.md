@@ -93,7 +93,7 @@
 - Modify: `internal/radar/store.go`
 - Test: `internal/radar/store_test.go`
 
-- [ ] **Step 1: Write failing test in `store_test.go`** (append after the last `TestStore_*` test):
+- [x] **Step 1: Write failing test in `store_test.go`** (append after the last `TestStore_*` test):
 
 ```go
 func TestStore_GetMatch_ok(t *testing.T) {
@@ -148,7 +148,7 @@ func TestStore_GetMatch_otherUser(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```bash
 cd /home/ismd/coding/linktheca
@@ -157,7 +157,7 @@ go test ./internal/radar -run 'TestStore_GetMatch' -count=1
 
 Expected: FAIL — `store.GetMatch undefined`.
 
-- [ ] **Step 3: Implement `GetMatch` in `store.go`** (add after the existing `ListMatches`):
+- [x] **Step 3: Implement `GetMatch` in `store.go`** (add after the existing `ListMatches`):
 
 ```go
 func (s *Store) GetMatch(ctx context.Context, userID, matchID int64) (*MatchView, error) {
@@ -192,7 +192,7 @@ func (s *Store) GetMatch(ctx context.Context, userID, matchID int64) (*MatchView
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```bash
 go test ./internal/radar -run 'TestStore_GetMatch' -count=1 -v
@@ -200,7 +200,7 @@ go test ./internal/radar -run 'TestStore_GetMatch' -count=1 -v
 
 Expected: PASS (3 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/radar/store.go internal/radar/store_test.go

@@ -469,6 +469,37 @@ func (s *Store) ListMatches(ctx context.Context, userID int64, p ListMatchesPara
 	return items, total, nil
 }
 
+func (s *Store) GetMatch(ctx context.Context, userID, matchID int64) (*MatchView, error) {
+	row := s.db.QueryRow(ctx, `
+		SELECT
+		  m.id, m.topic_id, t.name AS topic_name,
+		  m.similarity, m.state, m.matched_at,
+		  f.id, f.feed_id, fd.title AS feed_title,
+		  f.url, f.title, f.summary,
+		  f.published_at, f.discovered_at
+		FROM radar_topic_matches m
+		JOIN radar_topics t   ON t.id = m.topic_id
+		JOIN radar_findings f ON f.id = m.finding_id
+		JOIN radar_feeds fd   ON fd.id = f.feed_id
+		WHERE m.id = $1 AND t.user_id = $2`,
+		matchID, userID)
+
+	var mv MatchView
+	if err := row.Scan(
+		&mv.ID, &mv.TopicID, &mv.TopicName,
+		&mv.Similarity, &mv.State, &mv.MatchedAt,
+		&mv.Finding.ID, &mv.Finding.FeedID, &mv.Finding.FeedTitle,
+		&mv.Finding.URL, &mv.Finding.Title, &mv.Finding.Summary,
+		&mv.Finding.PublishedAt, &mv.Finding.DiscoveredAt,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("get match: %w", err)
+	}
+	return &mv, nil
+}
+
 func (s *Store) UpdateMatchState(ctx context.Context, userID, matchID int64, state string) error {
 	tag, err := s.db.Exec(ctx, `
 		UPDATE radar_topic_matches

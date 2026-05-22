@@ -648,3 +648,54 @@ func TestStore_ListFeeds_pagination(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, items, 1)
 }
+
+func TestStore_GetMatch_ok(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	topicID := seedTopic(t, pool, userID, "A", "desc", 0.55, true)
+	feedID := seedFeed(t, pool, "https://f.example/rss", "F1")
+	findingID := seedFinding(t, pool, feedID, "https://x.example/1", "t1")
+	matchID := seedMatch(t, pool, topicID, findingID, "new", 0.7)
+
+	mv, err := store.GetMatch(ctx, userID, matchID)
+	require.NoError(t, err)
+	require.Equal(t, matchID, mv.ID)
+	require.Equal(t, topicID, mv.TopicID)
+	require.Equal(t, "A", mv.TopicName)
+	require.Equal(t, float32(0.7), mv.Similarity)
+	require.Equal(t, "new", mv.State)
+	require.Equal(t, findingID, mv.Finding.ID)
+	require.Equal(t, "https://x.example/1", mv.Finding.URL)
+	require.NotNil(t, mv.Finding.FeedTitle)
+	require.Equal(t, "F1", *mv.Finding.FeedTitle)
+}
+
+func TestStore_GetMatch_notFound(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+
+	_, err := store.GetMatch(ctx, userID, 99999)
+	require.ErrorIs(t, err, radar.ErrNotFound)
+}
+
+func TestStore_GetMatch_otherUser(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userA := seedUser(t, pool)
+	userB := seedUser(t, pool)
+	topicB := seedTopic(t, pool, userB, "B", "desc-b", 0.55, true)
+	feedID := seedFeed(t, pool, "https://f.example/rss2", "F2")
+	findingID := seedFinding(t, pool, feedID, "https://x.example/2", "t2")
+	matchID := seedMatch(t, pool, topicB, findingID, "new", 0.7)
+
+	_, err := store.GetMatch(ctx, userA, matchID)
+	require.ErrorIs(t, err, radar.ErrNotFound)
+}
