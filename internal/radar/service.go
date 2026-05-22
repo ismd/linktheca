@@ -28,6 +28,7 @@ type StoreAPI interface {
 	UpdateTopic(ctx context.Context, userID, topicID int64, p UpdateTopicParams) (*Topic, error)
 	DeleteTopic(ctx context.Context, userID, topicID int64) error
 	ListMatches(ctx context.Context, userID int64, p ListMatchesParams) ([]MatchView, int, error)
+	GetMatch(ctx context.Context, userID, matchID int64) (*MatchView, error)
 	UpdateMatchState(ctx context.Context, userID, matchID int64, state string) error
 	LastSweepAt(ctx context.Context, userID int64) (*time.Time, error)
 	ListFeeds(ctx context.Context, p ListFeedsParams) ([]Feed, int, error)
@@ -235,6 +236,11 @@ func (s *Service) SetMatchState(ctx context.Context, userID, matchID int64, stat
 		return fmt.Errorf("%w: state must be new|seen", ErrInvalidInput)
 	}
 	return s.store.UpdateMatchState(ctx, userID, matchID, state)
+}
+
+// GetMatch returns a single denormalized match owned by the user.
+func (s *Service) GetMatch(ctx context.Context, userID, matchID int64) (*MatchView, error) {
+	return s.store.GetMatch(ctx, userID, matchID)
 }
 
 // LastSweep returns the latest fetch timestamp across the user's active

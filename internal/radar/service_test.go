@@ -51,6 +51,9 @@ type mockStore struct {
 	listFeedsResult    []radar.Feed
 	listFeedsTotal     int
 	listFeedsErr       error
+	getMatchResult     *radar.MatchView
+	getMatchErr        error
+	getMatchCalled     bool
 }
 
 func newMockStore() *mockStore {
@@ -372,6 +375,11 @@ func (m *mockStore) ListMatches(_ context.Context, _ int64, p radar.ListMatchesP
 	return m.listMatchesResult, m.listMatchesTotal, m.listMatchesErr
 }
 
+func (m *mockStore) GetMatch(_ context.Context, _, _ int64) (*radar.MatchView, error) {
+	m.getMatchCalled = true
+	return m.getMatchResult, m.getMatchErr
+}
+
 func (m *mockStore) UpdateMatchState(_ context.Context, _, _ int64, state string) error {
 	m.updateMatchCalled = true
 	m.updateMatchState = state
@@ -536,6 +544,27 @@ func TestService_ListMatches_returnsResult(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got.Items, 2)
 	require.Equal(t, 2, got.Total)
+}
+
+func TestService_GetMatch_passesThrough(t *testing.T) {
+	store := newMockStore()
+	want := &radar.MatchView{ID: 7, TopicID: 3, TopicName: "T"}
+	store.getMatchResult = want
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	got, err := svc.GetMatch(context.Background(), 1, 7)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
+	require.True(t, store.getMatchCalled)
+}
+
+func TestService_GetMatch_notFound(t *testing.T) {
+	store := newMockStore()
+	store.getMatchErr = radar.ErrNotFound
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	_, err := svc.GetMatch(context.Background(), 1, 7)
+	require.True(t, errors.Is(err, radar.ErrNotFound))
 }
 
 func TestService_SetMatchState_validation(t *testing.T) {

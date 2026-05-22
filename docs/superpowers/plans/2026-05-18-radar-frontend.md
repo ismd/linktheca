@@ -215,7 +215,7 @@ git commit -m "feat(radar): add Store.GetMatch for single-match read"
 - Modify: `internal/radar/service.go` (StoreAPI interface + Service method)
 - Modify: `internal/radar/service_test.go` (mockStore + tests)
 
-- [ ] **Step 1: Extend `StoreAPI` interface in `service.go`** (in the `type StoreAPI interface {…}` block, in the read-API extensions group):
+- [x] **Step 1: Extend `StoreAPI` interface in `service.go`** (in the `type StoreAPI interface {…}` block, in the read-API extensions group):
 
 ```go
 	GetMatch(ctx context.Context, userID, matchID int64) (*MatchView, error)
@@ -223,7 +223,7 @@ git commit -m "feat(radar): add Store.GetMatch for single-match read"
 
 Add directly after the `ListMatches` line in the interface.
 
-- [ ] **Step 2: Add `mockStore.GetMatch` to `service_test.go`** (after the existing `ListMatches` mock method):
+- [x] **Step 2: Add `mockStore.GetMatch` to `service_test.go`** (after the existing `ListMatches` mock method):
 
 ```go
 func (m *mockStore) GetMatch(_ context.Context, _, _ int64) (*radar.MatchView, error) {
@@ -240,7 +240,7 @@ And add the recording fields to the `mockStore` struct (in the "Read-API recordi
 	getMatchCalled bool
 ```
 
-- [ ] **Step 3: Write failing service tests in `service_test.go`** (append after `TestService_ListMatches_*`):
+- [x] **Step 3: Write failing service tests in `service_test.go`** (append after `TestService_ListMatches_*`):
 
 ```go
 func TestService_GetMatch_passesThrough(t *testing.T) {
@@ -265,7 +265,7 @@ func TestService_GetMatch_notFound(t *testing.T) {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they fail**
+- [x] **Step 4: Run tests to verify they fail**
 
 ```bash
 go test ./internal/radar -run 'TestService_GetMatch' -count=1
@@ -273,7 +273,7 @@ go test ./internal/radar -run 'TestService_GetMatch' -count=1
 
 Expected: FAIL — `svc.GetMatch undefined`.
 
-- [ ] **Step 5: Implement `Service.GetMatch`** in `service.go` (add after `SetMatchState`):
+- [x] **Step 5: Implement `Service.GetMatch`** in `service.go` (add after `SetMatchState`):
 
 ```go
 // GetMatch returns a single denormalized match owned by the user.
@@ -282,7 +282,7 @@ func (s *Service) GetMatch(ctx context.Context, userID, matchID int64) (*MatchVi
 }
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 ```bash
 go test ./internal/radar -run 'TestService_GetMatch' -count=1 -v
@@ -290,7 +290,7 @@ go test ./internal/radar -run 'TestService_GetMatch' -count=1 -v
 
 Expected: PASS (2 tests).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/radar/service.go internal/radar/service_test.go
