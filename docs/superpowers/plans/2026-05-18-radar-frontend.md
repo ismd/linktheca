@@ -2537,7 +2537,7 @@ git commit -m "feat(radar/web): add NewTopicDialog with embedder-503 handling"
 - Create: `web/src/features/radar/components/EditTopicDialog.tsx`
 - Create: `web/src/features/radar/components/EditTopicDialog.test.tsx`
 
-- [ ] **Step 1: Write failing test in `EditTopicDialog.test.tsx`**
+- [x] **Step 1: Write failing test in `EditTopicDialog.test.tsx`**
 
 ```tsx
 import { describe, it, expect, beforeEach } from "vitest";
@@ -2640,7 +2640,7 @@ describe("EditTopicDialog", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 npm test -- --run src/features/radar/components/EditTopicDialog.test.tsx
@@ -2648,7 +2648,7 @@ npm test -- --run src/features/radar/components/EditTopicDialog.test.tsx
 
 Expected: FAIL.
 
-- [ ] **Step 3: Create `EditTopicDialog.tsx`**
+- [x] **Step 3: Create `EditTopicDialog.tsx`**
 
 ```tsx
 import { useState } from "react";
@@ -2790,7 +2790,7 @@ export function EditTopicDialog({ topic, open, onOpenChange }: Props) {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 npm test -- --run src/features/radar/components/EditTopicDialog.test.tsx
@@ -2798,7 +2798,7 @@ npm test -- --run src/features/radar/components/EditTopicDialog.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/radar/components/EditTopicDialog.tsx \
