@@ -3421,7 +3421,7 @@ git commit -m "feat(radar/web): add /radar/$topicId route with Edit/Pause/Delete
 **Files:**
 - Create: `web/src/routes/radar.matches.$matchId.tsx`
 
-- [ ] **Step 1: Create file**
+- [x] **Step 1: Create file**
 
 ```tsx
 import { useParams } from "react-router";
@@ -3437,7 +3437,7 @@ export default function MatchRoute() {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add web/src/routes/radar.matches.$matchId.tsx
