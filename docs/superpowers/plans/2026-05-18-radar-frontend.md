@@ -416,13 +416,13 @@ git commit -m "feat(radar): add GET /radar/matches/{id} handler"
 **Files:**
 - Modify: `internal/server/server.go`
 
-- [ ] **Step 1: Add route inside existing `r.Route("/radar", …)`** (immediately after the existing `r.Get("/matches", radarHTTP.ListMatchesHandler())` and before `r.Patch("/matches/{id}", …)`):
+- [x] **Step 1: Add route inside existing `r.Route("/radar", …)`** (immediately after the existing `r.Get("/matches", radarHTTP.ListMatchesHandler())` and before `r.Patch("/matches/{id}", …)`):
 
 ```go
 			r.Get("/matches/{id}", radarHTTP.GetMatchHandler())
 ```
 
-- [ ] **Step 2: Compile + run all server tests**
+- [x] **Step 2: Compile + run all server tests**
 
 ```bash
 go build ./...
@@ -431,7 +431,7 @@ go test ./internal/server/... -count=1
 
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/server/server.go

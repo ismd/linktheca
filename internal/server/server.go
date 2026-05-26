@@ -119,6 +119,7 @@ func New(deps Deps) *http.Server {
 			r.Post("/subscriptions", radarHTTP.SubscribeHandler())
 
 			r.Get("/matches", radarHTTP.ListMatchesHandler())
+			r.Get("/matches/{id}", radarHTTP.GetMatchHandler())
 			r.Patch("/matches/{id}", radarHTTP.UpdateMatchHandler())
 
 			r.Get("/status", radarHTTP.StatusHandler())
