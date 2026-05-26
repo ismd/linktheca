@@ -2880,7 +2880,7 @@ git commit -m "feat(radar/web): add DeleteTopicConfirm alert-dialog"
 - Create: `web/src/features/radar/components/MatchReader.tsx`
 - Create: `web/src/features/radar/components/MatchReader.test.tsx`
 
-- [ ] **Step 1: Write failing test in `MatchReader.test.tsx`** — critical: verify auto-mark-seen fires exactly once for `state === "new"`:
+- [x] **Step 1: Write failing test in `MatchReader.test.tsx`** — critical: verify auto-mark-seen fires exactly once for `state === "new"`:
 
 ```tsx
 import { describe, it, expect, beforeEach } from "vitest";
@@ -2972,7 +2972,7 @@ describe("MatchReader", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 npm test -- --run src/features/radar/components/MatchReader.test.tsx
@@ -2980,7 +2980,7 @@ npm test -- --run src/features/radar/components/MatchReader.test.tsx
 
 Expected: FAIL.
 
-- [ ] **Step 3: Create `MatchReader.tsx`**
+- [x] **Step 3: Create `MatchReader.tsx`**
 
 ```tsx
 import { useEffect, useRef, useState } from "react";
@@ -3119,7 +3119,7 @@ export function MatchReader({ matchId }: Props) {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 npm test -- --run src/features/radar/components/MatchReader.test.tsx
@@ -3127,7 +3127,7 @@ npm test -- --run src/features/radar/components/MatchReader.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/radar/components/MatchReader.tsx \
