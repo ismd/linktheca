@@ -3267,7 +3267,7 @@ git commit -m "feat(radar/web): add /radar route"
 **Files:**
 - Create: `web/src/routes/radar.$topicId.tsx`
 
-- [ ] **Step 1: Create file**
+- [x] **Step 1: Create file**
 
 ```tsx
 import { useState } from "react";
@@ -3407,7 +3407,7 @@ export default function TopicRoute() {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add web/src/routes/radar.$topicId.tsx
