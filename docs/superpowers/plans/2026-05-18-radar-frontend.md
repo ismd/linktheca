@@ -1164,7 +1164,7 @@ git commit -m "feat(radar/web): add API client functions"
 - Create: `web/src/features/radar/use-radar.tsx`
 - Create: `web/src/features/radar/use-radar.test.tsx`
 
-- [ ] **Step 1: Write failing tests in `use-radar.test.tsx`**
+- [x] **Step 1: Write failing tests in `use-radar.test.tsx`**
 
 ```tsx
 import { describe, it, expect, beforeEach } from "vitest";
@@ -1296,7 +1296,7 @@ describe("useRadarStatusQuery", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```bash
 npm test -- --run src/features/radar/use-radar.test.tsx
@@ -1304,7 +1304,7 @@ npm test -- --run src/features/radar/use-radar.test.tsx
 
 Expected: FAIL (module not found).
 
-- [ ] **Step 3: Create `use-radar.tsx`**
+- [x] **Step 3: Create `use-radar.tsx`**
 
 ```tsx
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -1392,7 +1392,7 @@ export function useRadarStatusQuery() {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```bash
 npm test -- --run src/features/radar/use-radar.test.tsx
@@ -1400,7 +1400,7 @@ npm test -- --run src/features/radar/use-radar.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/radar/use-radar.tsx web/src/features/radar/use-radar.test.tsx
