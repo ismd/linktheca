@@ -162,6 +162,7 @@ func TestIntegrationRadarReadAPI(t *testing.T) {
 		r.Delete("/topics/{id}", h.DeleteTopicHandler())
 		r.Post("/subscriptions", h.SubscribeHandler())
 		r.Get("/matches", h.ListMatchesHandler())
+		r.Get("/matches/{id}", h.GetMatchHandler())
 		r.Patch("/matches/{id}", h.UpdateMatchHandler())
 		r.Get("/status", h.StatusHandler())
 		r.Group(func(r chi.Router) {
@@ -238,6 +239,15 @@ func TestIntegrationRadarReadAPI(t *testing.T) {
 	require.Len(t, matchesResp.Items, 1)
 	require.Equal(t, "ML", matchesResp.Items[0].TopicName)
 	require.Equal(t, "https://news.example/a", matchesResp.Items[0].Finding.URL)
+
+	// Single-match fetch by id (new endpoint).
+	rec, _ = doJSON(http.MethodGet, fmt.Sprintf("/radar/matches/%d", matchID), nil)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var single radar.MatchView
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &single))
+	require.Equal(t, matchID, single.ID)
+	require.NotEmpty(t, single.TopicName)
+	require.NotEmpty(t, single.Finding.URL)
 
 	// 6. PATCH match state → seen.
 	rec, _ = doJSON(http.MethodPatch,

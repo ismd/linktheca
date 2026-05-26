@@ -445,9 +445,9 @@ git commit -m "feat(server): wire GET /radar/matches/{id}"
 **Files:**
 - Modify: `internal/radar/integration_test.go`
 
-- [ ] **Step 1: Find existing end-to-end test** (search for `GET /radar/matches?state=new` block — that's where a match is fetched from the list).
+- [x] **Step 1: Find existing end-to-end test** (search for `GET /radar/matches?state=new` block — that's where a match is fetched from the list).
 
-- [ ] **Step 2: After the existing list-matches assertion, add a single-match fetch + assertion**:
+- [x] **Step 2: After the existing list-matches assertion, add a single-match fetch + assertion**:
 
 ```go
 	// Single-match fetch by id (new endpoint).
@@ -466,7 +466,7 @@ git commit -m "feat(server): wire GET /radar/matches/{id}"
 
 If the existing test does not already have a second user / stranger setup, skip the "stranger" assertion (the unit-level coverage in `store_test.go::TestStore_GetMatch_otherUser` is sufficient). Match the existing helper signatures (`doJSON`).
 
-- [ ] **Step 3: Run integration test**
+- [x] **Step 3: Run integration test**
 
 ```bash
 go test ./internal/radar -run 'Integration' -count=1 -v
@@ -474,7 +474,7 @@ go test ./internal/radar -run 'Integration' -count=1 -v
 
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/radar/integration_test.go
