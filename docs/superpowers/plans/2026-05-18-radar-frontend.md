@@ -1754,7 +1754,7 @@ git commit -m "feat(radar/web): add time formatting helpers"
 - Create: `web/src/features/radar/components/TopicCard.tsx`
 - Create: `web/src/features/radar/components/TopicCard.test.tsx`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 ```tsx
 import { describe, it, expect } from "vitest";
@@ -1794,7 +1794,7 @@ describe("TopicCard", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 npm test -- --run src/features/radar/components/TopicCard.test.tsx
@@ -1802,7 +1802,7 @@ npm test -- --run src/features/radar/components/TopicCard.test.tsx
 
 Expected: FAIL (module not found).
 
-- [ ] **Step 3: Create `TopicCard.tsx`**
+- [x] **Step 3: Create `TopicCard.tsx`**
 
 ```tsx
 import { Link } from "react-router";
@@ -1851,7 +1851,7 @@ export function TopicCard({ topic, index }: Props) {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 npm test -- --run src/features/radar/components/TopicCard.test.tsx
@@ -1859,7 +1859,7 @@ npm test -- --run src/features/radar/components/TopicCard.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/radar/components/TopicCard.tsx web/src/features/radar/components/TopicCard.test.tsx
