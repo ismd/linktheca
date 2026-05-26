@@ -2134,7 +2134,7 @@ git commit -m "feat(radar/web): add MatchCard, MatchGrid, EmptyTopicMatches"
 - Create: `web/src/features/radar/components/StatsLine.tsx`
 - Create: `web/src/features/radar/components/TopicHeader.tsx`
 
-- [ ] **Step 1: Create `StatsLine.tsx`**
+- [x] **Step 1: Create `StatsLine.tsx`**
 
 ```tsx
 import type { TopicWithStats } from "../types";
@@ -2171,7 +2171,7 @@ export function StatsLine({ topic }: Props) {
 }
 ```
 
-- [ ] **Step 2: Create `TopicHeader.tsx`**
+- [x] **Step 2: Create `TopicHeader.tsx`**
 
 ```tsx
 import { Button } from "@/shared/ui/button";
@@ -2226,7 +2226,7 @@ export function TopicHeader({
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/features/radar/components/StatsLine.tsx \
