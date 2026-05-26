@@ -1963,7 +1963,7 @@ git commit -m "feat(radar/web): add TopicGrid, EmptyTopicList, SkeletonCard"
 - Create: `web/src/features/radar/components/MatchGrid.tsx`
 - Create: `web/src/features/radar/components/EmptyTopicMatches.tsx`
 
-- [ ] **Step 1: Write failing test for `MatchCard`**
+- [x] **Step 1: Write failing test for `MatchCard`**
 
 ```tsx
 import { describe, it, expect } from "vitest";
@@ -2010,7 +2010,7 @@ describe("MatchCard", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 npm test -- --run src/features/radar/components/MatchCard.test.tsx
@@ -2018,7 +2018,7 @@ npm test -- --run src/features/radar/components/MatchCard.test.tsx
 
 Expected: FAIL.
 
-- [ ] **Step 3: Create `MatchCard.tsx`**
+- [x] **Step 3: Create `MatchCard.tsx`**
 
 ```tsx
 import { Link } from "react-router";
@@ -2072,7 +2072,7 @@ export function MatchCard({ match, index }: Props) {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 npm test -- --run src/features/radar/components/MatchCard.test.tsx
@@ -2080,7 +2080,7 @@ npm test -- --run src/features/radar/components/MatchCard.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 5: Create `MatchGrid.tsx`**
+- [x] **Step 5: Create `MatchGrid.tsx`**
 
 ```tsx
 import type { MatchView } from "../types";
@@ -2101,7 +2101,7 @@ export function MatchGrid({ matches }: Props) {
 }
 ```
 
-- [ ] **Step 6: Create `EmptyTopicMatches.tsx`**
+- [x] **Step 6: Create `EmptyTopicMatches.tsx`**
 
 ```tsx
 export function EmptyTopicMatches() {
@@ -2116,7 +2116,7 @@ export function EmptyTopicMatches() {
 }
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add web/src/features/radar/components/MatchCard.tsx \
