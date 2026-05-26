@@ -3144,7 +3144,7 @@ git commit -m "feat(radar/web): add MatchReader with auto-mark-seen"
 **Files:**
 - Create: `web/src/routes/radar._index.tsx`
 
-- [ ] **Step 1: Create file**
+- [x] **Step 1: Create file**
 
 ```tsx
 import { ApiError } from "@/shared/api/errors";
@@ -3253,7 +3253,7 @@ function PausedSection({ topics }: { topics: ReturnType<typeof useTopicsQuery>["
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add web/src/routes/radar._index.tsx
