@@ -1415,7 +1415,7 @@ git commit -m "feat(radar/web): add query hooks (topics, matches, status)"
 - Create: `web/src/features/radar/use-mutations.tsx`
 - Create: `web/src/features/radar/use-mutations.test.tsx`
 
-- [ ] **Step 1: Write failing tests in `use-mutations.test.tsx`**
+- [x] **Step 1: Write failing tests in `use-mutations.test.tsx`**
 
 ```tsx
 import { describe, it, expect, beforeEach } from "vitest";
@@ -1588,7 +1588,7 @@ function mapTopic(raw: ReturnType<typeof rawTopic>) {
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```bash
 npm test -- --run src/features/radar/use-mutations.test.tsx
@@ -1596,7 +1596,7 @@ npm test -- --run src/features/radar/use-mutations.test.tsx
 
 Expected: FAIL (module not found).
 
-- [ ] **Step 3: Create `use-mutations.tsx`**
+- [x] **Step 3: Create `use-mutations.tsx`**
 
 ```tsx
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1701,7 +1701,7 @@ export function useMarkMatchSeen() {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 ```bash
 npm test -- --run src/features/radar/use-mutations.test.tsx
@@ -1709,7 +1709,7 @@ npm test -- --run src/features/radar/use-mutations.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/radar/use-mutations.tsx web/src/features/radar/use-mutations.test.tsx
