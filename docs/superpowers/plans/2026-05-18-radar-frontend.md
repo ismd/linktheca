@@ -1875,7 +1875,7 @@ git commit -m "feat(radar/web): add TopicCard component"
 - Create: `web/src/features/radar/components/EmptyTopicList.tsx`
 - Create: `web/src/features/radar/components/SkeletonCard.tsx`
 
-- [ ] **Step 1: Create `TopicGrid.tsx`**
+- [x] **Step 1: Create `TopicGrid.tsx`**
 
 ```tsx
 import type { TopicWithStats } from "../types";
@@ -1899,7 +1899,7 @@ export function TopicGrid({ topics, dim = false }: Props) {
 }
 ```
 
-- [ ] **Step 2: Create `EmptyTopicList.tsx`**
+- [x] **Step 2: Create `EmptyTopicList.tsx`**
 
 ```tsx
 import { Button } from "@/shared/ui/button";
@@ -1921,7 +1921,7 @@ export function EmptyTopicList({ onAdd }: Props) {
 }
 ```
 
-- [ ] **Step 3: Create `SkeletonCard.tsx`** (used as placeholder during grid loading):
+- [x] **Step 3: Create `SkeletonCard.tsx`** (used as placeholder during grid loading):
 
 ```tsx
 export function SkeletonCard() {
@@ -1944,7 +1944,7 @@ export function SkeletonCard() {
 }
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add web/src/features/radar/components/TopicGrid.tsx \
