@@ -3,7 +3,7 @@ import { cn } from "@/shared/lib/cn";
 
 const navItems = [
   { to: "/library", label: "Library", number: "01" },
-  { to: "/radar", label: "Radar", number: "02", disabled: true },
+  { to: "/radar", label: "Radar", number: "02" },
   { to: "/settings", label: "Settings", number: "03" },
 ];
 
@@ -19,31 +19,19 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <ul className="flex flex-col gap-3">
           {navItems.map((item) => (
             <li key={item.to}>
-              {item.disabled ? (
-                <span
-                  className={cn(
-                    "nav-item flex items-baseline gap-3 px-4 py-2 cursor-not-allowed opacity-50",
-                  )}
-                >
-                  <span className="font-mono text-xs text-muted-foreground">{item.number}</span>
-                  <span className="nav-label font-display text-xl">{item.label}</span>
-                  <span className="label-sc text-muted-foreground ml-auto">soon</span>
-                </span>
-              ) : (
-                <NavLink
-                  to={item.to}
-                  onClick={onNavigate}
-                  className={({ isActive }) =>
-                    cn(
-                      "nav-item flex items-baseline gap-3 px-4 py-2 hover:text-ink",
-                      isActive && "active",
-                    )
-                  }
-                >
-                  <span className="nav-number font-mono text-xs text-muted-foreground">{item.number}</span>
-                  <span className="nav-label font-display text-xl text-ink-3">{item.label}</span>
-                </NavLink>
-              )}
+              <NavLink
+                to={item.to}
+                onClick={onNavigate}
+                className={({ isActive }) =>
+                  cn(
+                    "nav-item flex items-baseline gap-3 px-4 py-2 hover:text-ink",
+                    isActive && "active",
+                  )
+                }
+              >
+                <span className="nav-number font-mono text-xs text-muted-foreground">{item.number}</span>
+                <span className="nav-label font-display text-xl text-ink-3">{item.label}</span>
+              </NavLink>
             </li>
           ))}
         </ul>

@@ -17,16 +17,10 @@ describe("Sidebar", () => {
     expect(screen.getByText("Linktheca")).toBeInTheDocument();
   });
 
-  it("renders Library and Settings as enabled nav links", () => {
+  it("renders Library, Radar, and Settings as enabled nav links", () => {
     renderWithRouter();
     expect(screen.getByRole("link", { name: /library/i })).toHaveAttribute("href", "/library");
+    expect(screen.getByRole("link", { name: /radar/i })).toHaveAttribute("href", "/radar");
     expect(screen.getByRole("link", { name: /settings/i })).toHaveAttribute("href", "/settings");
-  });
-
-  it("renders Radar as disabled (no link)", () => {
-    renderWithRouter();
-    const radar = screen.getByText("Radar");
-    expect(radar.closest("a")).toBeNull();
-    expect(screen.getByText(/soon/i)).toBeInTheDocument();
   });
 });

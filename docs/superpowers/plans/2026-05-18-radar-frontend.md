@@ -3453,7 +3453,7 @@ git commit -m "feat(radar/web): add /radar/matches/$matchId route"
 - Modify: `web/src/shared/layout/Sidebar.tsx`
 - Modify: `web/src/routes/__app.tsx`
 
-- [ ] **Step 1: Update `App.tsx` to register radar routes**
+- [x] **Step 1: Update `App.tsx` to register radar routes**
 
 Find the existing import block and add:
 
@@ -3471,7 +3471,7 @@ In the `AppLayout` children array, add three entries after the library routes:
               { path: "radar/matches/:matchId", element: <MatchRoute /> },
 ```
 
-- [ ] **Step 2: Update `Sidebar.tsx`** — remove the `disabled: true` on the Radar entry. Change:
+- [x] **Step 2: Update `Sidebar.tsx`** — remove the `disabled: true` on the Radar entry. Change:
 
 ```ts
   { to: "/radar", label: "Radar", number: "02", disabled: true },
@@ -3485,7 +3485,7 @@ to:
 
 Also update the type if needed (the `disabled` field becomes optional / missing — strip the renderer branch if it dead-ends; the existing `if (item.disabled)` simply won't trigger, no source change strictly needed beyond the entry).
 
-- [ ] **Step 3: Mount `NewTopicDialog` in `__app.tsx`**
+- [x] **Step 3: Mount `NewTopicDialog` in `__app.tsx`**
 
 ```tsx
 import { Outlet } from "react-router";
@@ -3504,7 +3504,7 @@ export default function AppLayout() {
 }
 ```
 
-- [ ] **Step 4: Build + typecheck**
+- [x] **Step 4: Build + typecheck**
 
 ```bash
 cd /home/ismd/coding/linktheca/web
@@ -3513,7 +3513,7 @@ npm run build
 
 Expected: PASS without typecheck errors.
 
-- [ ] **Step 5: Run full web test suite**
+- [x] **Step 5: Run full web test suite**
 
 ```bash
 npm test -- --run
@@ -3521,7 +3521,7 @@ npm test -- --run
 
 Expected: ALL PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/App.tsx web/src/shared/layout/Sidebar.tsx web/src/routes/__app.tsx
