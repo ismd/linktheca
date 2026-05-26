@@ -2243,7 +2243,7 @@ git commit -m "feat(radar/web): add StatsLine and TopicHeader components"
 - Create: `web/src/features/radar/components/NewTopicDialog.tsx`
 - Create: `web/src/features/radar/components/NewTopicDialog.test.tsx`
 
-- [ ] **Step 1: Create `use-new-topic-store.ts`**
+- [x] **Step 1: Create `use-new-topic-store.ts`**
 
 ```ts
 import { create } from "zustand";
@@ -2261,7 +2261,7 @@ export const useNewTopicStore = create<State>((set) => ({
 }));
 ```
 
-- [ ] **Step 2: Write failing test in `NewTopicDialog.test.tsx`**
+- [x] **Step 2: Write failing test in `NewTopicDialog.test.tsx`**
 
 ```tsx
 import { describe, it, expect, beforeEach } from "vitest";
@@ -2360,7 +2360,7 @@ describe("NewTopicDialog", () => {
 });
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [x] **Step 3: Run test to verify it fails**
 
 ```bash
 npm test -- --run src/features/radar/components/NewTopicDialog.test.tsx
@@ -2368,7 +2368,7 @@ npm test -- --run src/features/radar/components/NewTopicDialog.test.tsx
 
 Expected: FAIL.
 
-- [ ] **Step 4: Create `NewTopicDialog.tsx`**
+- [x] **Step 4: Create `NewTopicDialog.tsx`**
 
 ```tsx
 import { useState } from "react";
@@ -2512,7 +2512,7 @@ export function NewTopicDialog() {
 }
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 ```bash
 npm test -- --run src/features/radar/components/NewTopicDialog.test.tsx
@@ -2520,7 +2520,7 @@ npm test -- --run src/features/radar/components/NewTopicDialog.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/features/radar/use-new-topic-store.ts \
