@@ -825,7 +825,7 @@ git commit -m "feat(radar/web): add Zod schemas and snake→camel mappers"
 - Create: `web/src/features/radar/api.ts`
 - Create: `web/src/features/radar/api.test.ts`
 
-- [ ] **Step 1: Write failing test in `api.test.ts`**
+- [x] **Step 1: Write failing test in `api.test.ts`**
 
 ```ts
 import { describe, it, expect, beforeEach } from "vitest";
@@ -1004,7 +1004,7 @@ describe("radar api", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 npm test -- --run src/features/radar/api.test.ts
@@ -1012,7 +1012,7 @@ npm test -- --run src/features/radar/api.test.ts
 
 Expected: FAIL (module not found).
 
-- [ ] **Step 3: Create `api.ts`**
+- [x] **Step 3: Create `api.ts`**
 
 ```ts
 import { apiFetch } from "@/shared/api/client";
@@ -1141,7 +1141,7 @@ export async function getStatus(): Promise<RadarStatus> {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 npm test -- --run src/features/radar/api.test.ts
@@ -1149,7 +1149,7 @@ npm test -- --run src/features/radar/api.test.ts
 
 Expected: PASS (10 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/radar/api.ts web/src/features/radar/api.test.ts
