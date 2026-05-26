@@ -2813,7 +2813,7 @@ git commit -m "feat(radar/web): add EditTopicDialog with partial-PATCH semantics
 **Files:**
 - Create: `web/src/features/radar/components/DeleteTopicConfirm.tsx`
 
-- [ ] **Step 1: Create file**
+- [x] **Step 1: Create file**
 
 ```tsx
 import {
@@ -2865,7 +2865,7 @@ export function DeleteTopicConfirm({
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add web/src/features/radar/components/DeleteTopicConfirm.tsx
