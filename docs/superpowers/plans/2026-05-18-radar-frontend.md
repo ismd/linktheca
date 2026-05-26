@@ -1723,7 +1723,7 @@ git commit -m "feat(radar/web): add mutation hooks (create/update/delete topic, 
 **Files:**
 - Create: `web/src/features/radar/time.ts`
 
-- [ ] **Step 1: Create file**
+- [x] **Step 1: Create file**
 
 ```ts
 import { relativeFromNow } from "@/features/library/time";
@@ -1737,7 +1737,7 @@ export function fmtLastMatch(d: Date | null): string {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add web/src/features/radar/time.ts
