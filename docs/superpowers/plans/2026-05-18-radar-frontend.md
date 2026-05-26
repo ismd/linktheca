@@ -492,7 +492,7 @@ Backend phase complete. Frontend can now proceed.
 **Files:**
 - Create: `web/src/features/radar/types.ts`
 
-- [ ] **Step 1: Create file with all camelCase types**
+- [x] **Step 1: Create file with all camelCase types**
 
 ```ts
 export type MatchState = "new" | "seen";
@@ -558,7 +558,7 @@ export type MatchFilters = {
 export const PAGE_SIZE = 20;
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add web/src/features/radar/types.ts
