@@ -573,7 +573,7 @@ git commit -m "feat(radar/web): add radar feature types"
 - Create: `web/src/features/radar/schemas.ts`
 - Create: `web/src/features/radar/schemas.test.ts`
 
-- [ ] **Step 1: Write failing test in `schemas.test.ts`**
+- [x] **Step 1: Write failing test in `schemas.test.ts`**
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -672,7 +672,7 @@ describe("radar schemas", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 cd /home/ismd/coding/linktheca/web
@@ -681,7 +681,7 @@ npm test -- --run src/features/radar/schemas.test.ts
 
 Expected: FAIL (module not found).
 
-- [ ] **Step 3: Create `schemas.ts`**
+- [x] **Step 3: Create `schemas.ts`**
 
 ```ts
 import { z } from "zod";
@@ -802,7 +802,7 @@ export function mapRadarStatus(raw: z.infer<typeof RawRadarStatusSchema>): Radar
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 npm test -- --run src/features/radar/schemas.test.ts
@@ -810,7 +810,7 @@ npm test -- --run src/features/radar/schemas.test.ts
 
 Expected: PASS (5 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/features/radar/schemas.ts web/src/features/radar/schemas.test.ts
