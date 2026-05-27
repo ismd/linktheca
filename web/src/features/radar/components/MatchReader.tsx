@@ -51,7 +51,7 @@ export function MatchReader({ matchId }: Props) {
             <Link to="/radar" className="label-sc text-vermillion">← Back to radar</Link>
           </>
         ) : (
-          <p className="font-body text-muted-foreground">Couldn't load this match.</p>
+          <p className="font-body text-muted-foreground">Couldn&rsquo;t load this match.</p>
         )}
       </div>
     );

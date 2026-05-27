@@ -46,7 +46,7 @@ export default function TopicRoute() {
             <Link to="/radar" className="label-sc text-vermillion">← Back to radar</Link>
           </div>
         ) : (
-          <p className="font-body text-muted-foreground">Couldn't load this topic.</p>
+          <p className="font-body text-muted-foreground">Couldn&rsquo;t load this topic.</p>
         )}
       </div>
     );

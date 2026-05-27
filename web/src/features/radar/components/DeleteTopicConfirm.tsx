@@ -29,7 +29,7 @@ export function DeleteTopicConfirm({
       <AlertDialogContent className="paper-surface">
         <AlertDialogHeader>
           <AlertDialogTitle className="display-tight text-2xl">
-            Delete topic "{topicName}"?
+            Delete topic &ldquo;{topicName}&rdquo;?
           </AlertDialogTitle>
           <AlertDialogDescription className="font-body text-muted-foreground">
             All matches for this topic will be removed. Findings are kept.

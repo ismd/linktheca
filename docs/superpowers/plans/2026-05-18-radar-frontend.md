@@ -3537,7 +3537,7 @@ git commit -m "feat(radar/web): wire radar routes, enable sidebar nav, mount dia
 **Files:**
 - None modified
 
-- [ ] **Step 1: Run full Go test suite**
+- [x] **Step 1: Run full Go test suite**
 
 ```bash
 cd /home/ismd/coding/linktheca
@@ -3546,7 +3546,7 @@ go test ./... -count=1
 
 Expected: ALL PASS.
 
-- [ ] **Step 2: Run full web test suite**
+- [x] **Step 2: Run full web test suite**
 
 ```bash
 cd /home/ismd/coding/linktheca/web
@@ -3555,7 +3555,7 @@ npm test -- --run
 
 Expected: ALL PASS.
 
-- [ ] **Step 3: Lint web**
+- [x] **Step 3: Lint web**
 
 ```bash
 cd /home/ismd/coding/linktheca/web
