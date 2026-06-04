@@ -3564,7 +3564,7 @@ npm run lint
 
 Expected: clean (or only pre-existing warnings).
 
-- [ ] **Step 4: Manual smoke in browser**
+- [x] **Step 4: Manual smoke in browser**
 
 Boot dev environment (Go server + web dev server + radar enabled). Then walk through:
 
@@ -3580,7 +3580,7 @@ Boot dev environment (Go server + web dev server + radar enabled). Then walk thr
 10. Stop the embedder (or set `LINKTHECA_EMBEDDER_URL` to something invalid), try to create a topic → toast "Embedder is currently unavailable…", dialog stays open with data preserved.
 11. Restart server with `LINKTHECA_RADAR_ENABLED=false`. Open `/radar` → "Radar is disabled in this instance." Sidebar still shows Radar entry.
 
-- [ ] **Step 5: Mark plan complete**
+- [x] **Step 5: Mark plan complete**
 
 If all manual checks pass, the feature is ready for review. Push the branch and open a PR referencing the spec `docs/superpowers/specs/2026-05-18-radar-frontend-design.md`.
 
