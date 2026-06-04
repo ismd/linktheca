@@ -8,7 +8,7 @@ import {
   type UpdateTopicInput,
 } from "./api";
 import { radarKeys } from "./use-radar";
-import type { TopicWithStats } from "./types";
+import type { Topic, TopicWithStats } from "./types";
 
 type UpdateArgs = { id: number; input: UpdateTopicInput };
 
@@ -29,7 +29,7 @@ export function useCreateTopic() {
 
 export function useUpdateTopic() {
   const qc = useQueryClient();
-  return useMutation<TopicWithStats, Error, UpdateArgs, RollbackCtx>({
+  return useMutation<Topic, Error, UpdateArgs, RollbackCtx>({
     mutationFn: ({ id, input }) => updateTopic(id, input),
     onMutate: async ({ id, input }) => {
       await qc.cancelQueries({ queryKey: radarKeys.topics });

@@ -1,16 +1,19 @@
 import { apiFetch } from "@/shared/api/client";
 import {
   RawTopicsListSchema,
+  RawTopicSchema,
   RawTopicWithStatsSchema,
   RawMatchListSchema,
   RawMatchViewSchema,
   RawRadarStatusSchema,
+  mapTopic,
   mapTopicWithStats,
   mapMatchList,
   mapMatchView,
   mapRadarStatus,
 } from "./schemas";
 import type {
+  Topic,
   TopicWithStats,
   MatchList,
   MatchView,
@@ -42,7 +45,7 @@ export type CreateTopicInput = {
   matchThreshold?: number;
 };
 
-export async function createTopic(input: CreateTopicInput): Promise<TopicWithStats> {
+export async function createTopic(input: CreateTopicInput): Promise<Topic> {
   const body: Record<string, unknown> = {
     name: input.name,
     description: input.description,
@@ -52,7 +55,7 @@ export async function createTopic(input: CreateTopicInput): Promise<TopicWithSta
     method: "POST",
     body: JSON.stringify(body),
   });
-  return mapTopicWithStats(parseInDev(RawTopicWithStatsSchema, raw));
+  return mapTopic(parseInDev(RawTopicSchema, raw));
 }
 
 export type UpdateTopicInput = {
@@ -65,7 +68,7 @@ export type UpdateTopicInput = {
 export async function updateTopic(
   id: number,
   input: UpdateTopicInput,
-): Promise<TopicWithStats> {
+): Promise<Topic> {
   const body: Record<string, unknown> = {};
   if (input.name !== undefined) body.name = input.name;
   if (input.description !== undefined) body.description = input.description;
@@ -75,7 +78,7 @@ export async function updateTopic(
     method: "PATCH",
     body: JSON.stringify(body),
   });
-  return mapTopicWithStats(parseInDev(RawTopicWithStatsSchema, raw));
+  return mapTopic(parseInDev(RawTopicSchema, raw));
 }
 
 export async function deleteTopic(id: number): Promise<void> {

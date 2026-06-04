@@ -103,6 +103,27 @@ describe("useUpdateTopic (optimistic isActive toggle)", () => {
 
     resolve(HttpResponse.json(rawTopic(1, { is_active: false })));
   });
+
+  it("resolves when backend returns a bare topic without stats", async () => {
+    // Real backend PATCH /radar/topics/{id} returns a bare Topic (no stats),
+    // matching the Library convention. The mutation must not error on it.
+    const bare = rawTopic(1, { is_active: false }) as Record<string, unknown>;
+    delete bare.stats;
+    server.use(http.patch("/api/radar/topics/1", () => HttpResponse.json(bare)));
+
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUpdateTopic(), { wrapper });
+
+    let caught: unknown;
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({ id: 1, input: { isActive: false } });
+      } catch (e) {
+        caught = e;
+      }
+    });
+    expect(caught).toBeUndefined();
+  });
 });
 
 describe("useDeleteTopic", () => {

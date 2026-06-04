@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type {
+  Topic,
   TopicWithStats,
   MatchView,
   MatchList,
@@ -13,7 +14,7 @@ export const RawTopicStatsSchema = z.object({
   last_match_at: z.string().nullable(),
 });
 
-export const RawTopicWithStatsSchema = z.object({
+export const RawTopicSchema = z.object({
   id: z.number().int(),
   user_id: z.number().int(),
   name: z.string(),
@@ -23,6 +24,9 @@ export const RawTopicWithStatsSchema = z.object({
   has_embedding: z.boolean(),
   created_at: z.string(),
   updated_at: z.string(),
+});
+
+export const RawTopicWithStatsSchema = RawTopicSchema.extend({
   stats: RawTopicStatsSchema,
 });
 
@@ -60,10 +64,11 @@ export const RawRadarStatusSchema = z.object({
   last_sweep_at: z.string().nullable(),
 });
 
+export type RawTopic = z.infer<typeof RawTopicSchema>;
 export type RawTopicWithStats = z.infer<typeof RawTopicWithStatsSchema>;
 export type RawMatchView = z.infer<typeof RawMatchViewSchema>;
 
-export function mapTopicWithStats(raw: RawTopicWithStats): TopicWithStats {
+export function mapTopic(raw: RawTopic): Topic {
   return {
     id: raw.id,
     userId: raw.user_id,
@@ -74,6 +79,12 @@ export function mapTopicWithStats(raw: RawTopicWithStats): TopicWithStats {
     hasEmbedding: raw.has_embedding,
     createdAt: new Date(raw.created_at),
     updatedAt: new Date(raw.updated_at),
+  };
+}
+
+export function mapTopicWithStats(raw: RawTopicWithStats): TopicWithStats {
+  return {
+    ...mapTopic(raw),
     stats: {
       newCount: raw.stats.new_count,
       totalCount: raw.stats.total_count,
