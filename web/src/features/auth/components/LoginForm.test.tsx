@@ -63,7 +63,7 @@ describe("LoginForm", () => {
     server.use(
       http.post("/api/auth/login", () =>
         HttpResponse.json(
-          { code: "invalid_credentials", message: "bad" },
+          { error: "invalid_credentials", message: "bad" },
           { status: 401 },
         ),
       ),
@@ -81,7 +81,7 @@ describe("LoginForm", () => {
   it("on 5xx: shows 'Service unavailable'", async () => {
     server.use(
       http.post("/api/auth/login", () =>
-        HttpResponse.json({ code: "internal", message: "boom" }, { status: 500 }),
+        HttpResponse.json({ error: "internal", message: "boom" }, { status: 500 }),
       ),
     );
 

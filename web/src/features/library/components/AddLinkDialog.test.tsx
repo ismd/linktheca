@@ -87,7 +87,7 @@ describe("AddLinkDialog", () => {
     server.use(
       http.post("/api/library", () =>
         HttpResponse.json(
-          { code: "already_saved", message: "already" },
+          { error: "already_saved", message: "already" },
           { status: 409 },
         ),
       ),
@@ -104,7 +104,7 @@ describe("AddLinkDialog", () => {
   it("on 5xx: shows generic error", async () => {
     server.use(
       http.post("/api/library", () =>
-        HttpResponse.json({ code: "internal", message: "x" }, { status: 500 }),
+        HttpResponse.json({ error: "internal", message: "x" }, { status: 500 }),
       ),
     );
     useAddLinkStore.getState().open();

@@ -123,5 +123,7 @@ export function mapMatchList(raw: z.infer<typeof RawMatchListSchema>): MatchList
 }
 
 export function mapRadarStatus(raw: z.infer<typeof RawRadarStatusSchema>): RadarStatus {
-  return { lastSweepAt: raw.last_sweep_at ? new Date(raw.last_sweep_at) : null };
+  return {
+    lastSweepAt: raw.last_sweep_at ? new Date(raw.last_sweep_at) : null,
+  };
 }

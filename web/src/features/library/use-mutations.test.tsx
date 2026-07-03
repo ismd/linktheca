@@ -124,7 +124,7 @@ describe("useUpdateItem (optimistic favorite)", () => {
   it("rolls back optimistic update on failure", async () => {
     server.use(
       http.patch("/api/library/1", () =>
-        HttpResponse.json({ code: "internal", message: "boom" }, { status: 500 }),
+        HttpResponse.json({ error: "internal", message: "boom" }, { status: 500 }),
       ),
     );
 

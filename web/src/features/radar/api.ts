@@ -25,6 +25,7 @@ function parseInDev<T>(schema: { parse: (x: unknown) => T }, data: unknown): T {
   if (import.meta.env.DEV || import.meta.env.MODE === "test") {
     return schema.parse(data);
   }
+
   return data as T;
 }
 

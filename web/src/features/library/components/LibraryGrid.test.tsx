@@ -104,7 +104,7 @@ describe("LibraryGrid", () => {
   it("shows ErrorPanel with retry on failure", async () => {
     server.use(
       http.get("/api/library", () =>
-        HttpResponse.json({ code: "internal", message: "boom" }, { status: 500 }),
+        HttpResponse.json({ error: "internal", message: "boom" }, { status: 500 }),
       ),
     );
     render(<LibraryGrid filters={{}} />, { wrapper: wrapper() });

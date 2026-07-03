@@ -39,8 +39,8 @@ describe("AboutSection", () => {
     server.use(
       http.get("/api/radar/status", () =>
         HttpResponse.json(
-          { code: "radar_disabled", message: "radar feature is disabled on this server" },
-          { status: 501 },
+          { error: "radar_disabled", message: "radar feature is disabled on this server" },
+          { status: 403 },
         )),
     );
     render(<AboutSection />, { wrapper: wrapper() });

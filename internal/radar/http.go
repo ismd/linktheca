@@ -42,9 +42,10 @@ func (h *HTTP) createTopic(w http.ResponseWriter, r *http.Request) {
 }
 
 // DisabledHandler is mounted on /radar/* when LINKTHECA_RADAR_ENABLED=false.
-// Returns 501 with a stable error code so the CLI can produce a useful message.
+// Returns 403 (the feature is implemented but administratively disabled, not
+// unimplemented) with a stable error code so clients can show a useful message.
 func DisabledHandler(w http.ResponseWriter, _ *http.Request) {
-	httpx.WriteError(w, http.StatusNotImplemented, "radar_disabled", "radar feature is disabled on this server")
+	httpx.WriteError(w, http.StatusForbidden, "radar_disabled", "radar feature is disabled on this server")
 }
 
 func writeRadarError(w http.ResponseWriter, err error) {

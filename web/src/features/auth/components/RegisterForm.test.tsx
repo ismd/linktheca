@@ -71,7 +71,7 @@ describe("RegisterForm", () => {
     server.use(
       http.post("/api/auth/register", () =>
         HttpResponse.json(
-          { code: "email_taken", message: "taken" },
+          { error: "email_taken", message: "taken" },
           { status: 409 },
         ),
       ),
@@ -90,7 +90,7 @@ describe("RegisterForm", () => {
     server.use(
       http.post("/api/auth/register", () =>
         HttpResponse.json(
-          { code: "registration_disabled", message: "off" },
+          { error: "registration_disabled", message: "off" },
           { status: 403 },
         ),
       ),

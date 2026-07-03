@@ -133,7 +133,7 @@ func TestIntegrationRegistrationDisabled(t *testing.T) {
 	resp.Body.Close()
 }
 
-func TestRadarDisabled_Returns501OnAnyRoute(t *testing.T) {
+func TestRadarDisabled_Returns403OnAnyRoute(t *testing.T) {
 	cfg := &config.Config{
 		HTTPAddr:     ":0",
 		JWTSecret:    "test-secret-at-least-32-bytes-long-for-hmac",
@@ -153,7 +153,7 @@ func TestRadarDisabled_Returns501OnAnyRoute(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader("{}"))
 		rec := httptest.NewRecorder()
 		srv.Handler.ServeHTTP(rec, req)
-		require.Equal(t, http.StatusNotImplemented, rec.Code, "path %s", path)
+		require.Equal(t, http.StatusForbidden, rec.Code, "path %s", path)
 		require.Contains(t, rec.Body.String(), "radar_disabled")
 	}
 }

@@ -11,10 +11,10 @@ describe("apiFetch", () => {
     server.use(
       http.get("/api/echo", () => HttpResponse.json({ ok: true })),
       http.get("/api/forbidden", () =>
-        HttpResponse.json({ code: "forbidden", message: "Nope" }, { status: 403 }),
+        HttpResponse.json({ error: "forbidden", message: "Nope" }, { status: 403 }),
       ),
       http.get("/api/server-error", () =>
-        HttpResponse.json({ code: "internal", message: "Boom" }, { status: 500 }),
+        HttpResponse.json({ error: "internal", message: "Boom" }, { status: 500 }),
       ),
       http.get("/api/no-json", () => new HttpResponse("plain text", { status: 502 })),
     );
@@ -83,7 +83,7 @@ describe("apiFetch refresh-on-401", () => {
   it("does NOT attempt refresh when no refresh token is stored", async () => {
     server.use(
       http.get("/api/protected", () =>
-        HttpResponse.json({ code: "unauthorized", message: "no" }, { status: 401 }),
+        HttpResponse.json({ error: "unauthorized", message: "no" }, { status: 401 }),
       ),
     );
     await expect(apiFetch("/protected")).rejects.toMatchObject({ status: 401 });
@@ -114,7 +114,7 @@ describe("apiFetch refresh-on-401", () => {
         protectedHits++;
         const auth = request.headers.get("Authorization");
         if (auth === "Bearer a-new") return HttpResponse.json({ ok: true });
-        return HttpResponse.json({ code: "unauthorized", message: "no" }, { status: 401 });
+        return HttpResponse.json({ error: "unauthorized", message: "no" }, { status: 401 });
       }),
     );
 
@@ -147,12 +147,12 @@ describe("apiFetch refresh-on-401", () => {
       http.get("/api/a", ({ request }) =>
         request.headers.get("Authorization") === "Bearer a-new"
           ? HttpResponse.json({ which: "a" })
-          : HttpResponse.json({ code: "u", message: "u" }, { status: 401 }),
+          : HttpResponse.json({ error: "u", message: "u" }, { status: 401 }),
       ),
       http.get("/api/b", ({ request }) =>
         request.headers.get("Authorization") === "Bearer a-new"
           ? HttpResponse.json({ which: "b" })
-          : HttpResponse.json({ code: "u", message: "u" }, { status: 401 }),
+          : HttpResponse.json({ error: "u", message: "u" }, { status: 401 }),
       ),
     );
 
@@ -169,10 +169,10 @@ describe("apiFetch refresh-on-401", () => {
     writeRefreshToken("r-bad");
     server.use(
       http.post("/api/auth/refresh", () =>
-        HttpResponse.json({ code: "invalid_refresh", message: "no" }, { status: 401 }),
+        HttpResponse.json({ error: "invalid_refresh", message: "no" }, { status: 401 }),
       ),
       http.get("/api/protected", () =>
-        HttpResponse.json({ code: "unauthorized", message: "no" }, { status: 401 }),
+        HttpResponse.json({ error: "unauthorized", message: "no" }, { status: 401 }),
       ),
     );
 
@@ -187,7 +187,7 @@ describe("apiFetch refresh-on-401", () => {
     server.use(
       http.post("/api/auth/refresh", () => {
         refreshHits++;
-        return HttpResponse.json({ code: "x", message: "x" }, { status: 401 });
+        return HttpResponse.json({ error: "x", message: "x" }, { status: 401 });
       }),
     );
 

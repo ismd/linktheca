@@ -88,11 +88,12 @@ export async function apiFetch<T>(
   if (ct.includes("application/json")) {
     try {
       const body = (await res.json()) as {
-        code?: string;
+        error?: string;
         message?: string;
         details?: unknown;
       };
-      if (typeof body.code === "string") code = body.code;
+      // Backend error envelope is { error, message } (see internal/core/httpx).
+      if (typeof body.error === "string") code = body.error;
       if (typeof body.message === "string") message = body.message;
       details = body.details;
     } catch {

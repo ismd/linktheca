@@ -92,11 +92,11 @@ func TestHTTP_CreateTopic_503_EmbedderDown(t *testing.T) {
 	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
 }
 
-func TestHTTP_DisabledHandler_501(t *testing.T) {
+func TestHTTP_DisabledHandler_403(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/radar/topics", nil)
 	radar.DisabledHandler(rec, req)
-	require.Equal(t, http.StatusNotImplemented, rec.Code)
+	require.Equal(t, http.StatusForbidden, rec.Code)
 	require.Contains(t, rec.Body.String(), "radar_disabled")
 }
 

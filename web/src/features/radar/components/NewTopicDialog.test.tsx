@@ -63,7 +63,7 @@ describe("NewTopicDialog", () => {
     server.use(
       http.post("/api/radar/topics", () =>
         HttpResponse.json(
-          { code: "embedder_unavailable", message: "embedding service is unavailable" },
+          { error: "embedder_unavailable", message: "embedding service is unavailable" },
           { status: 503 },
         )),
     );

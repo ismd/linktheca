@@ -47,7 +47,7 @@ describe("useBootstrap", () => {
             updated_at: "2026-01-01T00:00:00Z",
           });
         }
-        return HttpResponse.json({ code: "u", message: "u" }, { status: 401 });
+        return HttpResponse.json({ error: "u", message: "u" }, { status: 401 });
       }),
     );
 
@@ -63,10 +63,10 @@ describe("useBootstrap", () => {
     writeRefreshToken("r-bad");
     server.use(
       http.post("/api/auth/refresh", () =>
-        HttpResponse.json({ code: "x", message: "x" }, { status: 401 }),
+        HttpResponse.json({ error: "x", message: "x" }, { status: 401 }),
       ),
       http.get("/api/auth/me", () =>
-        HttpResponse.json({ code: "u", message: "u" }, { status: 401 }),
+        HttpResponse.json({ error: "u", message: "u" }, { status: 401 }),
       ),
     );
 

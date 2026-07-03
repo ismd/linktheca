@@ -71,7 +71,7 @@ describe("EditTopicDialog", () => {
     server.use(
       http.patch("/api/radar/topics/7", () =>
         HttpResponse.json(
-          { code: "embedder_unavailable", message: "embedding service is unavailable" },
+          { error: "embedder_unavailable", message: "embedding service is unavailable" },
           { status: 503 },
         )),
     );

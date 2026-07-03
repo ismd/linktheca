@@ -44,7 +44,7 @@ describe("auth api", () => {
     server.use(
       http.post("/api/auth/login", () =>
         HttpResponse.json(
-          { code: "invalid_credentials", message: "bad creds" },
+          { error: "invalid_credentials", message: "bad creds" },
           { status: 401 },
         ),
       ),
