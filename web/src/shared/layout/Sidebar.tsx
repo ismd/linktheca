@@ -1,5 +1,6 @@
 import { NavLink } from "react-router";
 import { cn } from "@/shared/lib/cn";
+import { APP_VERSION } from "@/shared/version";
 
 const navItems = [
   { to: "/library", label: "Library", number: "01" },
@@ -38,7 +39,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="px-6 py-4 border-t border-rule">
-        <p className="label-sc text-muted-foreground">v0.1.0 · self-hosted</p>
+        <p className="label-sc text-muted-foreground">v{APP_VERSION} · self-hosted</p>
       </div>
     </aside>
   );
