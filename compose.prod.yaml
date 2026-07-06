@@ -11,14 +11,14 @@ services:
 
   tei:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
+    restart: unless-stopped
     command: ["--model-id", "BAAI/bge-m3", "--port", "8080"]
     volumes:
       - linktheca_tei_data:/data
 
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/ismd/linktheca-backend:${LINKTHECA_TAG:-latest}
+    restart: unless-stopped
     depends_on:
       - postgres
       - tei
@@ -30,9 +30,8 @@ services:
       - "8080"
 
   web:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
+    image: ghcr.io/ismd/linktheca-web:${LINKTHECA_TAG:-latest}
+    restart: unless-stopped
     depends_on:
       - backend
     ports:

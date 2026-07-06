@@ -1,0 +1,27 @@
+# VCS & CI
+.git
+.github
+
+# Prebuilt / local artifacts
+/bin
+/tmp
+/linktheca-server
+*.test
+*.out
+coverage.out
+
+# Frontend (built via web/Dockerfile)
+web
+
+# Non-build assets
+prototype
+docs
+.claude
+
+# Env & editor
+.env
+.env.*
+.idea
+.vscode
+*.swp
+.DS_Store

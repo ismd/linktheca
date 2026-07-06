@@ -1,0 +1,15 @@
+# Local build override. CI (.github/workflows/release.yml) publishes these
+# images to GHCR; use this only to build/test the exact artifacts locally:
+#
+#   docker compose -f compose.prod.yaml -f compose.build.yaml build
+#
+# It tags the images with the same GHCR names compose.prod.yaml expects.
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
