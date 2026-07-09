@@ -1,0 +1,21 @@
+# Copy to /etc/caddy/Caddyfile on the server and replace the domain below.
+#
+# Prerequisites:
+#   - DNS A/AAAA record for the domain points at this server
+#   - ports 80 and 443 are open in the firewall
+#   - the compose stack runs with `web` bound to 127.0.0.1:8080 (see compose.prod.yaml)
+#
+# Caddy obtains and renews TLS certificates automatically.
+
+{
+	# Email for Let's Encrypt / ZeroSSL expiry notices (optional but recommended).
+	# email you@example.com
+}
+
+linktheca.example.com {
+	encode zstd gzip
+
+	# The `web` container (nginx) already serves the SPA and proxies /api to the
+	# backend, so Caddy just forwards everything to it.
+	reverse_proxy 127.0.0.1:8080
+}

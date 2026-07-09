@@ -44,8 +44,10 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    # Bound to loopback only; a host reverse proxy (Caddy) terminates TLS and
+    # proxies here. Use "80:80" instead to expose the app directly over HTTP.
     ports:
-      - "80:80"
+      - "127.0.0.1:8080:80"
 
 volumes:
   linktheca_pg_data:
