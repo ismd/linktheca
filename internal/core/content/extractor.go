@@ -43,7 +43,7 @@ func (e *readabilityExtractor) Extract(ctx context.Context, rawURL string) (*Art
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}
-	req.Header.Set("User-Agent", "Linktheca/1.0")
+	req.Header.Set("User-Agent", "Linktheca/0.1")
 
 	resp, err := e.client.Do(req)
 	if err != nil {
