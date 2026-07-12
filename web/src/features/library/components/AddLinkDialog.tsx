@@ -148,7 +148,7 @@ export function AddLinkDialog() {
         <DialogHeader>
           <DialogTitle className="display-tight text-3xl">Add a link</DialogTitle>
           <DialogDescription className="label-sc text-muted-foreground">
-            Paste a URL — we&apos;ll fetch and save the article.
+            Paste a URL — fetch and save the article
           </DialogDescription>
         </DialogHeader>
 
