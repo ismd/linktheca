@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ismd/linktheca/internal/core/content"
 )
@@ -32,9 +33,9 @@ func NewService(store StoreAPI, extractor content.Extractor) *Service {
 func (s *Service) SaveURL(ctx context.Context, userID int64, rawURL string) (*Item, error) {
 	var params UpsertContentParams
 
-	article, extractErr := s.extractor.Extract(ctx, rawURL)
-	if extractErr != nil {
-		errMsg := extractErr.Error()
+	article, err := s.extractor.Extract(ctx, rawURL)
+	if err != nil {
+		errMsg := err.Error()
 		params = UpsertContentParams{
 			URL:        rawURL,
 			FetchError: &errMsg,
@@ -49,6 +50,11 @@ func (s *Service) SaveURL(ctx context.Context, userID int64, rawURL string) (*It
 			Text:            nilIfEmpty(article.Text),
 			HTML:            nilIfEmpty(article.HTML),
 			Lang:            nilIfEmpty(article.Lang),
+			ImageURL:        nilIfEmpty(article.ImageURL),
+			Favicon:         nilIfEmpty(article.Favicon),
+			SiteName:        nilIfEmpty(article.SiteName),
+			PublishedTime:   nilIfZeroTime(article.PublishedTime),
+			ModifiedTime:    nilIfZeroTime(article.ModifiedTime),
 			ReadingTimeSecs: nilIfZero(article.ReadingTimeSecs),
 		}
 	}
@@ -62,6 +68,8 @@ func (s *Service) SaveURL(ctx context.Context, userID int64, rawURL string) (*It
 	if err != nil {
 		return nil, err
 	}
+
+	// FIXME download image and favicon
 
 	return item, nil
 }
@@ -116,4 +124,12 @@ func nilIfZero(n int) *int {
 	}
 
 	return &n
+}
+
+func nilIfZeroTime(t time.Time) *time.Time {
+	if t.IsZero() {
+		return nil
+	}
+
+	return &t
 }

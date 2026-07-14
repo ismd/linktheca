@@ -19,6 +19,11 @@ type Article struct {
 	Text             string
 	HTML             string
 	Lang             string
+	ImageURL         string
+	Favicon          string
+	SiteName         string
+	PublishedTime    time.Time
+	ModifiedTime     time.Time
 	ReadingTimeSecs  int
 }
 
@@ -72,6 +77,16 @@ func (e *readabilityExtractor) Extract(ctx context.Context, rawURL string) (*Art
 	}
 	text := textBuf.String()
 
+	publishedTime, err := doc.PublishedTime()
+	if err != nil {
+		publishedTime = time.Time{}
+	}
+
+	modifiedTime, err := doc.ModifiedTime()
+	if err != nil {
+		modifiedTime = time.Time{}
+	}
+
 	return &Article{
 		URL:             rawURL,
 		CanonicalURL:    "",
@@ -81,6 +96,11 @@ func (e *readabilityExtractor) Extract(ctx context.Context, rawURL string) (*Art
 		Text:            text,
 		HTML:            htmlBuf.String(),
 		Lang:            doc.Language(),
+		ImageURL:        doc.ImageURL(),
+		Favicon:         doc.Favicon(),
+		SiteName:        doc.SiteName(),
+		PublishedTime:   publishedTime,
+		ModifiedTime:    modifiedTime,
 		ReadingTimeSecs: EstimateReadingTime(text),
 	}, nil
 }
