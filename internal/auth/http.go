@@ -18,7 +18,6 @@ func NewHTTP(svc *Service, issuer *coreauth.JWTIssuer) *HTTP {
 	return &HTTP{svc: svc, issuer: issuer}
 }
 
-
 // RegisterHandler returns the http.HandlerFunc for POST /auth/register.
 func (h *HTTP) RegisterHandler() http.HandlerFunc { return h.register }
 

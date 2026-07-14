@@ -28,32 +28,32 @@ type mockStore struct {
 	updateEmbErr   error
 
 	// Read-API recording / overrides:
-	listTopicsResult   []radar.TopicWithStats
-	listTopicsErr      error
-	getTopicResult     *radar.TopicWithStats
-	getTopicErr        error
-	updateTopicResult  *radar.Topic
-	updateTopicErr     error
-	updateTopicCalled  bool
-	updateTopicParams  radar.UpdateTopicParams
-	deleteTopicErr     error
-	deleteTopicCalled  bool
-	listMatchesResult  []radar.MatchView
-	listMatchesTotal   int
-	listMatchesErr     error
-	listMatchesCalled  bool
-	listMatchesParams  radar.ListMatchesParams
-	updateMatchErr     error
-	updateMatchCalled  bool
-	updateMatchState   string
-	lastSweepResult    *time.Time
-	lastSweepErr       error
-	listFeedsResult    []radar.Feed
-	listFeedsTotal     int
-	listFeedsErr       error
-	getMatchResult     *radar.MatchView
-	getMatchErr        error
-	getMatchCalled     bool
+	listTopicsResult  []radar.TopicWithStats
+	listTopicsErr     error
+	getTopicResult    *radar.TopicWithStats
+	getTopicErr       error
+	updateTopicResult *radar.Topic
+	updateTopicErr    error
+	updateTopicCalled bool
+	updateTopicParams radar.UpdateTopicParams
+	deleteTopicErr    error
+	deleteTopicCalled bool
+	listMatchesResult []radar.MatchView
+	listMatchesTotal  int
+	listMatchesErr    error
+	listMatchesCalled bool
+	listMatchesParams radar.ListMatchesParams
+	updateMatchErr    error
+	updateMatchCalled bool
+	updateMatchState  string
+	lastSweepResult   *time.Time
+	lastSweepErr      error
+	listFeedsResult   []radar.Feed
+	listFeedsTotal    int
+	listFeedsErr      error
+	getMatchResult    *radar.MatchView
+	getMatchErr       error
+	getMatchCalled    bool
 }
 
 func newMockStore() *mockStore {

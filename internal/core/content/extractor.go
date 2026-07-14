@@ -11,20 +11,20 @@ import (
 )
 
 type Article struct {
-	URL              string
-	CanonicalURL     string
-	Title            string
-	Byline           string
-	Excerpt          string
-	Text             string
-	HTML             string
-	Lang             string
-	ImageURL         string
-	Favicon          string
-	SiteName         string
-	PublishedTime    time.Time
-	ModifiedTime     time.Time
-	ReadingTimeSecs  int
+	URL             string
+	CanonicalURL    string
+	Title           string
+	Byline          string
+	Excerpt         string
+	Text            string
+	HTML            string
+	Lang            string
+	ImageURL        string
+	Favicon         string
+	SiteName        string
+	PublishedTime   time.Time
+	ModifiedTime    time.Time
+	ReadingTimeSecs int
 }
 
 type Extractor interface {

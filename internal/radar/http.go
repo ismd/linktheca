@@ -66,8 +66,8 @@ func writeRadarError(w http.ResponseWriter, err error) {
 	}
 }
 
-func (h *HTTP) AddFeedHandler() http.HandlerFunc    { return h.addFeed }
-func (h *HTTP) SubscribeHandler() http.HandlerFunc  { return h.subscribe }
+func (h *HTTP) AddFeedHandler() http.HandlerFunc   { return h.addFeed }
+func (h *HTTP) SubscribeHandler() http.HandlerFunc { return h.subscribe }
 
 func (h *HTTP) addFeed(w http.ResponseWriter, r *http.Request) {
 	var req AddFeedRequest

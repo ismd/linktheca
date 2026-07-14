@@ -4,23 +4,23 @@ import "time"
 
 // ArticleContent is the shared content cache entry
 type ArticleContent struct {
-	ID               int64      `json:"id"`
-	URL              string     `json:"url"`
-	CanonicalURL     *string    `json:"canonical_url,omitempty"`
-	Title            *string    `json:"title,omitempty"`
-	Byline           *string    `json:"byline,omitempty"`
-	Excerpt          *string    `json:"excerpt,omitempty"`
-	Text             *string    `json:"text,omitempty"`
-	HTML             *string    `json:"html,omitempty"`
-	Lang             *string    `json:"lang,omitempty"`
-	ImageURL         *string    `json:"image_url,omitempty"`
-	Favicon          *string    `json:"favicon,omitempty"`
-	SiteName         *string    `json:"site_name,omitempty"`
-	PublishedTime    *time.Time `json:"published_time,omitempty"`
-	ModifiedTime     *time.Time `json:"modified_time,omitempty"`
-	ReadingTimeSecs  *int       `json:"reading_time_seconds,omitempty"`
-	FetchedAt        time.Time  `json:"fetched_at"`
-	FetchError       *string    `json:"fetch_error,omitempty"`
+	ID              int64      `json:"id"`
+	URL             string     `json:"url"`
+	CanonicalURL    *string    `json:"canonical_url,omitempty"`
+	Title           *string    `json:"title,omitempty"`
+	Byline          *string    `json:"byline,omitempty"`
+	Excerpt         *string    `json:"excerpt,omitempty"`
+	Text            *string    `json:"text,omitempty"`
+	HTML            *string    `json:"html,omitempty"`
+	Lang            *string    `json:"lang,omitempty"`
+	ImageURL        *string    `json:"image_url,omitempty"`
+	Favicon         *string    `json:"favicon,omitempty"`
+	SiteName        *string    `json:"site_name,omitempty"`
+	PublishedTime   *time.Time `json:"published_time,omitempty"`
+	ModifiedTime    *time.Time `json:"modified_time,omitempty"`
+	ReadingTimeSecs *int       `json:"reading_time_seconds,omitempty"`
+	FetchedAt       time.Time  `json:"fetched_at"`
+	FetchError      *string    `json:"fetch_error,omitempty"`
 }
 
 // Item is a user's saved article in the library
@@ -55,11 +55,11 @@ type UpdateRequest struct {
 
 // ListParams holds query parameters for GET /library
 type ListParams struct {
-	UserID    int64
-	State     string // empty = all states
-	Favorite  *bool  // nil = don't filter
-	Limit     int
-	Offset    int
+	UserID   int64
+	State    string // empty = all states
+	Favorite *bool  // nil = don't filter
+	Limit    int
+	Offset   int
 }
 
 // ListResult holds the paginated response for GET /library
