@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ismd/linktheca/internal/core/content"
+	"github.com/ismd/linktheca/internal/core/media"
 )
 
 type StoreAPI interface {
@@ -41,6 +42,12 @@ func (s *Service) SaveURL(ctx context.Context, userID int64, rawURL string) (*It
 			FetchError: &errMsg,
 		}
 	} else {
+		fetcher := media.NewFetcher()
+		image, err := fetcher.Fetch(ctx, article.ImageURL)
+		if err != nil {
+			return nil, fmt.Errorf("fetch image: %w", err)
+		}
+
 		params = UpsertContentParams{
 			URL:             article.URL,
 			CanonicalURL:    nilIfEmpty(article.CanonicalURL),
@@ -56,6 +63,7 @@ func (s *Service) SaveURL(ctx context.Context, userID int64, rawURL string) (*It
 			PublishedTime:   nilIfZeroTime(article.PublishedTime),
 			ModifiedTime:    nilIfZeroTime(article.ModifiedTime),
 			ReadingTimeSecs: nilIfZero(article.ReadingTimeSecs),
+			Image:           nilIfEmpty(image.Filename),
 		}
 	}
 
@@ -68,8 +76,6 @@ func (s *Service) SaveURL(ctx context.Context, userID int64, rawURL string) (*It
 	if err != nil {
 		return nil, err
 	}
-
-	// FIXME download image and favicon
 
 	return item, nil
 }

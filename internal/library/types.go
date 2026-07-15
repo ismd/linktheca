@@ -19,6 +19,7 @@ type ArticleContent struct {
 	PublishedTime   *time.Time `json:"published_time,omitempty"`
 	ModifiedTime    *time.Time `json:"modified_time,omitempty"`
 	ReadingTimeSecs *int       `json:"reading_time_seconds,omitempty"`
+	Image           *string    `json:"image,omitempty"`
 	FetchedAt       time.Time  `json:"fetched_at"`
 	FetchError      *string    `json:"fetch_error,omitempty"`
 }
