@@ -41,22 +41,24 @@ type UpsertContentParams struct {
 	PublishedTime   *time.Time
 	ModifiedTime    *time.Time
 	ReadingTimeSecs *int
+	Image           *string
 	FetchError      *string
 }
 
 // UpsertContent inserts a new article_contents row or returns the existing one if the URL already exists
 func (s *Store) UpsertContent(ctx context.Context, p UpsertContentParams) (*ArticleContent, error) {
 	row := s.db.QueryRow(ctx, `
-		INSERT INTO article_contents (url, canonical_url, title, byline, excerpt, text, html, lang, image_url, favicon, site_name, published_time, modified_time, reading_time_seconds, fetch_error)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		INSERT INTO article_contents (url, canonical_url, title, byline, excerpt, text, html, lang, image_url, favicon, site_name, published_time, modified_time, reading_time_seconds, image, fetch_error)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		ON CONFLICT (url) DO UPDATE SET
 			image_url      = COALESCE(EXCLUDED.image_url, article_contents.image_url),
 			favicon        = COALESCE(EXCLUDED.favicon, article_contents.favicon),
 			site_name      = COALESCE(EXCLUDED.site_name, article_contents.site_name),
 			published_time = COALESCE(EXCLUDED.published_time, article_contents.published_time),
-			modified_time  = COALESCE(EXCLUDED.modified_time, article_contents.modified_time)
-		RETURNING id, url, canonical_url, title, byline, excerpt, text, html, lang, image_url, favicon, site_name, published_time, modified_time, reading_time_seconds, fetched_at, fetch_error
-	`, p.URL, p.CanonicalURL, p.Title, p.Byline, p.Excerpt, p.Text, p.HTML, p.Lang, p.ImageURL, p.Favicon, p.SiteName, p.PublishedTime, p.ModifiedTime, p.ReadingTimeSecs, p.FetchError)
+			modified_time  = COALESCE(EXCLUDED.modified_time, article_contents.modified_time),
+                        image          = COALESCE(EXCLUDED.image, article_contents.image)
+		RETURNING id, url, canonical_url, title, byline, excerpt, text, html, lang, image_url, favicon, site_name, published_time, modified_time, reading_time_seconds, image, fetched_at, fetch_error
+	`, p.URL, p.CanonicalURL, p.Title, p.Byline, p.Excerpt, p.Text, p.HTML, p.Lang, p.ImageURL, p.Favicon, p.SiteName, p.PublishedTime, p.ModifiedTime, p.ReadingTimeSecs, p.Image, p.FetchError)
 
 	return scanContent(row)
 }
@@ -64,7 +66,7 @@ func (s *Store) UpsertContent(ctx context.Context, p UpsertContentParams) (*Arti
 // GetContentByURL returns the article_contents row for a URL, or ErrNotFound
 func (s *Store) GetContentByURL(ctx context.Context, url string) (*ArticleContent, error) {
 	row := s.db.QueryRow(ctx, `
-		SELECT id, url, canonical_url, title, byline, excerpt, text, html, lang, image_url, favicon, site_name, published_time, modified_time, reading_time_seconds, fetched_at, fetch_error
+		SELECT id, url, canonical_url, title, byline, excerpt, text, html, lang, image_url, favicon, site_name, published_time, modified_time, reading_time_seconds, image, fetched_at, fetch_error
 		FROM article_contents
 		WHERE url = $1
 	`, url)
@@ -107,7 +109,7 @@ func scanContent(row pgx.Row) (*ArticleContent, error) {
 
 	err := row.Scan(&c.ID, &c.URL, &c.CanonicalURL, &c.Title, &c.Byline,
 		&c.Excerpt, &c.Text, &c.HTML, &c.Lang, &c.ImageURL, &c.Favicon, &c.SiteName,
-		&c.PublishedTime, &c.ModifiedTime, &c.ReadingTimeSecs,
+		&c.PublishedTime, &c.ModifiedTime, &c.ReadingTimeSecs, &c.Image,
 		&c.FetchedAt, &c.FetchError)
 	if err != nil {
 		return nil, err

@@ -5,6 +5,7 @@
 *.out
 coverage.out
 /linktheca-server
+/media
 
 # Env and secrets
 .env
