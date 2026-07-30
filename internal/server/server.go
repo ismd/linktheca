@@ -14,6 +14,7 @@ import (
 	"github.com/ismd/linktheca/internal/core/content"
 	"github.com/ismd/linktheca/internal/core/embeddings"
 	"github.com/ismd/linktheca/internal/core/httpx"
+	"github.com/ismd/linktheca/internal/core/media"
 	"github.com/ismd/linktheca/internal/library"
 	"github.com/ismd/linktheca/internal/radar"
 	"github.com/jackc/pgx/v5"
@@ -53,7 +54,8 @@ func New(deps Deps) *http.Server {
 	// Library module
 	libStore := library.NewStore(deps.DB)
 	extractor := content.NewExtractor()
-	libSvc := library.NewService(libStore, extractor)
+	fetcher := media.NewFetcher()
+	libSvc := library.NewService(libStore, extractor, fetcher)
 	libHTTP := library.NewHTTP(libSvc)
 
 	r := chi.NewRouter()
