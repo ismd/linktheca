@@ -42,10 +42,12 @@ func TestIntegrationFullLibraryFlow(t *testing.T) {
 	// Create test user
 	userID := createTestUser(t, pool)
 
-	// Build the library stack with real store and real extractor
+	// Build the library stack with real store and real extractor. The image
+	// fetcher stays mocked: a real one writes into the package directory,
+	// since its output path is a package-level constant in core/media.
 	store := library.NewStore(pool)
 	extractor := content.NewExtractor()
-	svc := library.NewService(store, extractor)
+	svc := library.NewService(store, extractor, newMockFetcher())
 
 	issuer := coreauth.NewJWTIssuer("test-secret-at-least-32-bytes-long-for-hmac", 15*time.Minute)
 	h := library.NewHTTP(svc)
@@ -144,7 +146,7 @@ func TestIntegrationSaveDuplicateURL(t *testing.T) {
 	userID := createTestUser(t, pool)
 	store := library.NewStore(pool)
 	extractor := content.NewExtractor()
-	svc := library.NewService(store, extractor)
+	svc := library.NewService(store, extractor, newMockFetcher())
 	issuer := coreauth.NewJWTIssuer("test-secret-at-least-32-bytes-long-for-hmac", 15*time.Minute)
 	h := library.NewHTTP(svc)
 

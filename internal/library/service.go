@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/ismd/linktheca/internal/core/content"
@@ -23,10 +24,11 @@ type StoreAPI interface {
 type Service struct {
 	store     StoreAPI
 	extractor content.Extractor
+	fetcher   media.Fetcher
 }
 
-func NewService(store StoreAPI, extractor content.Extractor) *Service {
-	return &Service{store: store, extractor: extractor}
+func NewService(store StoreAPI, extractor content.Extractor, fetcher media.Fetcher) *Service {
+	return &Service{store: store, extractor: extractor, fetcher: fetcher}
 }
 
 // SaveURL extracts content from the URL and saves it to the user's library.
@@ -42,10 +44,14 @@ func (s *Service) SaveURL(ctx context.Context, userID int64, rawURL string) (*It
 			FetchError: &errMsg,
 		}
 	} else {
-		fetcher := media.NewFetcher()
-		image, err := fetcher.Fetch(ctx, article.ImageURL)
-		if err != nil {
-			return nil, fmt.Errorf("fetch image: %w", err)
+		var imageFile string
+		if article.ImageURL != "" {
+			image, err := s.fetcher.Fetch(ctx, article.ImageURL)
+			if err != nil {
+				slog.WarnContext(ctx, "fetch preview image", "url", article.ImageURL, "err", err)
+			} else {
+				imageFile = image.Filename
+			}
 		}
 
 		params = UpsertContentParams{
@@ -63,7 +69,7 @@ func (s *Service) SaveURL(ctx context.Context, userID int64, rawURL string) (*It
 			PublishedTime:   nilIfZeroTime(article.PublishedTime),
 			ModifiedTime:    nilIfZeroTime(article.ModifiedTime),
 			ReadingTimeSecs: nilIfZero(article.ReadingTimeSecs),
-			Image:           nilIfEmpty(image.Filename),
+			Image:           nilIfEmpty(imageFile),
 		}
 	}
 

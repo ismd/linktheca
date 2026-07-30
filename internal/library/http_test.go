@@ -20,7 +20,8 @@ func setupHTTPTest(t *testing.T) (*chi.Mux, *coreauth.JWTIssuer) {
 
 	store := newMockStore()
 	ext := newMockExtractor()
-	svc := library.NewService(store, ext)
+	fetch := newMockFetcher()
+	svc := library.NewService(store, ext, fetch)
 
 	issuer := coreauth.NewJWTIssuer("test-secret-at-least-32-bytes-long-for-hmac", 15*time.Minute)
 	h := library.NewHTTP(svc)

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ismd/linktheca/internal/core/content"
+	"github.com/ismd/linktheca/internal/core/media"
 	"github.com/ismd/linktheca/internal/library"
 	"github.com/stretchr/testify/require"
 )
@@ -15,6 +16,7 @@ import (
 type mockStore struct {
 	contents   map[string]*library.ArticleContent
 	items      map[int64]*library.Item
+	upserts    []library.UpsertContentParams
 	nextCID    int64
 	nextItemID int64
 }
@@ -27,6 +29,8 @@ func newMockStore() *mockStore {
 }
 
 func (m *mockStore) UpsertContent(_ context.Context, p library.UpsertContentParams) (*library.ArticleContent, error) {
+	m.upserts = append(m.upserts, p)
+
 	if c, ok := m.contents[p.URL]; ok {
 		return c, nil
 	}
@@ -35,6 +39,7 @@ func (m *mockStore) UpsertContent(_ context.Context, p library.UpsertContentPara
 		ID:    m.nextCID,
 		URL:   p.URL,
 		Title: p.Title,
+		Image: p.Image,
 	}
 	m.contents[p.URL] = c
 
@@ -177,11 +182,38 @@ func (m *mockExtractor) Extract(_ context.Context, url string) (*content.Article
 	}
 
 	return &content.Article{
-		URL:   url,
-		Title: "Extracted: " + url,
-		Text:  "Some extracted text for " + url,
-		HTML:  "<p>Some extracted text for " + url + "</p>",
+		URL:      url,
+		Title:    "Extracted: " + url,
+		Text:     "Some extracted text for " + url,
+		HTML:     "<p>Some extracted text for " + url + "</p>",
+		ImageURL: url + "/og.png",
 	}, nil
+}
+
+// --- mock fetcher ---
+
+type mockFetcher struct {
+	results map[string]*media.Image
+	calls   []string
+	err     error
+}
+
+func newMockFetcher() *mockFetcher {
+	return &mockFetcher{results: make(map[string]*media.Image)}
+}
+
+func (m *mockFetcher) Fetch(_ context.Context, imageURL string) (*media.Image, error) {
+	m.calls = append(m.calls, imageURL)
+
+	if m.err != nil {
+		return nil, m.err
+	}
+
+	if img, ok := m.results[imageURL]; ok {
+		return img, nil
+	}
+
+	return &media.Image{Filename: "downloaded.png"}, nil
 }
 
 // --- tests ---
@@ -189,7 +221,8 @@ func (m *mockExtractor) Extract(_ context.Context, url string) (*content.Article
 func TestServiceSaveURL(t *testing.T) {
 	store := newMockStore()
 	ext := newMockExtractor()
-	svc := library.NewService(store, ext)
+	fetch := newMockFetcher()
+	svc := library.NewService(store, ext, fetch)
 
 	item, err := svc.SaveURL(context.Background(), 1, "https://example.com/article")
 	require.NoError(t, err)
@@ -198,10 +231,86 @@ func TestServiceSaveURL(t *testing.T) {
 	require.Equal(t, "unread", item.State)
 }
 
+func TestServiceSaveURLStoresDownloadedImage(t *testing.T) {
+	store := newMockStore()
+	ext := newMockExtractor()
+	fetch := newMockFetcher()
+	svc := library.NewService(store, ext, fetch)
+
+	ext.results["https://example.com/with-image"] = &content.Article{
+		URL:      "https://example.com/with-image",
+		Title:    "With image",
+		ImageURL: "https://cdn.example.com/preview.png",
+	}
+	fetch.results["https://cdn.example.com/preview.png"] = &media.Image{Filename: "a1b2c3.png"}
+
+	_, err := svc.SaveURL(context.Background(), 1, "https://example.com/with-image")
+	require.NoError(t, err)
+
+	// The og:image URL is what gets downloaded, not the article URL
+	require.Equal(t, []string{"https://cdn.example.com/preview.png"}, fetch.calls)
+
+	// The local filename is persisted alongside the original URL
+	require.Len(t, store.upserts, 1)
+	require.Equal(t, "a1b2c3.png", *store.upserts[0].Image)
+	require.Equal(t, "https://cdn.example.com/preview.png", *store.upserts[0].ImageURL)
+}
+
+func TestServiceSaveURLWithoutImage(t *testing.T) {
+	store := newMockStore()
+	ext := newMockExtractor()
+	fetch := newMockFetcher()
+	svc := library.NewService(store, ext, fetch)
+
+	ext.results["https://example.com/no-image"] = &content.Article{
+		URL:   "https://example.com/no-image",
+		Title: "No image",
+	}
+
+	// Most pages have no og:image; that must not stop us from saving them
+	item, err := svc.SaveURL(context.Background(), 1, "https://example.com/no-image")
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/no-image", item.URL)
+
+	require.Empty(t, fetch.calls, "nothing to download without an image URL")
+	require.Len(t, store.upserts, 1)
+	require.Nil(t, store.upserts[0].Image)
+}
+
+func TestServiceSaveURLImageFetchFailure(t *testing.T) {
+	store := newMockStore()
+	ext := newMockExtractor()
+	fetch := newMockFetcher()
+	fetch.err = errors.New("fetch: status 404")
+	svc := library.NewService(store, ext, fetch)
+
+	ext.results["https://example.com/broken-image"] = &content.Article{
+		URL:      "https://example.com/broken-image",
+		Title:    "Broken image",
+		Text:     "Article body",
+		ImageURL: "https://cdn.example.com/gone.png",
+	}
+
+	// The preview image is decoration: losing it must not lose the article
+	item, err := svc.SaveURL(context.Background(), 1, "https://example.com/broken-image")
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/broken-image", item.URL)
+
+	require.Len(t, store.upserts, 1)
+	saved := store.upserts[0]
+	require.Nil(t, saved.Image)
+	require.Equal(t, "Broken image", *saved.Title)
+	require.Equal(t, "Article body", *saved.Text)
+
+	// Extraction succeeded, so the record must not be marked as failed
+	require.Nil(t, saved.FetchError)
+}
+
 func TestServiceSaveURLDuplicate(t *testing.T) {
 	store := newMockStore()
 	ext := newMockExtractor()
-	svc := library.NewService(store, ext)
+	fetch := newMockFetcher()
+	svc := library.NewService(store, ext, fetch)
 
 	_, err := svc.SaveURL(context.Background(), 1, "https://example.com/dup")
 	require.NoError(t, err)
@@ -214,18 +323,23 @@ func TestServiceSaveURLExtractionFailure(t *testing.T) {
 	store := newMockStore()
 	ext := newMockExtractor()
 	ext.err = errors.New("network error")
-	svc := library.NewService(store, ext)
+	fetch := newMockFetcher()
+	svc := library.NewService(store, ext, fetch)
 
 	// Even if extraction fails, we still save the item with whatever we got (URL-only record with fetch_error)
 	item, err := svc.SaveURL(context.Background(), 1, "https://example.com/broken")
 	require.NoError(t, err)
 	require.Equal(t, "https://example.com/broken", item.URL)
+
+	// Nothing to download when there is no extracted article
+	require.Empty(t, fetch.calls)
 }
 
 func TestServiceList(t *testing.T) {
 	store := newMockStore()
 	ext := newMockExtractor()
-	svc := library.NewService(store, ext)
+	fetch := newMockFetcher()
+	svc := library.NewService(store, ext, fetch)
 
 	_, _ = svc.SaveURL(context.Background(), 1, "https://example.com/a")
 	_, _ = svc.SaveURL(context.Background(), 1, "https://example.com/b")
@@ -241,7 +355,8 @@ func TestServiceList(t *testing.T) {
 func TestServiceGetByID(t *testing.T) {
 	store := newMockStore()
 	ext := newMockExtractor()
-	svc := library.NewService(store, ext)
+	fetch := newMockFetcher()
+	svc := library.NewService(store, ext, fetch)
 
 	item, _ := svc.SaveURL(context.Background(), 1, "https://example.com/get")
 
@@ -253,7 +368,8 @@ func TestServiceGetByID(t *testing.T) {
 func TestServiceGetByIDNotFound(t *testing.T) {
 	store := newMockStore()
 	ext := newMockExtractor()
-	svc := library.NewService(store, ext)
+	fetch := newMockFetcher()
+	svc := library.NewService(store, ext, fetch)
 
 	_, err := svc.GetByID(context.Background(), 1, 999)
 	require.ErrorIs(t, err, library.ErrNotFound)
@@ -262,7 +378,8 @@ func TestServiceGetByIDNotFound(t *testing.T) {
 func TestServiceUpdate(t *testing.T) {
 	store := newMockStore()
 	ext := newMockExtractor()
-	svc := library.NewService(store, ext)
+	fetch := newMockFetcher()
+	svc := library.NewService(store, ext, fetch)
 
 	item, _ := svc.SaveURL(context.Background(), 1, "https://example.com/upd")
 
@@ -275,7 +392,8 @@ func TestServiceUpdate(t *testing.T) {
 func TestServiceUpdateInvalidState(t *testing.T) {
 	store := newMockStore()
 	ext := newMockExtractor()
-	svc := library.NewService(store, ext)
+	fetch := newMockFetcher()
+	svc := library.NewService(store, ext, fetch)
 
 	item, _ := svc.SaveURL(context.Background(), 1, "https://example.com/bad")
 
@@ -288,7 +406,8 @@ func TestServiceUpdateInvalidState(t *testing.T) {
 func TestServiceDelete(t *testing.T) {
 	store := newMockStore()
 	ext := newMockExtractor()
-	svc := library.NewService(store, ext)
+	fetch := newMockFetcher()
+	svc := library.NewService(store, ext, fetch)
 
 	item, _ := svc.SaveURL(context.Background(), 1, "https://example.com/del")
 
@@ -302,11 +421,16 @@ func TestServiceDelete(t *testing.T) {
 func TestServiceDeleteNotFound(t *testing.T) {
 	store := newMockStore()
 	ext := newMockExtractor()
-	svc := library.NewService(store, ext)
+	fetch := newMockFetcher()
+	svc := library.NewService(store, ext, fetch)
 
 	err := svc.Delete(context.Background(), 1, 999)
 	require.ErrorIs(t, err, library.ErrNotFound)
 }
 
-// compile-time interface check
-var _ library.StoreAPI = (*mockStore)(nil)
+// compile-time interface checks
+var (
+	_ library.StoreAPI  = (*mockStore)(nil)
+	_ content.Extractor = (*mockExtractor)(nil)
+	_ media.Fetcher     = (*mockFetcher)(nil)
+)
