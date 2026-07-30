@@ -24,7 +24,7 @@ Radar and any LLM features are guarded by independent flags; you can run Linkthe
 
 ```sh
 make dev-db          # start Postgres in Docker
-make run             # run the backend
+make dev-run         # run the backend
 cd web && npm run dev
 ```
 
