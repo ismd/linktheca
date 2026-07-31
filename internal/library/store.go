@@ -123,7 +123,7 @@ func scanContent(row pgx.Row) (*ArticleContent, error) {
 func (s *Store) GetItemByID(ctx context.Context, userID, itemID int64) (*Item, error) {
 	row := s.db.QueryRow(ctx, `
 		SELECT li.id, li.user_id, li.content_id, li.state, li.is_favorite, li.saved_at, li.read_at,
-		       ac.url, ac.title, ac.excerpt, ac.reading_time_seconds
+		       ac.url, ac.title, ac.excerpt, ac.reading_time_seconds, ac.image
 		FROM library_items li
 		JOIN article_contents ac ON ac.id = li.content_id
 		WHERE li.id = $1 AND li.user_id = $2
@@ -157,7 +157,7 @@ func (s *Store) ListItems(ctx context.Context, p ListParams) (*ListResult, error
 	// Fetch items page.
 	query := `
 		SELECT li.id, li.user_id, li.content_id, li.state, li.is_favorite, li.saved_at, li.read_at,
-		       ac.url, ac.title, ac.excerpt, ac.reading_time_seconds
+		       ac.url, ac.title, ac.excerpt, ac.reading_time_seconds, ac.image
 		FROM library_items li
 		JOIN article_contents ac ON ac.id = li.content_id
 		WHERE li.user_id = $1`
@@ -271,7 +271,7 @@ func scanItem(row pgx.Row) (*Item, error) {
 
 	err := row.Scan(&item.ID, &item.UserID, &item.ContentID, &item.State,
 		&item.IsFavorite, &item.SavedAt, &item.ReadAt,
-		&item.URL, &item.Title, &item.Excerpt, &item.ReadTimeSecs)
+		&item.URL, &item.Title, &item.Excerpt, &item.ReadTimeSecs, &item.Image)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -288,7 +288,7 @@ func scanItemFromRows(rows pgx.Rows) (*Item, error) {
 
 	err := rows.Scan(&item.ID, &item.UserID, &item.ContentID, &item.State,
 		&item.IsFavorite, &item.SavedAt, &item.ReadAt,
-		&item.URL, &item.Title, &item.Excerpt, &item.ReadTimeSecs)
+		&item.URL, &item.Title, &item.Excerpt, &item.ReadTimeSecs, &item.Image)
 
 	if err != nil {
 		return nil, err
@@ -301,10 +301,10 @@ func scanItemFromRows(rows pgx.Rows) (*Item, error) {
 func (s *Store) GetItemDetail(ctx context.Context, userID, itemID int64) (*ItemDetail, error) {
 	row := s.db.QueryRow(ctx, `
 		SELECT li.id, li.user_id, li.content_id, li.state, li.is_favorite, li.saved_at, li.read_at,
-		       ac.url, ac.title, ac.excerpt, ac.reading_time_seconds,
+		       ac.url, ac.title, ac.excerpt, ac.reading_time_seconds, ac.image,
 		       ac.id, ac.url, ac.canonical_url, ac.title, ac.byline, ac.excerpt, ac.text, ac.html,
 		       ac.lang, ac.image_url, ac.favicon, ac.site_name, ac.published_time, ac.modified_time,
-                       ac.reading_time_seconds, ac.fetched_at, ac.fetch_error
+		       ac.reading_time_seconds, ac.image, ac.fetched_at, ac.fetch_error
 		FROM library_items li
 		JOIN article_contents ac ON ac.id = li.content_id
 		WHERE li.id = $1 AND li.user_id = $2
@@ -313,12 +313,12 @@ func (s *Store) GetItemDetail(ctx context.Context, userID, itemID int64) (*ItemD
 	var d ItemDetail
 	err := row.Scan(
 		&d.ID, &d.UserID, &d.ContentID, &d.State, &d.IsFavorite, &d.SavedAt, &d.ReadAt,
-		&d.URL, &d.Title, &d.Excerpt, &d.ReadTimeSecs,
+		&d.URL, &d.Title, &d.Excerpt, &d.ReadTimeSecs, &d.Image,
 		&d.Content.ID, &d.Content.URL, &d.Content.CanonicalURL, &d.Content.Title,
 		&d.Content.Byline, &d.Content.Excerpt, &d.Content.Text, &d.Content.HTML,
 		&d.Content.Lang, &d.Content.ImageURL, &d.Content.Favicon, &d.Content.SiteName,
 		&d.Content.PublishedTime, &d.Content.ModifiedTime, &d.Content.ReadingTimeSecs,
-		&d.Content.FetchedAt, &d.Content.FetchError,
+		&d.Content.Image, &d.Content.FetchedAt, &d.Content.FetchError,
 	)
 
 	if err != nil {

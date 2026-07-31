@@ -40,6 +40,7 @@ type Item struct {
 	Title        *string `json:"title,omitempty"`
 	Excerpt      *string `json:"excerpt,omitempty"`
 	ReadTimeSecs *int    `json:"reading_time_seconds,omitempty"`
+	Image        *string `json:"image,omitempty"`
 }
 
 // SaveRequest is the payload for POST /library
