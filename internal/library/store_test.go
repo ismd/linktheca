@@ -157,6 +157,38 @@ func TestIntegrationListItems(t *testing.T) {
 	require.NotEmpty(t, result.Items[0].URL)
 }
 
+func TestIntegrationListItemsIncludesImage(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := library.NewStore(pool)
+	ctx := context.Background()
+
+	userID := createTestUser(t, pool)
+
+	c, err := store.UpsertContent(ctx, library.UpsertContentParams{
+		URL:   "https://example.com/list-image",
+		Title: ptr("With preview"),
+		Image: ptr("a1b2c3.png"),
+	})
+	require.NoError(t, err)
+	_, err = store.CreateItem(ctx, userID, c.ID)
+	require.NoError(t, err)
+
+	// Library cards render the downloaded preview, so the list must carry it
+	result, err := store.ListItems(ctx, library.ListParams{
+		UserID: userID,
+		Limit:  10,
+		Offset: 0,
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Items, 1)
+	require.NotNil(t, result.Items[0].Image)
+	require.Equal(t, "a1b2c3.png", *result.Items[0].Image)
+}
+
 func TestIntegrationListItemsByState(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -252,6 +284,30 @@ func TestIntegrationGetItemByID(t *testing.T) {
 	require.Equal(t, "https://example.com/get-me", got.URL)
 	require.NotNil(t, got.Title)
 	require.Equal(t, "Get Me", *got.Title)
+}
+
+func TestIntegrationGetItemByIDIncludesImage(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := library.NewStore(pool)
+	ctx := context.Background()
+
+	userID := createTestUser(t, pool)
+
+	content, _ := store.UpsertContent(ctx, library.UpsertContentParams{
+		URL:   "https://example.com/get-image",
+		Title: ptr("With preview"),
+		Image: ptr("a1b2c3.png"),
+	})
+	item, _ := store.CreateItem(ctx, userID, content.ID)
+
+	got, err := store.GetItemByID(ctx, userID, item.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got.Image)
+	require.Equal(t, "a1b2c3.png", *got.Image)
 }
 
 func TestIntegrationGetItemByIDNotFound(t *testing.T) {
@@ -406,4 +462,37 @@ func TestIntegrationGetItemDetail(t *testing.T) {
 	require.NotNil(t, detail.Content.Text)
 	require.Equal(t, "Full article text for reader view.", *detail.Content.Text)
 	require.NotNil(t, detail.Content.HTML)
+}
+
+func TestIntegrationGetItemDetailIncludesImage(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := library.NewStore(pool)
+	ctx := context.Background()
+
+	userID := createTestUser(t, pool)
+
+	content, _ := store.UpsertContent(ctx, library.UpsertContentParams{
+		URL:      "https://example.com/detail-image",
+		Title:    ptr("With preview"),
+		ImageURL: ptr("https://cdn.example.com/preview.png"),
+		Image:    ptr("a1b2c3.png"),
+	})
+	item, _ := store.CreateItem(ctx, userID, content.ID)
+
+	detail, err := store.GetItemDetail(ctx, userID, item.ID)
+	require.NoError(t, err)
+
+	// The reader reads the local file from the content block, next to the source URL
+	require.NotNil(t, detail.Content.Image)
+	require.Equal(t, "a1b2c3.png", *detail.Content.Image)
+	require.NotNil(t, detail.Content.ImageURL)
+	require.Equal(t, "https://cdn.example.com/preview.png", *detail.Content.ImageURL)
+
+	// The embedded item carries it too, like every other joined field
+	require.NotNil(t, detail.Image)
+	require.Equal(t, "a1b2c3.png", *detail.Image)
 }
