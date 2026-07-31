@@ -57,6 +57,57 @@ func TestFetchRejectsNonImage(t *testing.T) {
 	require.Empty(t, entries)
 }
 
+func TestFetchFaviconIsKeyedByHost(t *testing.T) {
+	var hits int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits++
+		_, _ = w.Write(pngBody)
+	}))
+	defer srv.Close()
+
+	dir := t.TempDir()
+	fetcher := media.NewFetcher(dir)
+
+	first, err := fetcher.FetchFavicon(context.Background(), "habr.com", srv.URL+"/icon.png")
+	require.NoError(t, err)
+	require.Equal(t, "habr.com.png", first.Filename)
+
+	saved := filepath.Join(media.FaviconsDir(dir), "habr.com.png")
+	body, err := os.ReadFile(saved)
+	require.NoError(t, err)
+	require.Equal(t, pngBody, body)
+	require.Equal(t, 1, hits)
+
+	// A second article from the same site reuses the stored file, even though it
+	// declares a different favicon URL — no second download
+	second, err := fetcher.FetchFavicon(context.Background(), "habr.com", srv.URL+"/other-icon.png")
+	require.NoError(t, err)
+	require.Equal(t, "habr.com.png", second.Filename)
+	require.Equal(t, 1, hits, "favicon must not be downloaded twice for the same host")
+
+	// A different site is fetched separately
+	other, err := fetcher.FetchFavicon(context.Background(), "example.com", srv.URL+"/icon.png")
+	require.NoError(t, err)
+	require.Equal(t, "example.com.png", other.Filename)
+	require.Equal(t, 2, hits)
+}
+
+func TestFetchFaviconRejectsUnusableHost(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(pngBody)
+	}))
+	defer srv.Close()
+
+	dir := t.TempDir()
+	fetcher := media.NewFetcher(dir)
+
+	// The host becomes a filename, so it must never carry path separators
+	for _, host := range []string{"", ".", "..", "../../etc/passwd", "host/../..", "a\\b"} {
+		_, err := fetcher.FetchFavicon(context.Background(), host, srv.URL+"/icon.png")
+		require.Error(t, err, "host %q", host)
+	}
+}
+
 func TestFetchRejectsNotFound(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)

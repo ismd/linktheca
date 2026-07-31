@@ -14,12 +14,13 @@ type ArticleContent struct {
 	HTML            *string    `json:"html,omitempty"`
 	Lang            *string    `json:"lang,omitempty"`
 	ImageURL        *string    `json:"image_url,omitempty"`
-	Favicon         *string    `json:"favicon,omitempty"`
+	FaviconURL      *string    `json:"favicon_url,omitempty"`
 	SiteName        *string    `json:"site_name,omitempty"`
 	PublishedTime   *time.Time `json:"published_time,omitempty"`
 	ModifiedTime    *time.Time `json:"modified_time,omitempty"`
 	ReadingTimeSecs *int       `json:"reading_time_seconds,omitempty"`
 	Image           *string    `json:"image,omitempty"`
+	Favicon         *string    `json:"favicon,omitempty"`
 	FetchedAt       time.Time  `json:"fetched_at"`
 	FetchError      *string    `json:"fetch_error,omitempty"`
 }
