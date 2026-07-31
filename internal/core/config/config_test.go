@@ -17,9 +17,12 @@ func TestLoadFromEnv(t *testing.T) {
 	t.Setenv("LINKTHECA_REGISTRATION_ENABLED", "false")
 	t.Setenv("LINKTHECA_LOG_LEVEL", "debug")
 	t.Setenv("LINKTHECA_LOG_FORMAT", "json")
+	t.Setenv("LINKTHECA_MEDIA_DIR", "/var/lib/linktheca/media")
 
 	cfg, err := config.Load()
 	require.NoError(t, err)
+
+	require.Equal(t, "/var/lib/linktheca/media", cfg.MediaDir)
 
 	require.Equal(t, ":9999", cfg.HTTPAddr)
 	require.Equal(t, "postgres://u:p@h:5432/db", cfg.DBDSN)
@@ -53,6 +56,7 @@ func TestLoadDefaults(t *testing.T) {
 	require.True(t, cfg.RegistrationEnabled)
 	require.Equal(t, "info", cfg.LogLevel)
 	require.Equal(t, "text", cfg.LogFormat)
+	require.Equal(t, "media", cfg.MediaDir)
 }
 
 func TestLoad_RadarDefaults(t *testing.T) {

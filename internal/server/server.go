@@ -3,6 +3,8 @@ package server
 import (
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -54,7 +56,7 @@ func New(deps Deps) *http.Server {
 	// Library module
 	libStore := library.NewStore(deps.DB)
 	extractor := content.NewExtractor()
-	fetcher := media.NewFetcher()
+	fetcher := media.NewFetcher(cfg.MediaDir)
 	libSvc := library.NewService(libStore, extractor, fetcher)
 	libHTTP := library.NewHTTP(libSvc)
 
@@ -76,6 +78,28 @@ func New(deps Deps) *http.Server {
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("ok"))
+	})
+
+	// Downloaded preview images, served straight off disk. Unauthenticated by
+	// design: filenames are random, and in the bundled deployment nginx serves
+	// this path from the shared volume without ever reaching us.
+	imagesDir := media.ImagesDir(cfg.MediaDir)
+	r.Get("/media/images/{name}", func(w http.ResponseWriter, r *http.Request) {
+		name := chi.URLParam(r, "name")
+		if name == "" || name != filepath.Base(name) {
+			http.NotFound(w, r)
+			return
+		}
+
+		path := filepath.Join(imagesDir, name)
+		if info, err := os.Stat(path); err != nil || info.IsDir() {
+			http.NotFound(w, r)
+			return
+		}
+
+		// A stored filename is never reused for different bytes
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		http.ServeFile(w, r, path)
 	})
 
 	// Auth — public (rate-limited)

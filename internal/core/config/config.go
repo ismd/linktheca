@@ -23,6 +23,9 @@ type Config struct {
 
 	CORSOrigins []string `env:"LINKTHECA_CORS_ORIGINS" envSeparator:","`
 
+	// MediaDir holds downloaded article assets. Images go to <MediaDir>/images.
+	MediaDir string `env:"LINKTHECA_MEDIA_DIR" envDefault:"media"`
+
 	TEIURL       string        `env:"LINKTHECA_TEI_URL" envDefault:"http://localhost:8081"`
 	TEITimeout   time.Duration `env:"LINKTHECA_TEI_TIMEOUT" envDefault:"30s"`
 	EmbeddingDim int           `env:"LINKTHECA_EMBEDDING_DIM" envDefault:"1024"`

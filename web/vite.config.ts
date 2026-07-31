@@ -18,6 +18,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""),
       },
+      // In production nginx serves these off the shared volume; in dev the
+      // backend serves them itself, at the same URL.
+      "/media": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
     },
   },
 });

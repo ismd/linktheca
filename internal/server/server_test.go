@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/ismd/linktheca/internal/auth"
 	"github.com/ismd/linktheca/internal/core/config"
 	"github.com/ismd/linktheca/internal/core/logging"
+	"github.com/ismd/linktheca/internal/core/media"
 	"github.com/ismd/linktheca/internal/server"
 	"github.com/ismd/linktheca/internal/testing/testdb"
 	"github.com/stretchr/testify/require"
@@ -155,5 +158,90 @@ func TestRadarDisabled_Returns403OnAnyRoute(t *testing.T) {
 		srv.Handler.ServeHTTP(rec, req)
 		require.Equal(t, http.StatusForbidden, rec.Code, "path %s", path)
 		require.Contains(t, rec.Body.String(), "radar_disabled")
+	}
+}
+
+// newMediaServer builds a server serving downloaded images out of mediaDir.
+func newMediaServer(t *testing.T, mediaDir string) *http.Server {
+	t.Helper()
+
+	srv := server.New(server.Deps{
+		Config: &config.Config{
+			HTTPAddr:     ":0",
+			JWTSecret:    "test-secret-at-least-32-bytes-long-for-hmac",
+			JWTAccessTTL: 15 * time.Minute,
+			MediaDir:     mediaDir,
+		},
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		DB:     nil, // not used when serving files off disk
+	})
+	t.Cleanup(func() { srv.Close() })
+
+	return srv
+}
+
+func TestMediaImageIsServedFromDisk(t *testing.T) {
+	mediaDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(media.ImagesDir(mediaDir), 0o755))
+
+	png := append([]byte("\x89PNG\r\n\x1a\n"), []byte("pixels")...)
+	require.NoError(t, os.WriteFile(filepath.Join(media.ImagesDir(mediaDir), "a1b2c3.png"), png, 0o644))
+
+	srv := newMediaServer(t, mediaDir)
+
+	// Previews are public — no Authorization header here
+	req := httptest.NewRequest(http.MethodGet, "/media/images/a1b2c3.png", nil)
+	rec := httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, png, rec.Body.Bytes())
+	require.Equal(t, "image/png", rec.Header().Get("Content-Type"))
+}
+
+func TestMediaImageMissingReturns404(t *testing.T) {
+	srv := newMediaServer(t, t.TempDir())
+
+	req := httptest.NewRequest(http.MethodGet, "/media/images/nope.png", nil)
+	rec := httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusNotFound, rec.Code)
+	// A missing file must not be cached as if it were an immutable asset
+	require.Empty(t, rec.Header().Get("Cache-Control"))
+}
+
+func TestMediaImagesAreNotBrowsable(t *testing.T) {
+	mediaDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(media.ImagesDir(mediaDir), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(media.ImagesDir(mediaDir), "secret.png"), []byte("x"), 0o644))
+
+	srv := newMediaServer(t, mediaDir)
+
+	// Listing the directory would leak every saved article's preview
+	for _, path := range []string{"/media/images/", "/media/images", "/media/"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		srv.Handler.ServeHTTP(rec, req)
+
+		require.NotEqual(t, http.StatusOK, rec.Code, "path %s", path)
+		require.NotContains(t, rec.Body.String(), "secret.png", "path %s", path)
+	}
+}
+
+func TestMediaImageRejectsTraversal(t *testing.T) {
+	mediaDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(media.ImagesDir(mediaDir), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(mediaDir, "outside.txt"), []byte("secret"), 0o644))
+
+	srv := newMediaServer(t, mediaDir)
+
+	for _, path := range []string{"/media/images/../outside.txt", "/media/images/..%2foutside.txt"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		srv.Handler.ServeHTTP(rec, req)
+
+		require.NotEqual(t, http.StatusOK, rec.Code, "path %s", path)
+		require.NotContains(t, rec.Body.String(), "secret", "path %s", path)
 	}
 }

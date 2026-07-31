@@ -14,9 +14,12 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go build -trimpath -buildvcs=false -ldflags="-s -w" \
         -o /out/linktheca-server ./cmd/linktheca-server
 
+RUN mkdir -p /out/media/images
+
 FROM gcr.io/distroless/static-debian13:nonroot
 
 COPY --from=build /out/linktheca-server /usr/local/bin/linktheca-server
+COPY --from=build --chown=65532:65532 /out/media /data/media
 
 EXPOSE 8080
 
