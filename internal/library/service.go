@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/ismd/linktheca/internal/core/content"
@@ -54,6 +56,18 @@ func (s *Service) SaveURL(ctx context.Context, userID int64, rawURL string) (*It
 			}
 		}
 
+		// Favicons are stored per site, so the key is the article's host rather
+		// than the icon URL, which often points at a CDN.
+		var faviconFile string
+		if host := siteHost(article.URL); host != "" && article.Favicon != "" {
+			favicon, err := s.fetcher.FetchFavicon(ctx, host, article.Favicon)
+			if err != nil {
+				slog.WarnContext(ctx, "fetch favicon", "host", host, "url", article.Favicon, "err", err)
+			} else {
+				faviconFile = favicon.Filename
+			}
+		}
+
 		params = UpsertContentParams{
 			URL:             article.URL,
 			CanonicalURL:    nilIfEmpty(article.CanonicalURL),
@@ -64,12 +78,13 @@ func (s *Service) SaveURL(ctx context.Context, userID int64, rawURL string) (*It
 			HTML:            nilIfEmpty(article.HTML),
 			Lang:            nilIfEmpty(article.Lang),
 			ImageURL:        nilIfEmpty(article.ImageURL),
-			Favicon:         nilIfEmpty(article.Favicon),
+			FaviconURL:      nilIfEmpty(article.Favicon),
 			SiteName:        nilIfEmpty(article.SiteName),
 			PublishedTime:   nilIfZeroTime(article.PublishedTime),
 			ModifiedTime:    nilIfZeroTime(article.ModifiedTime),
 			ReadingTimeSecs: nilIfZero(article.ReadingTimeSecs),
 			Image:           nilIfEmpty(imageFile),
+			Favicon:         nilIfEmpty(faviconFile),
 		}
 	}
 
@@ -120,6 +135,16 @@ func (s *Service) Delete(ctx context.Context, userID, itemID int64) error {
 // GetDetail returns a single library item with full article content for reader view
 func (s *Service) GetDetail(ctx context.Context, userID, itemID int64) (*ItemDetail, error) {
 	return s.store.GetItemDetail(ctx, userID, itemID)
+}
+
+// siteHost is the key a site's favicon is stored under.
+func siteHost(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+
+	return strings.ToLower(u.Hostname())
 }
 
 func nilIfEmpty(s string) *string {

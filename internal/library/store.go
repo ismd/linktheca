@@ -36,29 +36,31 @@ type UpsertContentParams struct {
 	HTML            *string
 	Lang            *string
 	ImageURL        *string
-	Favicon         *string
+	FaviconURL      *string
 	SiteName        *string
 	PublishedTime   *time.Time
 	ModifiedTime    *time.Time
 	ReadingTimeSecs *int
 	Image           *string
+	Favicon         *string
 	FetchError      *string
 }
 
 // UpsertContent inserts a new article_contents row or returns the existing one if the URL already exists
 func (s *Store) UpsertContent(ctx context.Context, p UpsertContentParams) (*ArticleContent, error) {
 	row := s.db.QueryRow(ctx, `
-		INSERT INTO article_contents (url, canonical_url, title, byline, excerpt, text, html, lang, image_url, favicon, site_name, published_time, modified_time, reading_time_seconds, image, fetch_error)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+		INSERT INTO article_contents (url, canonical_url, title, byline, excerpt, text, html, lang, image_url, favicon_url, site_name, published_time, modified_time, reading_time_seconds, image, favicon, fetch_error)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		ON CONFLICT (url) DO UPDATE SET
 			image_url      = COALESCE(EXCLUDED.image_url, article_contents.image_url),
-			favicon        = COALESCE(EXCLUDED.favicon, article_contents.favicon),
+			favicon_url    = COALESCE(EXCLUDED.favicon_url, article_contents.favicon_url),
 			site_name      = COALESCE(EXCLUDED.site_name, article_contents.site_name),
 			published_time = COALESCE(EXCLUDED.published_time, article_contents.published_time),
 			modified_time  = COALESCE(EXCLUDED.modified_time, article_contents.modified_time),
-                        image          = COALESCE(EXCLUDED.image, article_contents.image)
-		RETURNING id, url, canonical_url, title, byline, excerpt, text, html, lang, image_url, favicon, site_name, published_time, modified_time, reading_time_seconds, image, fetched_at, fetch_error
-	`, p.URL, p.CanonicalURL, p.Title, p.Byline, p.Excerpt, p.Text, p.HTML, p.Lang, p.ImageURL, p.Favicon, p.SiteName, p.PublishedTime, p.ModifiedTime, p.ReadingTimeSecs, p.Image, p.FetchError)
+			image          = COALESCE(EXCLUDED.image, article_contents.image),
+			favicon        = COALESCE(EXCLUDED.favicon, article_contents.favicon)
+		RETURNING id, url, canonical_url, title, byline, excerpt, text, html, lang, image_url, favicon_url, site_name, published_time, modified_time, reading_time_seconds, image, favicon, fetched_at, fetch_error
+	`, p.URL, p.CanonicalURL, p.Title, p.Byline, p.Excerpt, p.Text, p.HTML, p.Lang, p.ImageURL, p.FaviconURL, p.SiteName, p.PublishedTime, p.ModifiedTime, p.ReadingTimeSecs, p.Image, p.Favicon, p.FetchError)
 
 	return scanContent(row)
 }
@@ -66,7 +68,7 @@ func (s *Store) UpsertContent(ctx context.Context, p UpsertContentParams) (*Arti
 // GetContentByURL returns the article_contents row for a URL, or ErrNotFound
 func (s *Store) GetContentByURL(ctx context.Context, url string) (*ArticleContent, error) {
 	row := s.db.QueryRow(ctx, `
-		SELECT id, url, canonical_url, title, byline, excerpt, text, html, lang, image_url, favicon, site_name, published_time, modified_time, reading_time_seconds, image, fetched_at, fetch_error
+		SELECT id, url, canonical_url, title, byline, excerpt, text, html, lang, image_url, favicon_url, site_name, published_time, modified_time, reading_time_seconds, image, favicon, fetched_at, fetch_error
 		FROM article_contents
 		WHERE url = $1
 	`, url)
@@ -108,8 +110,8 @@ func scanContent(row pgx.Row) (*ArticleContent, error) {
 	var c ArticleContent
 
 	err := row.Scan(&c.ID, &c.URL, &c.CanonicalURL, &c.Title, &c.Byline,
-		&c.Excerpt, &c.Text, &c.HTML, &c.Lang, &c.ImageURL, &c.Favicon, &c.SiteName,
-		&c.PublishedTime, &c.ModifiedTime, &c.ReadingTimeSecs, &c.Image,
+		&c.Excerpt, &c.Text, &c.HTML, &c.Lang, &c.ImageURL, &c.FaviconURL, &c.SiteName,
+		&c.PublishedTime, &c.ModifiedTime, &c.ReadingTimeSecs, &c.Image, &c.Favicon,
 		&c.FetchedAt, &c.FetchError)
 	if err != nil {
 		return nil, err
@@ -303,8 +305,8 @@ func (s *Store) GetItemDetail(ctx context.Context, userID, itemID int64) (*ItemD
 		SELECT li.id, li.user_id, li.content_id, li.state, li.is_favorite, li.saved_at, li.read_at,
 		       ac.url, ac.title, ac.excerpt, ac.reading_time_seconds, ac.image,
 		       ac.id, ac.url, ac.canonical_url, ac.title, ac.byline, ac.excerpt, ac.text, ac.html,
-		       ac.lang, ac.image_url, ac.favicon, ac.site_name, ac.published_time, ac.modified_time,
-		       ac.reading_time_seconds, ac.image, ac.fetched_at, ac.fetch_error
+		       ac.lang, ac.image_url, ac.favicon_url, ac.site_name, ac.published_time, ac.modified_time,
+		       ac.reading_time_seconds, ac.image, ac.favicon, ac.fetched_at, ac.fetch_error
 		FROM library_items li
 		JOIN article_contents ac ON ac.id = li.content_id
 		WHERE li.id = $1 AND li.user_id = $2
@@ -316,9 +318,9 @@ func (s *Store) GetItemDetail(ctx context.Context, userID, itemID int64) (*ItemD
 		&d.URL, &d.Title, &d.Excerpt, &d.ReadTimeSecs, &d.Image,
 		&d.Content.ID, &d.Content.URL, &d.Content.CanonicalURL, &d.Content.Title,
 		&d.Content.Byline, &d.Content.Excerpt, &d.Content.Text, &d.Content.HTML,
-		&d.Content.Lang, &d.Content.ImageURL, &d.Content.Favicon, &d.Content.SiteName,
+		&d.Content.Lang, &d.Content.ImageURL, &d.Content.FaviconURL, &d.Content.SiteName,
 		&d.Content.PublishedTime, &d.Content.ModifiedTime, &d.Content.ReadingTimeSecs,
-		&d.Content.Image, &d.Content.FetchedAt, &d.Content.FetchError,
+		&d.Content.Image, &d.Content.Favicon, &d.Content.FetchedAt, &d.Content.FetchError,
 	)
 
 	if err != nil {

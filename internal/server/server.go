@@ -80,27 +80,17 @@ func New(deps Deps) *http.Server {
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	// Downloaded preview images, served straight off disk. Unauthenticated by
-	// design: filenames are random, and in the bundled deployment nginx serves
-	// this path from the shared volume without ever reaching us.
-	imagesDir := media.ImagesDir(cfg.MediaDir)
-	r.Get("/media/images/{name}", func(w http.ResponseWriter, r *http.Request) {
-		name := chi.URLParam(r, "name")
-		if name == "" || name != filepath.Base(name) {
-			http.NotFound(w, r)
-			return
-		}
-
-		path := filepath.Join(imagesDir, name)
-		if info, err := os.Stat(path); err != nil || info.IsDir() {
-			http.NotFound(w, r)
-			return
-		}
-
-		// A stored filename is never reused for different bytes
-		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-		http.ServeFile(w, r, path)
-	})
+	// Downloaded assets, served straight off disk. Unauthenticated by design: in
+	// the bundled deployment nginx serves these paths from the shared volume
+	// without ever reaching us.
+	//
+	// An image filename is random and never reused, so it can be cached forever.
+	// A favicon filename is the site's host and its content can change, so it
+	// gets an ordinary expiry instead.
+	r.Get("/media/images/{name}", serveMediaFile(
+		media.ImagesDir(cfg.MediaDir), "public, max-age=31536000, immutable"))
+	r.Get("/media/favicons/{name}", serveMediaFile(
+		media.FaviconsDir(cfg.MediaDir), "public, max-age=86400"))
 
 	// Auth — public (rate-limited)
 	r.Group(func(r chi.Router) {
@@ -168,4 +158,26 @@ func New(deps Deps) *http.Server {
 	}
 
 	return srv
+}
+
+// serveMediaFile serves a single downloaded file out of dir. Only a bare file
+// name is accepted, so the directory itself is never listed and no request can
+// escape dir.
+func serveMediaFile(dir, cacheControl string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := chi.URLParam(r, "name")
+		if name == "" || name != filepath.Base(name) {
+			http.NotFound(w, r)
+			return
+		}
+
+		path := filepath.Join(dir, name)
+		if info, err := os.Stat(path); err != nil || info.IsDir() {
+			http.NotFound(w, r)
+			return
+		}
+
+		w.Header().Set("Cache-Control", cacheControl)
+		http.ServeFile(w, r, path)
+	}
 }

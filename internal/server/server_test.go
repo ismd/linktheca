@@ -199,6 +199,42 @@ func TestMediaImageIsServedFromDisk(t *testing.T) {
 	require.Equal(t, "image/png", rec.Header().Get("Content-Type"))
 }
 
+func TestMediaFaviconIsServedFromDisk(t *testing.T) {
+	mediaDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(media.FaviconsDir(mediaDir), 0o755))
+
+	png := append([]byte("\x89PNG\r\n\x1a\n"), []byte("icon")...)
+	require.NoError(t, os.WriteFile(filepath.Join(media.FaviconsDir(mediaDir), "habr.com.png"), png, 0o644))
+
+	srv := newMediaServer(t, mediaDir)
+
+	req := httptest.NewRequest(http.MethodGet, "/media/favicons/habr.com.png", nil)
+	rec := httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, png, rec.Body.Bytes())
+	require.Equal(t, "image/png", rec.Header().Get("Content-Type"))
+}
+
+func TestMediaFaviconsAreNotBrowsable(t *testing.T) {
+	mediaDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(media.FaviconsDir(mediaDir), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(media.FaviconsDir(mediaDir), "habr.com.png"), []byte("x"), 0o644))
+
+	srv := newMediaServer(t, mediaDir)
+
+	// The listing would reveal every site the library has articles from
+	for _, path := range []string{"/media/favicons/", "/media/favicons"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		srv.Handler.ServeHTTP(rec, req)
+
+		require.NotEqual(t, http.StatusOK, rec.Code, "path %s", path)
+		require.NotContains(t, rec.Body.String(), "habr.com", "path %s", path)
+	}
+}
+
 func TestMediaImageMissingReturns404(t *testing.T) {
 	srv := newMediaServer(t, t.TempDir())
 

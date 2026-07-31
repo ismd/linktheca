@@ -193,9 +193,11 @@ func (m *mockExtractor) Extract(_ context.Context, url string) (*content.Article
 // --- mock fetcher ---
 
 type mockFetcher struct {
-	results map[string]*media.Image
-	calls   []string
-	err     error
+	results      map[string]*media.Image
+	calls        []string
+	err          error
+	faviconCalls []string
+	faviconErr   error
 }
 
 func newMockFetcher() *mockFetcher {
@@ -214,6 +216,16 @@ func (m *mockFetcher) Fetch(_ context.Context, imageURL string) (*media.Image, e
 	}
 
 	return &media.Image{Filename: "downloaded.png"}, nil
+}
+
+func (m *mockFetcher) FetchFavicon(_ context.Context, host, faviconURL string) (*media.Image, error) {
+	m.faviconCalls = append(m.faviconCalls, host+" "+faviconURL)
+
+	if m.faviconErr != nil {
+		return nil, m.faviconErr
+	}
+
+	return &media.Image{Filename: host + ".png"}, nil
 }
 
 // --- tests ---
@@ -254,6 +266,72 @@ func TestServiceSaveURLStoresDownloadedImage(t *testing.T) {
 	require.Len(t, store.upserts, 1)
 	require.Equal(t, "a1b2c3.png", *store.upserts[0].Image)
 	require.Equal(t, "https://cdn.example.com/preview.png", *store.upserts[0].ImageURL)
+}
+
+func TestServiceSaveURLStoresDownloadedFavicon(t *testing.T) {
+	store := newMockStore()
+	ext := newMockExtractor()
+	fetch := newMockFetcher()
+	svc := library.NewService(store, ext, fetch)
+
+	ext.results["https://blog.example.com/post"] = &content.Article{
+		URL:     "https://blog.example.com/post",
+		Title:   "With favicon",
+		Favicon: "https://cdn.example.com/icon.png",
+	}
+
+	_, err := svc.SaveURL(context.Background(), 1, "https://blog.example.com/post")
+	require.NoError(t, err)
+
+	// Keyed by the article's host, not by the CDN host serving the icon
+	require.Equal(t, []string{"blog.example.com https://cdn.example.com/icon.png"}, fetch.faviconCalls)
+
+	require.Len(t, store.upserts, 1)
+	require.Equal(t, "blog.example.com.png", *store.upserts[0].Favicon)
+	require.Equal(t, "https://cdn.example.com/icon.png", *store.upserts[0].FaviconURL)
+}
+
+func TestServiceSaveURLWithoutFavicon(t *testing.T) {
+	store := newMockStore()
+	ext := newMockExtractor()
+	fetch := newMockFetcher()
+	svc := library.NewService(store, ext, fetch)
+
+	ext.results["https://example.com/no-favicon"] = &content.Article{
+		URL:   "https://example.com/no-favicon",
+		Title: "No favicon",
+	}
+
+	// readability only picks PNG icons, so an empty Favicon is the common case
+	_, err := svc.SaveURL(context.Background(), 1, "https://example.com/no-favicon")
+	require.NoError(t, err)
+
+	require.Empty(t, fetch.faviconCalls)
+	require.Len(t, store.upserts, 1)
+	require.Nil(t, store.upserts[0].Favicon)
+}
+
+func TestServiceSaveURLFaviconFetchFailure(t *testing.T) {
+	store := newMockStore()
+	ext := newMockExtractor()
+	fetch := newMockFetcher()
+	fetch.faviconErr = errors.New("fetch: status 404")
+	svc := library.NewService(store, ext, fetch)
+
+	ext.results["https://example.com/broken-favicon"] = &content.Article{
+		URL:     "https://example.com/broken-favicon",
+		Title:   "Broken favicon",
+		Favicon: "https://example.com/icon.png",
+	}
+
+	// Same rule as the preview image: decoration must not cost us the article
+	_, err := svc.SaveURL(context.Background(), 1, "https://example.com/broken-favicon")
+	require.NoError(t, err)
+
+	require.Len(t, store.upserts, 1)
+	require.Nil(t, store.upserts[0].Favicon)
+	require.Equal(t, "Broken favicon", *store.upserts[0].Title)
+	require.Nil(t, store.upserts[0].FetchError)
 }
 
 func TestServiceSaveURLWithoutImage(t *testing.T) {

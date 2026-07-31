@@ -60,6 +60,32 @@ func TestIntegrationUpsertContentWithFetchError(t *testing.T) {
 	require.Equal(t, "connection refused", *c.FetchError)
 }
 
+func TestIntegrationUpsertContentStoresFavicon(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := library.NewStore(pool)
+	ctx := context.Background()
+
+	_, err := store.UpsertContent(ctx, library.UpsertContentParams{
+		URL:        "https://example.com/with-favicon",
+		Title:      ptr("With favicon"),
+		FaviconURL: ptr("https://cdn.example.com/icon.png"),
+		Favicon:    ptr("example.com.png"),
+	})
+	require.NoError(t, err)
+
+	// The source URL and the downloaded file are stored side by side
+	c, err := store.GetContentByURL(ctx, "https://example.com/with-favicon")
+	require.NoError(t, err)
+	require.NotNil(t, c.FaviconURL)
+	require.Equal(t, "https://cdn.example.com/icon.png", *c.FaviconURL)
+	require.NotNil(t, c.Favicon)
+	require.Equal(t, "example.com.png", *c.Favicon)
+}
+
 func TestIntegrationCreateItem(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -495,4 +521,32 @@ func TestIntegrationGetItemDetailIncludesImage(t *testing.T) {
 	// The embedded item carries it too, like every other joined field
 	require.NotNil(t, detail.Image)
 	require.Equal(t, "a1b2c3.png", *detail.Image)
+}
+
+func TestIntegrationGetItemDetailIncludesFavicon(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := library.NewStore(pool)
+	ctx := context.Background()
+
+	userID := createTestUser(t, pool)
+
+	content, _ := store.UpsertContent(ctx, library.UpsertContentParams{
+		URL:        "https://example.com/detail-favicon",
+		Title:      ptr("With favicon"),
+		FaviconURL: ptr("https://cdn.example.com/icon.png"),
+		Favicon:    ptr("example.com.png"),
+	})
+	item, _ := store.CreateItem(ctx, userID, content.ID)
+
+	detail, err := store.GetItemDetail(ctx, userID, item.ID)
+	require.NoError(t, err)
+
+	require.NotNil(t, detail.Content.Favicon)
+	require.Equal(t, "example.com.png", *detail.Content.Favicon)
+	require.NotNil(t, detail.Content.FaviconURL)
+	require.Equal(t, "https://cdn.example.com/icon.png", *detail.Content.FaviconURL)
 }
