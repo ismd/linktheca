@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { LibraryCard } from "./LibraryCard";
 import type { LibraryItem } from "../types";
@@ -15,6 +15,7 @@ const baseItem: LibraryItem = {
   title: "Example Title",
   excerpt: "Some short excerpt",
   readingTimeSeconds: 180,
+  image: null,
 };
 
 describe("LibraryCard", () => {
@@ -56,6 +57,43 @@ describe("LibraryCard", () => {
       </MemoryRouter>,
     );
     expect(screen.getByText(/✓ read/i)).toBeInTheDocument();
+  });
+
+  it("shows the downloaded preview image when the item has one", () => {
+    const { container } = render(
+      <MemoryRouter>
+        <LibraryCard item={{ ...baseItem, image: "a1b2c3.png" }} />
+      </MemoryRouter>,
+    );
+    const img = container.querySelector("img");
+    expect(img).toBeInTheDocument();
+    // Served off /media, not through the /api prefix
+    expect(img).toHaveAttribute("src", "/media/images/a1b2c3.png");
+    // Decorative: the title right below already names the article
+    expect(img).toHaveAttribute("alt", "");
+  });
+
+  it("renders no image element when the item has no preview", () => {
+    const { container } = render(
+      <MemoryRouter>
+        <LibraryCard item={baseItem} />
+      </MemoryRouter>,
+    );
+    expect(container.querySelector("img")).not.toBeInTheDocument();
+  });
+
+  it("drops a preview that fails to load, leaving the card intact", () => {
+    const { container } = render(
+      <MemoryRouter>
+        <LibraryCard item={{ ...baseItem, image: "missing.png" }} />
+      </MemoryRouter>,
+    );
+
+    const img = container.querySelector("img")!;
+    fireEvent.error(img);
+
+    expect(container.querySelector("img")).not.toBeInTheDocument();
+    expect(screen.getByText("Example Title")).toBeInTheDocument();
   });
 
   it("falls back to URL when title is null", () => {

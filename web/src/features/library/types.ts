@@ -11,6 +11,7 @@ export type LibraryItem = {
   title: string | null;
   excerpt: string | null;
   readingTimeSeconds: number | null;
+  image: string | null;
 };
 
 export type ArticleContent = {
@@ -24,6 +25,8 @@ export type ArticleContent = {
   html: string | null;
   lang: string | null;
   readingTimeSeconds: number | null;
+  image: string | null;
+  favicon: string | null;
   fetchedAt: Date;
   fetchError: string | null;
 };

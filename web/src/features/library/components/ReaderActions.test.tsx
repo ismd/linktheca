@@ -37,6 +37,7 @@ const itemBase: LibraryItem = {
   title: "T",
   excerpt: null,
   readingTimeSeconds: 60,
+  image: null,
 };
 
 beforeEach(() => {
