@@ -36,6 +36,11 @@ services:
       LINKTHECA_RADAR_SCHEDULER_INTERVAL: ${LINKTHECA_RADAR_SCHEDULER_INTERVAL:-5m}
       LINKTHECA_RADAR_MAX_WORKERS: ${LINKTHECA_RADAR_MAX_WORKERS:-5}
       LINKTHECA_CORS_ORIGINS: ${LINKTHECA_CORS_ORIGINS:-}
+      # Fixed on purpose: the web service serves this volume as static files,
+      # so the path cannot be changed on one side only.
+      LINKTHECA_MEDIA_DIR: /data/media
+    volumes:
+      - linktheca_media:/data/media
     expose:
       - "8080"
 
@@ -44,6 +49,8 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    volumes:
+      - linktheca_media:/srv/media:ro
     # Bound to loopback only; a host reverse proxy (Caddy) terminates TLS and
     # proxies here. Use "80:80" instead to expose the app directly over HTTP.
     ports:
@@ -52,3 +59,4 @@ services:
 volumes:
   linktheca_pg_data:
   linktheca_tei_data:
+  linktheca_media:

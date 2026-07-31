@@ -25,7 +25,6 @@ var allowedContentTypes = []string{
 }
 
 const maxImageSize = 10 * 1024 * 1024 // 10 MB
-const dir = "media/images"
 
 type Image struct {
 	Filename string
@@ -37,18 +36,27 @@ type Fetcher interface {
 
 type httpFetcher struct {
 	client *http.Client
+	dir    string
 }
 
-func NewFetcher() Fetcher {
+// NewFetcher returns a Fetcher saving images into <mediaDir>/images.
+func NewFetcher(mediaDir string) Fetcher {
 	return &httpFetcher{
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		dir: ImagesDir(mediaDir),
 	}
 }
 
+// ImagesDir is where downloaded images live under a media directory. The HTTP
+// layer serves this directory, so it resolves the path the same way.
+func ImagesDir(mediaDir string) string {
+	return filepath.Join(mediaDir, "images")
+}
+
 func (f *httpFetcher) Fetch(ctx context.Context, imageURL string) (*Image, error) {
-	err := os.MkdirAll(dir, 0755)
+	err := os.MkdirAll(f.dir, 0755)
 	if err != nil {
 		return nil, fmt.Errorf("mkdir: %w", err)
 	}
@@ -92,7 +100,7 @@ func (f *httpFetcher) Fetch(ctx context.Context, imageURL string) (*Image, error
 
 	ext := exts[0]
 
-	image, err := saveFile(ext, br)
+	image, err := f.saveFile(ext, br)
 	if err != nil {
 		return nil, fmt.Errorf("save: %w", err)
 	}
@@ -100,8 +108,8 @@ func (f *httpFetcher) Fetch(ctx context.Context, imageURL string) (*Image, error
 	return image, nil
 }
 
-func saveFile(ext string, br *bufio.Reader) (*Image, error) {
-	file, err := os.CreateTemp(dir, "*"+ext+".tmp")
+func (f *httpFetcher) saveFile(ext string, br *bufio.Reader) (*Image, error) {
+	file, err := os.CreateTemp(f.dir, "*"+ext+".tmp")
 	if err != nil {
 		return nil, fmt.Errorf("create temp file: %w", err)
 	}
