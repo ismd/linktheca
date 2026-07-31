@@ -111,6 +111,47 @@ describe("library api", () => {
     expect(detail.content.fetchedAt).toBeInstanceOf(Date);
   });
 
+  it("maps the downloaded image and favicon file names", async () => {
+    server.use(
+      http.get("/api/library", () =>
+        HttpResponse.json({
+          items: [rawItem({ image: "a1b2c3.png" })],
+          total: 1,
+        }),
+      ),
+      http.get("/api/library/7/content", () =>
+        HttpResponse.json({
+          ...rawItem({ id: 7, image: "a1b2c3.png" }),
+          content: {
+            id: 99,
+            url: "https://example.com/a",
+            fetched_at: "2026-05-10T12:00:00Z",
+            image: "a1b2c3.png",
+            favicon: "example.com.png",
+          },
+        }),
+      ),
+    );
+
+    const page = await listLibrary({ limit: 20, offset: 0 });
+    expect(page.items[0]!.image).toBe("a1b2c3.png");
+
+    const detail = await getLibraryDetail(7);
+    expect(detail.content.image).toBe("a1b2c3.png");
+    expect(detail.content.favicon).toBe("example.com.png");
+  });
+
+  it("leaves image and favicon null when the backend omits them", async () => {
+    server.use(
+      http.get("/api/library", () =>
+        HttpResponse.json({ items: [rawItem()], total: 1 }),
+      ),
+    );
+
+    const page = await listLibrary({ limit: 20, offset: 0 });
+    expect(page.items[0]!.image).toBeNull();
+  });
+
   it("saveLink POSTs { url } and returns mapped item", async () => {
     let captured: { url: string } | null = null;
     server.use(

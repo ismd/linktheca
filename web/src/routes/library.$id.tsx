@@ -7,7 +7,7 @@ import { ReaderHeader } from "@/features/library/components/ReaderHeader";
 import { ReaderActions } from "@/features/library/components/ReaderActions";
 import { ErrorPanel } from "@/features/library/components/ErrorPanel";
 import { useMarkReadOnScroll } from "@/features/library/components/useMarkReadOnScroll";
-import { gradientClassFor } from "@/features/library/image";
+import { ReaderHero } from "@/features/library/components/ReaderHero";
 import { ApiError } from "@/shared/api/errors";
 
 function LoadingState() {
@@ -91,9 +91,7 @@ export default function LibraryItemRoute() {
 
         <ReaderHeader detail={d} />
 
-        <div
-          className={`${gradientClassFor(d.id)} relative overflow-hidden w-full h-[280px] md:h-[360px] mb-10`}
-        />
+        <ReaderHero id={d.id} image={d.content.image ?? d.image} />
 
         {fetchFailed ? (
           <div className="border border-rule bg-paper-2 px-5 py-6">

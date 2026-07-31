@@ -1,6 +1,7 @@
 import { Link } from "react-router";
+import { useState } from "react";
 import { Star } from "lucide-react";
-import { gradientClassFor } from "../image";
+import { gradientClassFor, previewImageUrl } from "../image";
 import { relativeFromNow, readingTimeLabel } from "../time";
 import type { LibraryItem } from "../types";
 
@@ -19,6 +20,8 @@ function host(url: string): string {
 export function LibraryCard({ item }: Props) {
   const title = item.title ?? item.url;
   const isRead = item.state === "read";
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = Boolean(item.image) && !imageFailed;
   return (
     <Link
       to={`/library/${item.id}`}
@@ -30,6 +33,22 @@ export function LibraryCard({ item }: Props) {
           className={`${gradientClassFor(item.id)} relative overflow-hidden mb-5`}
           style={{ aspectRatio: "16 / 10" }}
         >
+          {showImage && (
+            <>
+              <img
+                src={previewImageUrl(item.image!)}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                onError={() => setImageFailed(true)}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              {/* The gradients are dark by design; a real photo may not be, so
+                  the reading-time label needs its own footing. */}
+              <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/70 to-transparent" />
+            </>
+          )}
+
           <div className="absolute top-3 left-3 flex gap-2">
             <span
               className={`stamp bg-paper/95 stamp-flat ${

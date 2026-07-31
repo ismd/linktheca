@@ -17,6 +17,7 @@ export const RawItemSchema = z.object({
   title: z.string().nullable().optional(),
   excerpt: z.string().nullable().optional(),
   reading_time_seconds: z.number().int().nullable().optional(),
+  image: z.string().nullable().optional(),
 });
 
 export const RawContentSchema = z.object({
@@ -30,6 +31,8 @@ export const RawContentSchema = z.object({
   html: z.string().nullable().optional(),
   lang: z.string().nullable().optional(),
   reading_time_seconds: z.number().int().nullable().optional(),
+  image: z.string().nullable().optional(),
+  favicon: z.string().nullable().optional(),
   fetched_at: z.string(),
   fetch_error: z.string().nullable().optional(),
 });
@@ -63,6 +66,7 @@ export function mapItem(raw: RawItem): LibraryItem {
     title: nn(raw.title),
     excerpt: nn(raw.excerpt),
     readingTimeSeconds: nn(raw.reading_time_seconds),
+    image: nn(raw.image),
   };
 }
 
@@ -78,6 +82,8 @@ export function mapContent(raw: z.infer<typeof RawContentSchema>): ArticleConten
     html: nn(raw.html),
     lang: nn(raw.lang),
     readingTimeSeconds: nn(raw.reading_time_seconds),
+    image: nn(raw.image),
+    favicon: nn(raw.favicon),
     fetchedAt: new Date(raw.fetched_at),
     fetchError: nn(raw.fetch_error),
   };

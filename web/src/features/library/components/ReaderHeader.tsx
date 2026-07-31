@@ -1,3 +1,4 @@
+import { faviconUrl } from "../image";
 import { relativeFromNow, readingTimeLabel } from "../time";
 import type { LibraryItemDetail } from "../types";
 
@@ -27,7 +28,18 @@ export function ReaderHeader({ detail }: Props) {
             <span className="not-italic text-ink">{detail.content.byline}</span>
           </span>
         )}
-        <span>{host(detail.url)}</span>
+        <span className="inline-flex items-center gap-1.5">
+          {detail.content.favicon && (
+            <img
+              src={faviconUrl(detail.content.favicon)}
+              alt=""
+              width={16}
+              height={16}
+              className="h-4 w-4 shrink-0 rounded-[2px]"
+            />
+          )}
+          {host(detail.url)}
+        </span>
         <span>{relativeFromNow(detail.savedAt)}</span>
         <span>{readingTimeLabel(detail.content.readingTimeSeconds ?? detail.readingTimeSeconds)}</span>
       </div>
