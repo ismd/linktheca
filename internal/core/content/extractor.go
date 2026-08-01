@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -96,13 +97,31 @@ func (e *readabilityExtractor) Extract(ctx context.Context, rawURL string) (*Art
 		Text:            text,
 		HTML:            htmlBuf.String(),
 		Lang:            doc.Language(),
-		ImageURL:        doc.ImageURL(),
+		ImageURL:        absoluteURL(doc.ImageURL(), resp.Request.URL),
 		Favicon:         doc.Favicon(),
 		SiteName:        doc.SiteName(),
 		PublishedTime:   publishedTime,
 		ModifiedTime:    modifiedTime,
 		ReadingTimeSecs: EstimateReadingTime(text),
 	}, nil
+}
+
+// absoluteURL resolves ref against base. Readability rewrites the URLs inside
+// the article body, but leaves metadata such as og:image exactly as the page
+// wrote it, so a site declaring <meta property="og:image" content="/img.png">
+// hands us a path we cannot download. An unparsable ref is returned untouched
+// and fails later at download time, where the error is already reported.
+func absoluteURL(ref string, base *url.URL) string {
+	if ref == "" || base == nil {
+		return ref
+	}
+
+	parsed, err := url.Parse(ref)
+	if err != nil {
+		return ref
+	}
+
+	return base.ResolveReference(parsed).String()
 }
 
 // EstimateReadingTime returns estimated reading time in seconds

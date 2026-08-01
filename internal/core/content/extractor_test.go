@@ -48,6 +48,60 @@ func TestExtractFromURL(t *testing.T) {
 	require.NotEmpty(t, result.HTML)
 }
 
+// articleHTMLWithImage builds a page whose og:image holds the given, possibly
+// relative, URL. Readability leaves metadata URLs untouched, so the extractor
+// has to resolve them against the page itself.
+func articleHTMLWithImage(image string) string {
+	return strings.Replace(testHTML,
+		"<head><title>Test Article</title></head>",
+		`<head><title>Test Article</title>`+
+			`<meta property="og:image" content="`+image+`"></head>`, 1)
+}
+
+func TestExtractResolvesImageURL(t *testing.T) {
+	tests := map[string]struct {
+		image string
+		want  func(base string) string
+	}{
+		"root relative": {
+			image: "/uploads/preview.svg",
+			want:  func(base string) string { return base + "/uploads/preview.svg" },
+		},
+		"path relative": {
+			image: "preview.png",
+			want:  func(base string) string { return base + "/article/preview.png" },
+		},
+		"protocol relative": {
+			image: "//cdn.example.com/preview.png",
+			want:  func(string) string { return "http://cdn.example.com/preview.png" },
+		},
+		"already absolute": {
+			image: "https://cdn.example.com/preview.png",
+			want:  func(string) string { return "https://cdn.example.com/preview.png" },
+		},
+		"empty": {
+			image: "",
+			want:  func(string) string { return "" },
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				_, _ = w.Write([]byte(articleHTMLWithImage(tt.image)))
+			}))
+			defer srv.Close()
+
+			ext := content.NewExtractor()
+			result, err := ext.Extract(context.Background(), srv.URL+"/article/post")
+
+			require.NoError(t, err)
+			require.Equal(t, tt.want(srv.URL), result.ImageURL)
+		})
+	}
+}
+
 func TestExtractFromURLFetchError(t *testing.T) {
 	ext := content.NewExtractor()
 	_, err := ext.Extract(context.Background(), "http://127.0.0.1:1/nonexistent")
