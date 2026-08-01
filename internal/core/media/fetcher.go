@@ -181,6 +181,11 @@ func saveFile(dir, baseName, ext string, br *bufio.Reader) (*Image, error) {
 		}
 	}()
 
+	err = file.Chmod(0644)
+	if err != nil {
+		return nil, fmt.Errorf("chmod: %w", err)
+	}
+
 	n, err := io.Copy(file, br)
 	if err != nil {
 		return nil, fmt.Errorf("copy: %w", err)

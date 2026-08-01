@@ -39,6 +39,33 @@ func TestFetchWritesUnderConfiguredDir(t *testing.T) {
 	require.NoDirExists(t, "media")
 }
 
+// In the bundled deployment the backend writes these files and a separate nginx
+// container, running under a different user, reads them off the shared volume.
+// The default 0600 of a temp file would make every asset a 403 there.
+func TestFetchWritesWorldReadableFiles(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(pngBody)
+	}))
+	defer srv.Close()
+
+	dir := t.TempDir()
+	fetcher := media.NewFetcher(dir)
+
+	img, err := fetcher.Fetch(context.Background(), srv.URL+"/preview.png")
+	require.NoError(t, err)
+
+	info, err := os.Stat(filepath.Join(media.ImagesDir(dir), img.Filename))
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0644), info.Mode().Perm())
+
+	favicon, err := fetcher.FetchFavicon(context.Background(), "habr.com", srv.URL+"/icon.png")
+	require.NoError(t, err)
+
+	info, err = os.Stat(filepath.Join(media.FaviconsDir(dir), favicon.Filename))
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0644), info.Mode().Perm())
+}
+
 func TestFetchRejectsNonImage(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("<!DOCTYPE html><html><body>not an image</body></html>"))
