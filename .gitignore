@@ -17,6 +17,7 @@ coverage.out
 .idea/
 .vscode/
 *.swp
+.dir-locals.el
 
 # OS
 .DS_Store
