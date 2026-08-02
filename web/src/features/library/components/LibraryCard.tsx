@@ -50,13 +50,11 @@ export function LibraryCard({ item }: Props) {
           )}
 
           <div className="absolute top-3 left-3 flex gap-2">
-            <span
-              className={`stamp bg-paper/95 stamp-flat ${
-                isRead ? "text-sage" : "text-vermillion"
-              }`}
-            >
-              {isRead ? "✓ read" : "✦ saved"}
-            </span>
+            {isRead && (
+              <span className="stamp bg-paper/95 stamp-flat text-sage">
+                ✓ read
+              </span>
+            )}
             {item.isFavorite && (
               <span
                 aria-label="favorite"
@@ -84,7 +82,7 @@ export function LibraryCard({ item }: Props) {
           </span>
         </div>
 
-        <h2 className="card-title display-tight text-2xl text-ink leading-[1.1] mb-3">
+        <h2 className="card-title display-tight text-2xl text-ink leading-[1.1] mb-3 break-words">
           {title}
         </h2>
 

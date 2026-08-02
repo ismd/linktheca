@@ -18,7 +18,7 @@ export function ReaderHeader({ detail }: Props) {
   const title = detail.content.title ?? detail.title ?? detail.url;
   return (
     <header className="mb-10">
-      <h1 className="display-tight text-4xl md:text-5xl text-ink leading-[1.05] mb-6">
+      <h1 className="display-tight text-4xl md:text-5xl text-ink leading-[1.05] mb-6 break-words">
         {title}
       </h1>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-body italic text-base text-muted-foreground">

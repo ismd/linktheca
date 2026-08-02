@@ -59,6 +59,16 @@ describe("LibraryCard", () => {
     expect(screen.getByText(/✓ read/i)).toBeInTheDocument();
   });
 
+  it("shows no stamp when the item is unread", () => {
+    render(
+      <MemoryRouter>
+        <LibraryCard item={baseItem} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByText(/saved/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/✓ read/i)).not.toBeInTheDocument();
+  });
+
   it("shows the downloaded preview image when the item has one", () => {
     const { container } = render(
       <MemoryRouter>
@@ -103,5 +113,18 @@ describe("LibraryCard", () => {
       </MemoryRouter>,
     );
     expect(screen.getByText("https://example.com/article")).toBeInTheDocument();
+  });
+
+  it("breaks a long unspaced title so it cannot overflow the card", () => {
+    render(
+      <MemoryRouter>
+        <LibraryCard item={{ ...baseItem, title: null }} />
+      </MemoryRouter>,
+    );
+    // A URL fallback is one unbreakable word; without break-words it spills
+    // over the neighbouring grid columns. jsdom has no layout, so this pins
+    // the class rather than the rendered width.
+    const heading = screen.getByRole("heading", { level: 2 });
+    expect(heading.className).toMatch(/\bbreak-words\b/);
   });
 });
