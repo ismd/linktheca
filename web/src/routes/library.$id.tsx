@@ -1,5 +1,5 @@
 import { useNavigate, useParams, Link } from "react-router";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useLibraryItemDetailQuery } from "@/features/library/use-library";
 import { useUpdateItem } from "@/features/library/use-mutations";
 import { ReadingProgress } from "@/features/library/components/ReadingProgress";
@@ -29,6 +29,8 @@ export default function LibraryItemRoute() {
   const navigate = useNavigate();
   const detail = useLibraryItemDetailQuery(itemId);
   const update = useUpdateItem();
+  const [handToggledId, setHandToggledId] = useState<number | null>(null);
+  const readStateSetByHand = handToggledId === itemId;
 
   const onReach = useCallback(() => {
     if (!detail.data) return;
@@ -37,7 +39,7 @@ export default function LibraryItemRoute() {
   }, [detail.data, itemId, update]);
 
   useMarkReadOnScroll({
-    enabled: detail.data?.state === "unread",
+    enabled: detail.data?.state === "unread" && !readStateSetByHand,
     onReach,
   });
 
@@ -118,7 +120,11 @@ export default function LibraryItemRoute() {
           </p>
         )}
 
-        <ReaderActions item={d} onDeleted={() => navigate("/library")} />
+        <ReaderActions
+          item={d}
+          onReadStateToggled={() => setHandToggledId(itemId)}
+          onDeleted={() => navigate("/library")}
+        />
       </article>
     </>
   );

@@ -9,9 +9,10 @@ import type { LibraryItem } from "../types";
 type Props = {
   item: LibraryItem;
   onDeleted?: () => void;
+  onReadStateToggled?: () => void;
 };
 
-export function ReaderActions({ item, onDeleted }: Props) {
+export function ReaderActions({ item, onDeleted, onReadStateToggled }: Props) {
   const update = useUpdateItem();
   const del = useDeleteItem();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -35,6 +36,7 @@ export function ReaderActions({ item, onDeleted }: Props) {
 
   const toggleRead = () => {
     const next = item.state === "read" ? "unread" : "read";
+    onReadStateToggled?.();
     update.mutate(
       { id: item.id, input: { state: next } },
       {
