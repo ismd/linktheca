@@ -12,7 +12,12 @@ services:
   tei:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
     restart: unless-stopped
-    command: ["--model-id", "BAAI/bge-m3", "--port", "8080"]
+    command:
+      - --model-id=BAAI/bge-m3
+      - --port=8080
+      - --max-batch-tokens=1024
+      - --tokenization-workers=2
+    mem_limit: 4g
     volumes:
       - linktheca_tei_data:/data
 

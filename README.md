@@ -39,6 +39,20 @@ go run ./cmd/radar-sim -topic 3 -subscribed    # rank against a topic, matcher s
 go run ./cmd/radar-sim -h                      # all flags
 ```
 
+## Requirements
+
+RAM is dominated by TEI, the embedding server; Postgres, the backend, nginx and the OS together fit in about 1 GB.
+
+- **With Radar: 4 GB minimum, 8 GB recommended.** Tuned TEI peaks at ~3.1 GB, and it peaks while loading the model — at 4 GB configure swap, since a kill during load becomes a restart loop.
+- **Without Radar: 1 GB minimum, 2 GB recommended.** With `LINKTHECA_RADAR_ENABLED=false` the backend never constructs a TEI client, so you can drop the `tei` service from compose entirely.
+
+Disk: ~2.1 GB for the model, plus Postgres data (~10 KB per Radar finding, embedding and index included) and saved images (10 MB each at most).
+
+TEI's own defaults assume a dedicated inference box — on a 22-core host it peaks at 14.2 GB. `compose.prod.yaml` pins two flags to get to 3.1 GB:
+
+- `--max-batch-tokens=1024` — the CPU backend has no flash attention, so bge-m3's 8192-token limit means one request can materialize a ~4.3 GB attention matrix. This also clamps input length, which costs nothing here: only a finding's title and summary are embedded.
+- `--tokenization-workers=2` — defaults to the host's core count, and each worker keeps its own ~210 MB copy of the tokenizer.
+
 ## Production
 
 `compose.prod.yaml` brings up Postgres, the TEI embedding server, the Go backend, and the web frontend behind nginx. Set `POSTGRES_PASSWORD` and `JWT_SECRET` in the environment.
