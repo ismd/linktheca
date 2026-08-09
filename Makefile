@@ -1,4 +1,4 @@
-.PHONY: help dev-db dev-db-down dev-db-logs dev-run run test test-unit test-integration smoke-radar lint tidy build server-build cli-build clean
+.PHONY: help dev-db dev-db-down dev-db-logs dev-run run test test-unit test-integration smoke-radar lint tidy build server-build clean
 
 help:
 	@echo "Available targets:"
@@ -53,15 +53,11 @@ lint:
 tidy:
 	go mod tidy
 
-build: server-build cli-build
+build: server-build
 
 server-build:
 	mkdir -p bin
 	go build -o bin/linktheca-server ./cmd/linktheca-server
-
-cli-build:
-	mkdir -p bin
-	go build -o bin/linktheca ./cmd/linktheca
 
 clean:
 	rm -rf bin tmp
