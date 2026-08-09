@@ -13,6 +13,10 @@ coverage.out
 .env.*.local
 !.env.example
 
+# direnv (local dev environment)
+.envrc
+.direnv/
+
 # IDE
 .idea/
 .vscode/
