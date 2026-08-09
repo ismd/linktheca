@@ -30,6 +30,15 @@ cd web && npm run dev
 
 See `Makefile` for the full set of targets (tests, lint, build).
 
+To inspect what Radar's embeddings actually score, run the `radar-sim` tool — it ranks findings by cosine similarity against a query you type or against a topic's stored embedding, and draws the match threshold as a cutoff line. It reads the same `LINKTHECA_DB_DSN` / `LINKTHECA_TEI_URL` variables as the backend:
+
+```sh
+go run ./cmd/radar-sim -topics                 # topic ids, thresholds, embedding state
+go run ./cmd/radar-sim -q "webauthn passkeys"  # rank findings against fresh text
+go run ./cmd/radar-sim -topic 3 -subscribed    # rank against a topic, matcher scoping
+go run ./cmd/radar-sim -h                      # all flags
+```
+
 ## Production
 
 `compose.prod.yaml` brings up Postgres, the TEI embedding server, the Go backend, and the web frontend behind nginx. Set `POSTGRES_PASSWORD` and `JWT_SECRET` in the environment.

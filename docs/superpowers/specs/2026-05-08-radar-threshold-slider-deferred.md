@@ -127,6 +127,9 @@ threshold.
 
 До тех пор пользователи могут менять threshold через прямой PATCH
 на API (если он добавится) или вручную через SQL для dev-сетапов.
+Само распределение sim видно через `go run ./cmd/radar-sim -topic <id>`
+— CLI печатает ту же картину «что выше / ниже порога», что и целевой
+слайдер, только без интерактива.
 
 ## Связанные документы
 
@@ -137,3 +140,6 @@ threshold.
   стартовая точка.
 - `internal/radar/store.go` `MatchFindingToTopics` — SQL для матчинга,
   на основе которого делается preview-запрос.
+- `cmd/radar-sim/queries.go` `topFindingsByTopic` — этот preview-запрос
+  уже написан и покрыт тестами для CLI; эндпоинту из п. 1 остаётся
+  обернуть его в HTTP-слой со scoping по `user_id`.
