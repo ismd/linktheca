@@ -48,7 +48,7 @@ export default function RadarListRoute() {
         title="Radar"
         subtitle={fmtSweep(status.data?.lastSweepAt ?? null)}
       />
-      <div className="px-4 lg:px-8 pb-10">
+      <div className="px-4 lg:px-8 pb-6 pt-6">
         <div className="hidden md:flex justify-end mb-6">
           <Button onClick={openNewTopic}>+ New topic</Button>
         </div>
