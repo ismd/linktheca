@@ -40,7 +40,7 @@ beforeEach(() => {
 });
 
 describe("useLibraryQuery", () => {
-  it("loads first page with given filters", async () => {
+  it("loads the first page with the default unread filter", async () => {
     let capturedUrl = "";
     server.use(
       http.get("/api/library", ({ request }) => {
@@ -52,10 +52,9 @@ describe("useLibraryQuery", () => {
       }),
     );
 
-    const { result } = renderHook(
-      () => useLibraryQuery({ state: "unread" }),
-      { wrapper: wrapper() },
-    );
+    const { result } = renderHook(() => useLibraryQuery({}), {
+      wrapper: wrapper(),
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 

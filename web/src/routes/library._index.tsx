@@ -2,9 +2,12 @@ import { useSearchParams } from "react-router";
 import { PageHeader } from "@/shared/layout/PageHeader";
 import { FilterBar } from "@/features/library/components/FilterBar";
 import { LibraryGrid } from "@/features/library/components/LibraryGrid";
-import type { FilterParams, LibraryState } from "@/features/library/types";
+import type {
+  FilterParams,
+  LibraryFilterState,
+} from "@/features/library/types";
 
-const ALLOWED_STATES: LibraryState[] = ["unread", "read", "archived"];
+const ALLOWED_STATES: LibraryFilterState[] = ["all", "read", "archived"];
 
 function parseFilters(params: URLSearchParams): FilterParams {
   const state = params.get("state");
@@ -12,7 +15,7 @@ function parseFilters(params: URLSearchParams): FilterParams {
   return {
     state:
       state && (ALLOWED_STATES as string[]).includes(state)
-        ? (state as LibraryState)
+        ? (state as LibraryFilterState)
         : undefined,
     favorite: fav === "true" ? true : undefined,
   };

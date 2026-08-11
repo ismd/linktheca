@@ -51,19 +51,25 @@ describe("LibraryGrid", () => {
     expect(screen.getAllByTestId("library-skeleton-card").length).toBeGreaterThan(0);
   });
 
-  it("renders empty state (CTA) when not filtered and no items", async () => {
+  it("renders empty state (CTA) for an empty unfiltered library", async () => {
     server.use(
-      http.get("/api/library", () => HttpResponse.json({ items: [], total: 0 })),
+      http.get("/api/library", ({ request }) => {
+        expect(new URL(request.url).searchParams.has("state")).toBe(false);
+        return HttpResponse.json({ items: [], total: 0 });
+      }),
     );
-    render(<LibraryGrid filters={{}} />, { wrapper: wrapper() });
+    render(<LibraryGrid filters={{ state: "all" }} />, { wrapper: wrapper() });
     expect(await screen.findByText(/nothing here yet/i)).toBeInTheDocument();
   });
 
-  it("renders 'no matches' when filtered and empty", async () => {
+  it("renders 'no matches' when the default unread filter is empty", async () => {
     server.use(
-      http.get("/api/library", () => HttpResponse.json({ items: [], total: 0 })),
+      http.get("/api/library", ({ request }) => {
+        expect(new URL(request.url).searchParams.get("state")).toBe("unread");
+        return HttpResponse.json({ items: [], total: 0 });
+      }),
     );
-    render(<LibraryGrid filters={{ state: "read" }} />, { wrapper: wrapper() });
+    render(<LibraryGrid filters={{}} />, { wrapper: wrapper() });
     expect(await screen.findByText(/no matches/i)).toBeInTheDocument();
   });
 

@@ -1,6 +1,12 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { listLibrary, getLibraryDetail, getLibraryItem } from "./api";
-import { PAGE_SIZE, type FilterParams, type ListPage } from "./types";
+import {
+  PAGE_SIZE,
+  type FilterParams,
+  type LibraryFilterState,
+  type LibraryState,
+  type ListPage,
+} from "./types";
 
 export const libraryKeys = {
   all: ["library"] as const,
@@ -16,7 +22,7 @@ export function useLibraryQuery(filters: FilterParams) {
       listLibrary({
         limit: PAGE_SIZE,
         offset: pageParam as number,
-        state: filters.state,
+        state: prepareState(filters.state),
         favorite: filters.favorite,
       }),
     initialPageParam: 0,
@@ -56,4 +62,8 @@ export function useLibraryItemDetailQuery(id: number) {
     queryKey: libraryKeys.detail(id),
     queryFn: () => getLibraryDetail(id),
   });
+}
+
+function prepareState(state?: LibraryFilterState): LibraryState | undefined {
+  return state === "all" ? undefined : (state ?? "unread");
 }

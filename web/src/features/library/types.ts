@@ -1,4 +1,5 @@
 export type LibraryState = "unread" | "read" | "archived";
+export type LibraryFilterState = "all" | "read" | "archived";
 
 export type LibraryItem = {
   id: number;
@@ -41,7 +42,7 @@ export type ListPage = {
 };
 
 export type FilterParams = {
-  state?: LibraryState;
+  state?: LibraryFilterState;
   favorite?: boolean;
 };
 

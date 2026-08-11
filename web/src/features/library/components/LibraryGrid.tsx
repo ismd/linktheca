@@ -12,7 +12,7 @@ type Props = {
 
 export function LibraryGrid({ filters }: Props) {
   const q = useLibraryQuery(filters);
-  const filtered = filters.state !== undefined || filters.favorite === true;
+  const filtered = filters.state !== "all" || filters.favorite === true;
 
   if (q.isLoading) {
     return (

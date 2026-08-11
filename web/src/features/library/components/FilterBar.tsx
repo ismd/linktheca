@@ -1,15 +1,15 @@
 import { Star } from "lucide-react";
-import type { FilterParams, LibraryState } from "../types";
+import type { FilterParams, LibraryFilterState } from "../types";
 
 type Props = {
-  state: LibraryState | undefined;
+  state: LibraryFilterState | undefined;
   favorite: boolean;
   onChange: (next: FilterParams) => void;
 };
 
-const STATES: { label: string; value: LibraryState | undefined }[] = [
-  { label: "All", value: undefined },
-  { label: "Unread", value: "unread" },
+const STATES: { label: string; value: LibraryFilterState | undefined }[] = [
+  { label: "All", value: "all" },
+  { label: "Unread", value: undefined },
   { label: "Read", value: "read" },
   { label: "Archived", value: "archived" },
 ];

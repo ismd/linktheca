@@ -7,7 +7,7 @@ describe("FilterBar", () => {
   it("highlights the active state pill", () => {
     render(
       <FilterBar
-        state="unread"
+        state={undefined}
         favorite={false}
         onChange={() => {}}
       />,
@@ -18,11 +18,11 @@ describe("FilterBar", () => {
     expect(all).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("clicking a state pill calls onChange with that state (or undefined for All)", async () => {
+  it("clicking a state pill calls onChange with its filter value", async () => {
     const onChange = vi.fn();
     render(
       <FilterBar
-        state="unread"
+        state={undefined}
         favorite={false}
         onChange={onChange}
       />,
@@ -31,7 +31,7 @@ describe("FilterBar", () => {
     expect(onChange).toHaveBeenLastCalledWith({ state: "read", favorite: undefined });
 
     await userEvent.click(screen.getByRole("button", { name: /^all$/i }));
-    expect(onChange).toHaveBeenLastCalledWith({ state: undefined, favorite: undefined });
+    expect(onChange).toHaveBeenLastCalledWith({ state: "all", favorite: undefined });
   });
 
   it("toggling favorites flips the favorite flag", async () => {
