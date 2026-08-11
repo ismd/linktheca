@@ -10,6 +10,7 @@ import {
 
 export const libraryKeys = {
   all: ["library"] as const,
+  lists: ["library", "list"] as const,
   list: (filters: FilterParams) => ["library", "list", filters] as const,
   item: (id: number) => ["library", "item", id] as const,
   detail: (id: number) => ["library", "detail", id] as const,

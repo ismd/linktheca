@@ -170,6 +170,28 @@ describe("useUpdateItem (optimistic favorite)", () => {
     const data = qc.getQueryData<{ pages: ListPage[] }>(libraryKeys.list({}));
     expect(data!.pages[0]!.items[0]!.isFavorite).toBe(false);
   });
+
+  it("invalidates cached filtered lists after the update settles", async () => {
+    server.use(
+      http.patch("/api/library/1", () =>
+        HttpResponse.json(rawItem(1, { state: "read", is_favorite: true })),
+      ),
+    );
+
+    const { qc, wrapper } = makeWrapper();
+    const favoritesKey = libraryKeys.list({ state: "read", favorite: true });
+    qc.setQueryData<{ pages: ListPage[]; pageParams: number[] }>(favoritesKey, {
+      pages: [{ items: [], total: 0 }],
+      pageParams: [0],
+    });
+
+    const { result } = renderHook(() => useUpdateItem(), { wrapper });
+    await act(async () => {
+      await result.current.mutateAsync({ id: 1, input: { isFavorite: true } });
+    });
+
+    expect(qc.getQueryState(favoritesKey)?.isInvalidated).toBe(true);
+  });
 });
 
 describe("useDeleteItem", () => {

@@ -33,7 +33,7 @@ export function useUpdateItem() {
       await qc.cancelQueries({ queryKey: libraryKeys.all });
 
       const previousLists = qc.getQueriesData<InfiniteListData>({
-        queryKey: ["library", "list"],
+        queryKey: libraryKeys.lists,
       });
       const previousItem = qc.getQueryData<LibraryItem>(libraryKeys.item(id));
 
@@ -68,6 +68,7 @@ export function useUpdateItem() {
     },
     onSettled: (_data, _err, vars) => {
       qc.invalidateQueries({ queryKey: libraryKeys.detail(vars.id) });
+      qc.invalidateQueries({ queryKey: libraryKeys.lists });
     },
   });
 }
@@ -88,7 +89,7 @@ export function useDeleteItem() {
     onSuccess: (_data, id) => {
       qc.removeQueries({ queryKey: libraryKeys.detail(id) });
       qc.removeQueries({ queryKey: libraryKeys.item(id) });
-      qc.invalidateQueries({ queryKey: ["library", "list"] });
+      qc.invalidateQueries({ queryKey: libraryKeys.lists });
     },
   });
 }
