@@ -59,7 +59,7 @@ type UpdateRequest struct {
 // ListParams holds query parameters for GET /library
 type ListParams struct {
 	UserID   int64
-	State    string // empty = all states
+	State    string // empty = all non-archived states
 	Favorite *bool  // nil = don't filter
 	Limit    int
 	Offset   int

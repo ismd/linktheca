@@ -145,6 +145,8 @@ func (s *Store) ListItems(ctx context.Context, p ListParams) (*ListResult, error
 		countQuery += fmt.Sprintf(` AND state = $%d`, argIdx)
 		countArgs = append(countArgs, p.State)
 		argIdx++
+	} else {
+		countQuery += ` AND state <> 'archived'`
 	}
 	if p.Favorite != nil {
 		countQuery += fmt.Sprintf(` AND is_favorite = $%d`, argIdx)
@@ -170,6 +172,8 @@ func (s *Store) ListItems(ctx context.Context, p ListParams) (*ListResult, error
 		query += fmt.Sprintf(` AND li.state = $%d`, argIdx)
 		args = append(args, p.State)
 		argIdx++
+	} else {
+		query += ` AND li.state <> 'archived'`
 	}
 	if p.Favorite != nil {
 		query += fmt.Sprintf(` AND li.is_favorite = $%d`, argIdx)

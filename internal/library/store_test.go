@@ -228,23 +228,61 @@ func TestIntegrationListItemsByState(t *testing.T) {
 
 	c1, _ := store.UpsertContent(ctx, library.UpsertContentParams{URL: "https://example.com/s1", Title: ptr("S1")})
 	c2, _ := store.UpsertContent(ctx, library.UpsertContentParams{URL: "https://example.com/s2", Title: ptr("S2")})
+	c3, _ := store.UpsertContent(ctx, library.UpsertContentParams{URL: "https://example.com/s3", Title: ptr("S3")})
 
 	item1, _ := store.CreateItem(ctx, userID, c1.ID)
 	_, _ = store.CreateItem(ctx, userID, c2.ID)
+	item3, _ := store.CreateItem(ctx, userID, c3.ID)
 
 	// Mark first as read
 	state := "read"
 	_, err := store.UpdateItem(ctx, userID, item1.ID, library.UpdateParams{State: &state})
 	require.NoError(t, err)
+	state = "archived"
+	_, err = store.UpdateItem(ctx, userID, item3.ID, library.UpdateParams{State: &state})
+	require.NoError(t, err)
+
+	// The default (All) view includes unread and read items, but not archived ones.
+	result, err := store.ListItems(ctx, library.ListParams{
+		UserID: userID,
+		Limit:  10,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 2, result.Total)
+	require.Len(t, result.Items, 2)
+	for _, item := range result.Items {
+		require.NotEqual(t, "archived", item.State)
+	}
 
 	// Filter by state=unread
-	result, err := store.ListItems(ctx, library.ListParams{
+	result, err = store.ListItems(ctx, library.ListParams{
 		UserID: userID,
 		State:  "unread",
 		Limit:  10,
 	})
 	require.NoError(t, err)
 	require.Equal(t, 1, result.Total)
+	require.Equal(t, "unread", result.Items[0].State)
+
+	// Filter by state=read
+	result, err = store.ListItems(ctx, library.ListParams{
+		UserID: userID,
+		State:  "read",
+		Limit:  10,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, result.Total)
+	require.Equal(t, "read", result.Items[0].State)
+
+	// Archived items remain available in their dedicated tab.
+	result, err = store.ListItems(ctx, library.ListParams{
+		UserID: userID,
+		State:  "archived",
+		Limit:  10,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, result.Total)
+	require.Equal(t, "archived", result.Items[0].State)
 }
 
 func TestIntegrationListItemsPagination(t *testing.T) {

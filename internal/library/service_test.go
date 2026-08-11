@@ -91,6 +91,9 @@ func (m *mockStore) ListItems(_ context.Context, p library.ListParams) (*library
 		if item.UserID != p.UserID {
 			continue
 		}
+		if p.State == "" && item.State == "archived" {
+			continue
+		}
 		if p.State != "" && item.State != p.State {
 			continue
 		}
