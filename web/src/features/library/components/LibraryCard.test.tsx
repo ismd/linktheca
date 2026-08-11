@@ -59,13 +59,13 @@ describe("LibraryCard", () => {
     expect(screen.getByText(/✓ read/i)).toBeInTheDocument();
   });
 
-  it("shows no stamp when the item is unread", () => {
+  it("shows the saved stamp when the item is unread", () => {
     render(
       <MemoryRouter>
         <LibraryCard item={baseItem} />
       </MemoryRouter>,
     );
-    expect(screen.queryByText(/saved/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/saved/i)).toBeInTheDocument();
     expect(screen.queryByText(/✓ read/i)).not.toBeInTheDocument();
   });
 
