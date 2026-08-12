@@ -39,4 +39,14 @@ describe("MatchCard", () => {
     r(<MatchCard match={{ ...match, finding: { ...match.finding, title: null } }} index={0} />);
     expect(screen.getByText(/inkandswitch.com/)).toBeInTheDocument();
   });
+
+  it("renders the topic name when showTopic is set", () => {
+    r(<MatchCard match={match} index={0} showTopic />);
+    expect(screen.getByText("Local-first")).toBeInTheDocument();
+  });
+
+  it("omits the topic name by default", () => {
+    r(<MatchCard match={match} index={0} />);
+    expect(screen.queryByText("Local-first")).toBeNull();
+  });
 });
