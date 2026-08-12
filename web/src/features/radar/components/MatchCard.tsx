@@ -13,9 +13,10 @@ function host(u: string): string {
 type Props = {
   match: MatchView;
   index: number;
+  showTopic?: boolean;
 };
 
-export function MatchCard({ match, index }: Props) {
+export function MatchCard({ match, index, showTopic = false }: Props) {
   const f = match.finding;
   const title = f.title ?? host(f.url);
   const source = f.feedTitle ?? host(f.url);
@@ -26,6 +27,12 @@ export function MatchCard({ match, index }: Props) {
       <article className="flex flex-col h-full p-5 border border-rule">
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           {stamp && <span className="stamp text-vermillion stamp-flat">new</span>}
+          {showTopic && (
+            <>
+              <span className="label-sc text-ink">{match.topicName}</span>
+              <span className="label-sc text-muted-foreground">·</span>
+            </>
+          )}
           <span className="label-sc text-muted-foreground">{source}</span>
           <span className="label-sc text-muted-foreground">·</span>
           <span className="label-sc text-muted-foreground">
