@@ -225,7 +225,7 @@ git commit -m "feat(radar): show topic name on match cards via showTopic prop"
 
 Note: `InboxState` is deliberately **not** `MatchState` (`"new" | "seen"`). Task 4 maps `all` → `state: undefined` when calling `useMatchesQuery`.
 
-- [ ] **Step 1: Add the filter types**
+- [x] **Step 1: Add the filter types**
 
 In `web/src/features/radar/types.ts`, append below the existing `MatchFilters` type:
 
@@ -238,7 +238,7 @@ export type InboxFilters = {
 };
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `web/src/features/radar/components/InboxFilterBar.test.tsx`:
 
@@ -284,8 +284,8 @@ describe("InboxFilterBar", () => {
       />,
     );
     expect(screen.getByRole("button", { name: "All topics" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Rust 4" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Postgres 2" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Rust4" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Postgres2" })).toBeInTheDocument();
   });
 
   it("hides the count when a topic has no new matches", () => {
@@ -298,6 +298,7 @@ describe("InboxFilterBar", () => {
       />,
     );
     expect(screen.getByRole("button", { name: "Rust" })).toBeInTheDocument();
+    expect(screen.queryByText("0")).toBeNull();
   });
 
   it("shows a paused topic with unread matches and hides a paused topic without", () => {
@@ -312,7 +313,7 @@ describe("InboxFilterBar", () => {
         onChange={vi.fn()}
       />,
     );
-    expect(screen.getByRole("button", { name: "Paused loud 3" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Paused loud3" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Paused quiet" })).toBeNull();
   });
 
@@ -339,7 +340,7 @@ describe("InboxFilterBar", () => {
         onChange={onChange}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { name: "Rust 4" }));
+    await userEvent.click(screen.getByRole("button", { name: "Rust4" }));
     expect(onChange).toHaveBeenCalledWith({ state: "all", topicId: 1 });
   });
 
@@ -353,7 +354,7 @@ describe("InboxFilterBar", () => {
         onChange={onChange}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { name: "Rust 4" }));
+    await userEvent.click(screen.getByRole("button", { name: "Rust4" }));
     expect(onChange).toHaveBeenCalledWith({ state: "new", topicId: undefined });
   });
 
@@ -387,13 +388,13 @@ describe("InboxFilterBar", () => {
 });
 ```
 
-- [ ] **Step 3: Run the test to verify it fails**
+- [x] **Step 3: Run the test to verify it fails**
 
 Run: `npm test -- src/features/radar/components/InboxFilterBar.test.tsx`
 
 Expected: FAIL with "Failed to resolve import ./InboxFilterBar".
 
-- [ ] **Step 4: Write the component**
+- [x] **Step 4: Write the component**
 
 Create `web/src/features/radar/components/InboxFilterBar.tsx`:
 
@@ -486,15 +487,15 @@ export function InboxFilterBar({ state, topicId, topics, onChange }: Props) {
 }
 ```
 
-Note on the tests' accessible names: RTL joins a button's text nodes with a space, so `Rust` + `4` matches the name `"Rust 4"`.
+Note on the tests' accessible names: the name and the count sit in adjacent nodes with no whitespace between them, and accessible-name computation concatenates without inserting a separator — so the chip's accessible name is `"Rust4"`, not `"Rust 4"`. The tests above assert exactly that.
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `npm test -- src/features/radar/components/InboxFilterBar.test.tsx`
 
 Expected: PASS, 8 tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/features/radar/types.ts web/src/features/radar/components/InboxFilterBar.tsx web/src/features/radar/components/InboxFilterBar.test.tsx
@@ -683,7 +684,7 @@ Create `web/src/routes/radar._index.test.tsx`:
 
 ```tsx
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
@@ -796,9 +797,8 @@ describe("RadarInboxRoute", () => {
     stub({ topics: [rawTopic(1, "Rust", 1)], matches: [rawMatch(1, "Rust")] });
     renderAt("/radar");
 
-    expect(await screen.findByText("Title 1")).toBeInTheDocument();
-    // The chip carries the name too, so assert on more than one match.
-    expect(screen.getAllByText("Rust").length).toBeGreaterThan(1);
+    const card = await screen.findByRole("link", { name: /Title 1/ });
+    expect(within(card).getByText("Rust")).toBeInTheDocument();
   });
 
   it("drops the state parameter when ?state=all", async () => {
