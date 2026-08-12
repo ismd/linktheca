@@ -65,7 +65,7 @@ Spec: `docs/superpowers/specs/2026-08-12-radar-inbox-design.md`. Issue: https://
 - Consumes: `MatchView` from `web/src/features/radar/types.ts` (already has `topicName: string`).
 - Produces: `MatchCard` and `MatchGrid` both accept an optional `showTopic?: boolean` prop, default `false`. Task 4 renders `<MatchGrid matches={...} showTopic />`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to the existing `describe("MatchCard", ...)` block in `web/src/features/radar/components/MatchCard.test.tsx`. The fixture there already sets `topicName: "Local-first"`.
 
@@ -131,13 +131,13 @@ describe("MatchGrid", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npm test -- src/features/radar/components/MatchCard.test.tsx src/features/radar/components/MatchGrid.test.tsx`
 
 Expected: FAIL — `MatchCard.test.tsx` fails to typecheck/run on the unknown `showTopic` prop, `MatchGrid.test.tsx` fails on "Unable to find an element with the text: Rust".
 
-- [ ] **Step 3: Add the prop to MatchCard**
+- [x] **Step 3: Add the prop to MatchCard**
 
 In `web/src/features/radar/components/MatchCard.tsx`, replace the `Props` type and the metadata row:
 
@@ -170,7 +170,7 @@ export function MatchCard({ match, index, showTopic = false }: Props) {
 
 Leave the rest of the file unchanged. The topic is plain text, not a `<Link>` — the card itself is already an anchor and nested anchors are invalid HTML.
 
-- [ ] **Step 4: Add the pass-through to MatchGrid**
+- [x] **Step 4: Add the pass-through to MatchGrid**
 
 Replace the whole of `web/src/features/radar/components/MatchGrid.tsx`:
 
@@ -194,13 +194,13 @@ export function MatchGrid({ matches, showTopic }: Props) {
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npm test -- src/features/radar/components/MatchCard.test.tsx src/features/radar/components/MatchGrid.test.tsx`
 
 Expected: PASS, all tests in both files.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/features/radar/components/MatchCard.tsx web/src/features/radar/components/MatchCard.test.tsx web/src/features/radar/components/MatchGrid.tsx web/src/features/radar/components/MatchGrid.test.tsx
