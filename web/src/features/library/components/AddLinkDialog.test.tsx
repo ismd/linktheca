@@ -101,6 +101,46 @@ describe("AddLinkDialog", () => {
     expect(useAddLinkStore.getState().isOpen).toBe(true);
   });
 
+  it("Paste button fills the input from the clipboard", async () => {
+    // setup() installs the clipboard stub, which the form probes on render
+    const u = userEvent.setup();
+    await navigator.clipboard.writeText("https://example.com/from-clipboard");
+    useAddLinkStore.getState().open();
+    render(<AddLinkDialog />, { wrapper: wrapper() });
+    await u.click(screen.getByRole("button", { name: /paste/i }));
+    await waitFor(() =>
+      expect(screen.getByLabelText(/url/i)).toHaveValue(
+        "https://example.com/from-clipboard",
+      ),
+    );
+  });
+
+  it("Paste button shows a toast when the clipboard cannot be read", async () => {
+    const u = userEvent.setup();
+    vi.spyOn(navigator.clipboard, "readText").mockRejectedValueOnce(
+      new Error("denied"),
+    );
+    useAddLinkStore.getState().open();
+    render(<AddLinkDialog />, { wrapper: wrapper() });
+    await u.click(screen.getByRole("button", { name: /paste/i }));
+    expect(
+      await screen.findByText(/couldn't read the clipboard/i),
+    ).toBeInTheDocument();
+  });
+
+  it("hides the Paste button when the clipboard API is unavailable", () => {
+    // e.g. an on-prem instance served over plain http (non-secure context)
+    Object.defineProperty(navigator, "clipboard", {
+      value: undefined,
+      configurable: true,
+    });
+    useAddLinkStore.getState().open();
+    render(<AddLinkDialog />, { wrapper: wrapper() });
+    expect(
+      screen.queryByRole("button", { name: /paste/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("on 5xx: shows generic error", async () => {
     server.use(
       http.post("/api/library", () =>

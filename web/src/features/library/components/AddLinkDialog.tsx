@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ClipboardPaste } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -45,12 +46,21 @@ function mapError(err: unknown): string {
   return "Couldn't save — please try again";
 }
 
+function canReadClipboard(): boolean {
+  return (
+    typeof navigator !== "undefined" &&
+    typeof navigator.clipboard?.readText === "function"
+  );
+}
+
 function AddLinkForm({ onClose }: { onClose: () => void }) {
   const save = useSaveLink();
 
   const {
     register,
     handleSubmit,
+    setValue,
+    setFocus,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -59,6 +69,22 @@ function AddLinkForm({ onClose }: { onClose: () => void }) {
 
   const [topError, setTopError] = useState<string | null>(null);
   const [stage, setStage] = useState(0);
+  const [showPaste] = useState(canReadClipboard);
+
+  const onPaste = async () => {
+    try {
+      const text = (await navigator.clipboard.readText()).trim();
+      if (!text) {
+        toast.error("Clipboard is empty");
+        return;
+      }
+      setTopError(null);
+      setValue("url", text, { shouldValidate: true, shouldDirty: true });
+      setFocus("url");
+    } catch {
+      toast.error("Couldn't read the clipboard — paste manually");
+    }
+  };
 
   const onSubmit = handleSubmit(async ({ url }) => {
     setTopError(null);
@@ -92,14 +118,30 @@ function AddLinkForm({ onClose }: { onClose: () => void }) {
         <Label htmlFor="add-link-url" className="label-sc text-ink-3">
           URL
         </Label>
-        <Input
-          id="add-link-url"
-          placeholder="https://…"
-          aria-invalid={errors.url ? "true" : "false"}
-          aria-describedby={errors.url ? "add-link-url-error" : undefined}
-          disabled={save.isPending}
-          {...register("url")}
-        />
+        <div className="relative">
+          <Input
+            id="add-link-url"
+            placeholder="https://…"
+            aria-invalid={errors.url ? "true" : "false"}
+            aria-describedby={errors.url ? "add-link-url-error" : undefined}
+            disabled={save.isPending}
+            className={showPaste ? "pr-24" : undefined}
+            {...register("url")}
+          />
+          {showPaste && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onPaste}
+              disabled={save.isPending}
+              className="absolute top-1/2 right-1.5 -translate-y-1/2 text-ink-3 hover:text-ink"
+            >
+              <ClipboardPaste aria-hidden="true" />
+              Paste
+            </Button>
+          )}
+        </div>
         {errors.url && (
           <p
             id="add-link-url-error"
