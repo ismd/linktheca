@@ -58,4 +58,11 @@ export type MatchFilters = {
   state?: MatchState;
 };
 
+export type InboxState = "new" | "all";
+
+export type InboxFilters = {
+  state: InboxState;
+  topicId?: number;
+};
+
 export const PAGE_SIZE = 20;
