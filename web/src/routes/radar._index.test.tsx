@@ -47,10 +47,16 @@ const rawMatch = (id: number, topicName: string) => ({
 type Scenario = {
   topics?: unknown[];
   matches?: unknown[];
-  topicsError?: { status: number; body: unknown };
+  topicsError?: { status: number; body: Record<string, unknown> };
 };
 
 const seen: string[] = [];
+
+function firstMatchesUrl() {
+  const url = seen[0];
+  if (!url) throw new Error("no request to /api/radar/matches was made");
+  return new URL(url);
+}
 
 function stub(s: Scenario) {
   server.use(
@@ -103,7 +109,7 @@ describe("RadarInboxRoute", () => {
     renderAt("/radar");
 
     expect(await screen.findByText("Title 1")).toBeInTheDocument();
-    const url = new URL(seen[0]);
+    const url = firstMatchesUrl();
     expect(url.searchParams.get("state")).toBe("new");
     expect(url.searchParams.get("topic_id")).toBeNull();
   });
@@ -121,7 +127,7 @@ describe("RadarInboxRoute", () => {
     renderAt("/radar?state=all");
 
     expect(await screen.findByText("Title 1")).toBeInTheDocument();
-    expect(new URL(seen[0]).searchParams.get("state")).toBeNull();
+    expect(firstMatchesUrl().searchParams.get("state")).toBeNull();
   });
 
   it("sends topic_id when ?topic is set", async () => {
@@ -129,7 +135,7 @@ describe("RadarInboxRoute", () => {
     renderAt("/radar?topic=3");
 
     expect(await screen.findByText("Title 1")).toBeInTheDocument();
-    expect(new URL(seen[0]).searchParams.get("topic_id")).toBe("3");
+    expect(firstMatchesUrl().searchParams.get("topic_id")).toBe("3");
   });
 
   it("ignores a non-numeric topic parameter", async () => {
@@ -137,7 +143,7 @@ describe("RadarInboxRoute", () => {
     renderAt("/radar?topic=abc");
 
     expect(await screen.findByText("Title 1")).toBeInTheDocument();
-    expect(new URL(seen[0]).searchParams.get("topic_id")).toBeNull();
+    expect(firstMatchesUrl().searchParams.get("topic_id")).toBeNull();
   });
 
   it("prompts to create a topic when there are none", async () => {

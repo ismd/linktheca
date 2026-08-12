@@ -1061,25 +1061,25 @@ git commit -m "feat(radar): make /radar an inbox of unread matches across topics
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Run the full frontend suite**
+- [x] **Step 1: Run the full frontend suite**
 
 Run (from `web/`): `npm test`
 
 Expected: every suite passes. Radar suites in play: `api.test.ts`, `schemas.test.ts`, `use-radar.test.tsx`, `use-mutations.test.tsx`, `MatchCard.test.tsx`, `MatchGrid.test.tsx`, `MatchReader.test.tsx`, `TopicCard.test.tsx`, `InboxFilterBar.test.tsx`, `radar._index.test.tsx`, plus `Sidebar.test.tsx` (still expects `/radar`, which is correct — the sidebar points at the inbox).
 
-- [ ] **Step 2: Typecheck, lint, build**
+- [x] **Step 2: Typecheck, lint, build**
 
 Run: `npm run typecheck && npm run lint && npm run build`
 
 Expected: clean. `npm run build` catches route-file imports that Vitest tolerated.
 
-- [ ] **Step 3: Grep for stale topic URLs**
+- [x] **Step 3: Grep for stale topic URLs**
 
 Run: `grep -rn 'to={\`/radar/\${' web/src; grep -rn '"/radar/[0-9]' web/src`
 
 Expected: no output. Any hit is a link still pointing at the removed `/radar/:topicId` route — fix it and re-run Step 1.
 
-- [ ] **Step 4: Manual smoke test**
+- [x] **Step 4: Manual smoke test**
 
 Start the app (`make dev-db` then `make dev-run`, and `npm run dev` in `web/`) and walk through:
 1. `/radar` lists unread matches from more than one topic, newest first, each card stamped with its topic.
@@ -1088,7 +1088,7 @@ Start the app (`make dev-db` then `make dev-run`, and `npm run dev` in `web/`) a
 4. Opening a match and going back removes it from the `New` list and decrements its chip count.
 5. `Topics →` reaches `/radar/topics`; a topic card opens `/radar/topics/:id`; `← Back to inbox` returns to `/radar`.
 
-- [ ] **Step 5: Commit any fixes**
+- [x] **Step 5: Commit any fixes**
 
 ```bash
 git add web/src
