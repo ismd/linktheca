@@ -678,7 +678,7 @@ git commit -m "refactor(radar): move topic pages under /radar/topics"
 - Consumes: `InboxFilterBar` + `InboxFilters` / `InboxState` (Task 2), `MatchGrid`'s `showTopic` (Task 1), `RadarDisabled` (Task 3), plus the existing `useTopicsQuery`, `useMatchesQuery`, `useRadarStatusQuery` from `@/features/radar/use-radar`, `useNewTopicStore` from `@/features/radar/use-new-topic-store`, `fmtSweep` from `@/features/radar/time`, and `EmptyTopicList` / `EmptyTopicMatches` from `@/features/radar/components/`.
 - Produces: default export `RadarInboxRoute` at `/radar`.
 
-- [ ] **Step 1: Write the failing route test**
+- [x] **Step 1: Write the failing route test**
 
 Create `web/src/routes/radar._index.test.tsx`:
 
@@ -875,13 +875,13 @@ describe("RadarInboxRoute", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npm test -- src/routes/radar._index.test.tsx`
 
 Expected: FAIL with "Failed to resolve import ./radar._index".
 
-- [ ] **Step 3: Write the EmptyInbox component**
+- [x] **Step 3: Write the EmptyInbox component**
 
 Create `web/src/features/radar/components/EmptyInbox.tsx`:
 
@@ -898,7 +898,7 @@ export function EmptyInbox() {
 }
 ```
 
-- [ ] **Step 4: Write the inbox route**
+- [x] **Step 4: Write the inbox route**
 
 Create `web/src/routes/radar._index.tsx`:
 
@@ -1025,7 +1025,7 @@ export default function RadarInboxRoute() {
 }
 ```
 
-- [ ] **Step 5: Point /radar at the inbox**
+- [x] **Step 5: Point /radar at the inbox**
 
 In `web/src/App.tsx`, add the import and replace the temporary `radar` entry from Task 3:
 
@@ -1040,13 +1040,13 @@ import RadarInboxRoute from "./routes/radar._index";
               { path: "radar/matches/:matchId", element: <MatchRoute /> },
 ```
 
-- [ ] **Step 6: Run the test to verify it passes**
+- [x] **Step 6: Run the test to verify it passes**
 
 Run: `npm test -- src/routes/radar._index.test.tsx`
 
 Expected: PASS, 10 tests. (The disabled-radar stub mirrors the real backend: `internal/radar/http.go:48` replies `403` with the `{ error, message }` envelope from `internal/core/httpx`, and `apiFetch` reads `error` into `ApiError.code`.)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add web/src/routes/radar._index.tsx web/src/routes/radar._index.test.tsx web/src/features/radar/components/EmptyInbox.tsx web/src/App.tsx
