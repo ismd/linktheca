@@ -15,6 +15,7 @@ import LibraryListRoute from "./routes/library._index";
 import LibraryItemRoute from "./routes/library.$id";
 import SettingsRoute from "./routes/settings";
 import NotFoundRoute from "./routes/not-found";
+import RadarInboxRoute from "./routes/radar._index";
 import TopicsListRoute from "./routes/radar.topics._index";
 import TopicRoute from "./routes/radar.topics.$topicId";
 import MatchRoute from "./routes/radar.matches.$matchId";
@@ -39,7 +40,7 @@ const router = createBrowserRouter([
             children: [
               { path: "library", element: <LibraryListRoute /> },
               { path: "library/:id", element: <LibraryItemRoute /> },
-              { path: "radar", element: <TopicsListRoute /> },
+              { path: "radar", element: <RadarInboxRoute /> },
               { path: "radar/topics", element: <TopicsListRoute /> },
               { path: "radar/topics/:topicId", element: <TopicRoute /> },
               { path: "radar/matches/:matchId", element: <MatchRoute /> },
