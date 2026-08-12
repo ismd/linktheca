@@ -1,8 +1,14 @@
-import { useState } from "react";
-import { toast } from "sonner";
-import { ExternalLink, Star, Archive, Trash2, BookOpen, BookOpenCheck } from "lucide-react";
+import {
+  ExternalLink,
+  Star,
+  Archive,
+  ArchiveRestore,
+  Trash2,
+  BookOpen,
+  BookOpenCheck,
+} from "lucide-react";
 import { Button } from "@/shared/ui/button";
-import { useUpdateItem, useDeleteItem } from "../use-mutations";
+import { useItemActions } from "../use-item-actions";
 import { DeleteConfirm } from "./DeleteConfirm";
 import type { LibraryItem } from "../types";
 
@@ -13,65 +19,21 @@ type Props = {
 };
 
 export function ReaderActions({ item, onDeleted, onReadStateToggled }: Props) {
-  const update = useUpdateItem();
-  const del = useDeleteItem();
-  const [confirmOpen, setConfirmOpen] = useState(false);
-
-  const toggleFavorite = () =>
-    update.mutate(
-      { id: item.id, input: { isFavorite: !item.isFavorite } },
-      {
-        onError: () => toast.error("Couldn't update favorite"),
-      },
-    );
-
-  const archive = () =>
-    update.mutate(
-      { id: item.id, input: { state: "archived" } },
-      {
-        onSuccess: () => toast.success("Archived"),
-        onError: () => toast.error("Couldn't archive"),
-      },
-    );
-
-  const toggleRead = () => {
-    const next = item.state === "read" ? "unread" : "read";
-    onReadStateToggled?.();
-    update.mutate(
-      { id: item.id, input: { state: next } },
-      {
-        onError: () => toast.error("Couldn't update state"),
-      },
-    );
-  };
-
-  const confirmDelete = () => {
-    del.mutate(item.id, {
-      onSuccess: () => {
-        toast.success("Deleted");
-        setConfirmOpen(false);
-        onDeleted?.();
-      },
-      onError: () => {
-        toast.error("Couldn't delete");
-        setConfirmOpen(false);
-      },
-    });
-  };
+  const actions = useItemActions(item, { onDeleted, onReadStateToggled });
 
   return (
     <div className="mt-16 pt-10 border-t-2 border-ink">
       <div className="flex flex-wrap items-center gap-3">
-        <Button variant="outline" onClick={toggleRead}>
-          {item.state === "read" ? (
+        <Button variant="outline" onClick={actions.toggleRead}>
+          {actions.isRead ? (
             <BookOpen className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
           ) : (
             <BookOpenCheck className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
           )}
-          {item.state === "read" ? "Mark as unread" : "Mark as read"}
+          {actions.isRead ? "Mark as unread" : "Mark as read"}
         </Button>
 
-        <Button variant="outline" onClick={toggleFavorite}>
+        <Button variant="outline" onClick={actions.toggleFavorite}>
           <Star
             className="h-4 w-4"
             strokeWidth={1.5}
@@ -81,9 +43,13 @@ export function ReaderActions({ item, onDeleted, onReadStateToggled }: Props) {
           {item.isFavorite ? "Favorited" : "Favorite"}
         </Button>
 
-        <Button variant="outline" onClick={archive} disabled={item.state === "archived"}>
-          <Archive className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-          {item.state === "archived" ? "Archived" : "Archive"}
+        <Button variant="outline" onClick={actions.toggleArchive}>
+          {actions.isArchived ? (
+            <ArchiveRestore className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          ) : (
+            <Archive className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          )}
+          {actions.isArchived ? "Unarchive" : "Archive"}
         </Button>
 
         <Button variant="ghost" asChild>
@@ -96,7 +62,7 @@ export function ReaderActions({ item, onDeleted, onReadStateToggled }: Props) {
         <Button
           variant="ghost"
           className="ml-auto text-vermillion-dark hover:text-vermillion"
-          onClick={() => setConfirmOpen(true)}
+          onClick={actions.requestDelete}
         >
           <Trash2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
           Delete
@@ -104,10 +70,10 @@ export function ReaderActions({ item, onDeleted, onReadStateToggled }: Props) {
       </div>
 
       <DeleteConfirm
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        onConfirm={confirmDelete}
-        pending={del.isPending}
+        open={actions.confirmOpen}
+        onOpenChange={actions.setConfirmOpen}
+        onConfirm={actions.confirmDelete}
+        pending={actions.deletePending}
       />
     </div>
   );

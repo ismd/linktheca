@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Star } from "lucide-react";
 import { gradientClassFor, previewImageUrl } from "../image";
 import { relativeFromNow, readingTimeLabel } from "../time";
+import { LibraryCardMenu } from "./LibraryCardMenu";
 import type { LibraryItem } from "../types";
 
 type Props = {
@@ -22,15 +23,12 @@ export function LibraryCard({ item }: Props) {
   const isRead = item.state === "read";
   const [imageFailed, setImageFailed] = useState(false);
   const showImage = Boolean(item.image) && !imageFailed;
+  const href = `/library/${item.id}`;
   return (
-    <Link
-      to={`/library/${item.id}`}
-      className="feed-card group block"
-      aria-label={title}
-    >
-      <article className="flex flex-col h-full">
+    <article className="feed-card group flex flex-col h-full">
+      <Link to={href} tabIndex={-1} aria-hidden="true" className="block mb-5">
         <div
-          className={`${gradientClassFor(item.id)} relative overflow-hidden mb-5`}
+          className={`${gradientClassFor(item.id)} relative overflow-hidden`}
           style={{ aspectRatio: "16 / 10" }}
         >
           {showImage && (
@@ -75,15 +73,22 @@ export function LibraryCard({ item }: Props) {
             {readingTimeLabel(item.readingTimeSeconds)}
           </div>
         </div>
+      </Link>
 
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <span className="label-sc text-muted-foreground">{host(item.url)}</span>
-          <span className="label-sc text-muted-foreground">·</span>
-          <span className="label-sc text-muted-foreground">
-            {relativeFromNow(item.savedAt)}
-          </span>
+      <div className="flex items-center gap-2 mb-3">
+        <span className="label-sc text-muted-foreground truncate">
+          {host(item.url)}
+        </span>
+        <span className="label-sc text-muted-foreground shrink-0">·</span>
+        <span className="label-sc text-muted-foreground shrink-0">
+          {relativeFromNow(item.savedAt)}
+        </span>
+        <div className="ml-auto shrink-0 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:has-[[data-state=open]]:opacity-100">
+          <LibraryCardMenu item={item} />
         </div>
+      </div>
 
+      <Link to={href} className="block">
         <h2 className="card-title display-tight text-2xl text-ink leading-[1.1] mb-3 break-words">
           {title}
         </h2>
@@ -93,7 +98,7 @@ export function LibraryCard({ item }: Props) {
             {item.excerpt}
           </p>
         )}
-      </article>
-    </Link>
+      </Link>
+    </article>
   );
 }

@@ -120,6 +120,21 @@ describe("ReaderActions", () => {
     await waitFor(() => expect(captured).toEqual({ state: "archived" }));
   });
 
+  it("archived item offers Unarchive, which PATCHes it back to unread", async () => {
+    let captured: unknown = null;
+    server.use(
+      http.patch("/api/library/5", async ({ request }) => {
+        captured = await request.json();
+        return HttpResponse.json(rawItem({ state: "unread" }));
+      }),
+    );
+    render(<ReaderActions item={{ ...itemBase, state: "archived" }} />, {
+      wrapper: wrapper(),
+    });
+    await userEvent.click(screen.getByRole("button", { name: /unarchive/i }));
+    await waitFor(() => expect(captured).toEqual({ state: "unread" }));
+  });
+
   it("delete opens AlertDialog and on confirm calls DELETE then navigates", async () => {
     let called = false;
     server.use(
