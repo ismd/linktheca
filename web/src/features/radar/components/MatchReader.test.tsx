@@ -84,4 +84,20 @@ describe("MatchReader", () => {
     render(<Wrap><MatchReader matchId={42} /></Wrap>);
     expect(await screen.findByText(/no summary captured/i)).toBeInTheDocument();
   });
+
+  it("links back to the topic archive under /radar/topics", async () => {
+    server.use(
+      http.get("/api/radar/matches/42", () => HttpResponse.json(rawMatch("seen"))),
+    );
+    render(
+      <Wrap>
+        <MatchReader matchId={42} />
+      </Wrap>,
+    );
+    const links = await screen.findAllByRole("link");
+    const topicLinks = links.filter(
+      (l) => l.getAttribute("href") === "/radar/topics/7",
+    );
+    expect(topicLinks).toHaveLength(2);
+  });
 });

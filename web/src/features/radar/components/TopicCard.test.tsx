@@ -24,7 +24,7 @@ describe("TopicCard", () => {
     expect(screen.getByText(/21 found/)).toBeInTheDocument();
     expect(screen.getByText(/4 sources/)).toBeInTheDocument();
     const link = screen.getByRole("link");
-    expect(link).toHaveAttribute("href", "/radar/7");
+    expect(link).toHaveAttribute("href", "/radar/topics/7");
   });
 
   it("renders dash when newCount is 0", () => {

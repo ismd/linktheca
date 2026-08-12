@@ -523,7 +523,7 @@ Purely a relocation: no new UI. At the end of this task `/radar` and `/radar/top
   - Routes `/radar/topics` and `/radar/topics/:topicId`.
   - `web/src/routes/radar._index.tsx` no longer exists; Task 4 creates it fresh.
 
-- [ ] **Step 1: Update the link assertions (failing tests first)**
+- [x] **Step 1: Update the link assertions (failing tests first)**
 
 In `web/src/features/radar/components/TopicCard.test.tsx` line 27, change the expected href:
 
@@ -551,13 +551,13 @@ In `web/src/features/radar/components/MatchReader.test.tsx`, add a test inside t
   });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npm test -- src/features/radar/components/TopicCard.test.tsx src/features/radar/components/MatchReader.test.tsx`
 
 Expected: FAIL — TopicCard expects `/radar/topics/7` but gets `/radar/7`; MatchReader finds 0 links with `/radar/topics/1`.
 
-- [ ] **Step 3: Update the links**
+- [x] **Step 3: Update the links**
 
 `web/src/features/radar/components/TopicCard.tsx`:
 
@@ -571,20 +571,20 @@ Expected: FAIL — TopicCard expects `/radar/topics/7` but gets `/radar/7`; Matc
         to={`/radar/topics/${m.topicId}`}
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npm test -- src/features/radar/components/TopicCard.test.tsx src/features/radar/components/MatchReader.test.tsx`
 
 Expected: PASS.
 
-- [ ] **Step 5: Move the route files**
+- [x] **Step 5: Move the route files**
 
 ```bash
 git mv web/src/routes/radar._index.tsx web/src/routes/radar.topics._index.tsx
 git mv web/src/routes/radar.\$topicId.tsx web/src/routes/radar.topics.\$topicId.tsx
 ```
 
-- [ ] **Step 6: Extract RadarDisabled**
+- [x] **Step 6: Extract RadarDisabled**
 
 Create `web/src/features/radar/components/RadarDisabled.tsx` with the component lifted verbatim out of the moved `radar.topics._index.tsx`:
 
@@ -632,7 +632,7 @@ with `import { Link } from "react-router";` at the top of the file.
 
 `web/src/routes/radar.topics.$topicId.tsx` needs no edits: its default export stays `TopicRoute`, and its "← Back to radar" link keeps pointing at `/radar`, which becomes the inbox — that is intentional.
 
-- [ ] **Step 7: Update the route table**
+- [x] **Step 7: Update the route table**
 
 In `web/src/App.tsx`, replace the two radar imports and the radar route entries:
 
@@ -651,13 +651,13 @@ import MatchRoute from "./routes/radar.matches.$matchId";
 
 (The `radar` entry is temporary scaffolding so the app stays usable; Task 4 points it at the inbox.)
 
-- [ ] **Step 8: Verify the whole suite and the typechecker**
+- [x] **Step 8: Verify the whole suite and the typechecker**
 
 Run: `npm test && npm run typecheck && npm run lint`
 
 Expected: all tests pass, no type errors, no lint warnings. If `typecheck` reports an unused import in `radar.topics._index.tsx`, remove it.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add web/src

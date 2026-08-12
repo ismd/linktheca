@@ -82,7 +82,7 @@ export function MatchReader({ matchId }: Props) {
   return (
     <article className="max-w-[720px] mx-auto px-4 pt-8 pb-20">
       <Link
-        to={`/radar/${m.topicId}`}
+        to={`/radar/topics/${m.topicId}`}
         className="label-sc text-muted-foreground hover:text-vermillion inline-block mb-10"
       >
         ← Back to {m.topicName}
@@ -91,7 +91,7 @@ export function MatchReader({ matchId }: Props) {
       <header className="mb-10">
         <div className="flex items-center gap-3 mb-6 flex-wrap">
           <Link
-            to={`/radar/${m.topicId}`}
+            to={`/radar/topics/${m.topicId}`}
             className="stamp text-ink hover:text-vermillion"
           >
             {m.topicName}
