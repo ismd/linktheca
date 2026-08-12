@@ -1,11 +1,12 @@
+import { Link } from "react-router";
 import { ApiError } from "@/shared/api/errors";
 import { PageHeader } from "@/shared/layout/PageHeader";
 import { Button } from "@/shared/ui/button";
-import { useTopicsQuery, useRadarStatusQuery } from "@/features/radar/use-radar";
+import { useTopicsQuery } from "@/features/radar/use-radar";
 import { useNewTopicStore } from "@/features/radar/use-new-topic-store";
-import { fmtSweep } from "@/features/radar/time";
 import { TopicGrid } from "@/features/radar/components/TopicGrid";
 import { EmptyTopicList } from "@/features/radar/components/EmptyTopicList";
+import { RadarDisabled } from "@/features/radar/components/RadarDisabled";
 import { SkeletonCard } from "@/features/radar/components/SkeletonCard";
 
 function LoadingGrid() {
@@ -19,20 +20,8 @@ function LoadingGrid() {
   );
 }
 
-function RadarDisabled() {
-  return (
-    <div className="text-center py-20">
-      <p className="display-tight text-3xl text-ink mb-3">Radar is disabled</p>
-      <p className="font-body italic text-muted-foreground">
-        This Linktheca instance was started with Radar turned off.
-      </p>
-    </div>
-  );
-}
-
-export default function RadarListRoute() {
+export default function TopicsListRoute() {
   const topics = useTopicsQuery();
-  const status = useRadarStatusQuery();
   const openNewTopic = useNewTopicStore((s) => s.open);
 
   if (
@@ -44,11 +33,14 @@ export default function RadarListRoute() {
 
   return (
     <div>
-      <PageHeader
-        title="Radar"
-        subtitle={fmtSweep(status.data?.lastSweepAt ?? null)}
-      />
+      <PageHeader title="Topics" subtitle="Everything on your radar" />
       <div className="px-4 lg:px-8 pb-6 pt-6">
+        <Link
+          to="/radar"
+          className="label-sc text-muted-foreground hover:text-vermillion inline-block mb-6"
+        >
+          ← Back to inbox
+        </Link>
         <div className="hidden md:flex justify-end mb-6">
           <Button onClick={openNewTopic}>+ New topic</Button>
         </div>

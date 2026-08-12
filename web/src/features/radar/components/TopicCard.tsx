@@ -11,7 +11,7 @@ export function TopicCard({ topic, index }: Props) {
   const newCount = topic.stats.newCount;
   return (
     <Link
-      to={`/radar/${topic.id}`}
+      to={`/radar/topics/${topic.id}`}
       className={`topic-card block p-6 ${topic.isActive ? "" : "inactive"} animate-fade-in`}
     >
       <div className="flex items-start justify-between mb-3">
