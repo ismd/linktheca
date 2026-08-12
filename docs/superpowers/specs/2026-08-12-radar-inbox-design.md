@@ -133,10 +133,15 @@ reachable through `All` and through the topic archive.
 ## Topics page
 
 `/radar/topics` is today's `/radar` moved verbatim: `PageHeader`, the
-`+ New topic` button, and the active/paused sections. The only edit is the
-`PageHeader` subtitle, which becomes a short description of the page rather than
-the sweep line (the sweep line belongs on the inbox). `TopicCard` links are
-updated as noted above.
+`+ New topic` button, and the active/paused sections. Two edits: the
+`PageHeader` title/subtitle become "Topics" and a short description of the page
+rather than the sweep line (the sweep line belongs on the inbox), and a
+"← Back to inbox" link is added above the content, matching the back-link the
+topic archive already has. `TopicCard` links are updated as noted above.
+
+The `RadarDisabled` screen currently living inside `radar._index.tsx` is
+extracted to `features/radar/components/RadarDisabled.tsx` so both pages can
+render it.
 
 ## Testing
 
