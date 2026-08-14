@@ -33,6 +33,11 @@ beforeEach(() => {
     id: 1, email: "u@x.co", displayName: "U", isAdmin: false,
   });
   useNewTopicStore.getState().open();
+  // The description field probes for matches while it is typed in.
+  server.use(
+    http.post("/api/radar/topics/preview", () =>
+      HttpResponse.json({ items: [], threshold: 0.55 })),
+  );
 });
 
 describe("NewTopicDialog", () => {
@@ -79,6 +84,43 @@ describe("NewTopicDialog", () => {
 
     expect(await screen.findByText(/embedder/i)).toBeInTheDocument();
     expect(useNewTopicStore.getState().isOpen).toBe(true);
+  });
+
+  it("previews what the typed description would match", async () => {
+    server.use(
+      http.post("/api/radar/topics/preview", () =>
+        HttpResponse.json({
+          items: [
+            {
+              similarity: 0.72,
+              finding: {
+                id: 1, feed_id: 5, feed_title: "Lobsters",
+                url: "https://x.example/1", title: "Local-first software",
+                summary: null, published_at: null,
+                discovered_at: "2026-05-18T09:00:00Z",
+              },
+            },
+          ],
+          threshold: 0.55,
+        })),
+    );
+    const user = userEvent.setup();
+    render(
+      <Wrap>
+        <NewTopicDialog />
+      </Wrap>,
+    );
+
+    expect(screen.getByText(/write a sentence or two/i)).toBeInTheDocument();
+
+    await user.type(
+      screen.getByLabelText(/description/i),
+      "CRDTs and offline-first tooling, the user-owned data movement.",
+    );
+
+    expect(
+      await screen.findByText("Local-first software", undefined, { timeout: 3000 }),
+    ).toBeInTheDocument();
   });
 
   it("validates name and description before submit", async () => {

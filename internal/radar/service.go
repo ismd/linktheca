@@ -16,6 +16,22 @@ import (
 // match_threshold lets users tighten for high-precision topics.
 const defaultMatchThreshold = .55
 
+const previewLimit = 5
+
+func topicEmbedText(name, description string) string {
+	if name == "" {
+		return description
+	}
+	return name + ": " + description
+}
+
+func validateTopicDescription(desc string) error {
+	if len(desc) < 10 || len(desc) > 2000 {
+		return fmt.Errorf("%w: description must be 10..2000 chars", ErrInvalidInput)
+	}
+	return nil
+}
+
 type StoreAPI interface {
 	CreateTopic(ctx context.Context, p CreateTopicParams) (*Topic, error)
 	UpdateTopicEmbedding(ctx context.Context, topicID int64, vec pgvector.Vector) error
@@ -32,6 +48,7 @@ type StoreAPI interface {
 	UpdateMatchState(ctx context.Context, userID, matchID int64, state string) error
 	LastSweepAt(ctx context.Context, userID int64) (*time.Time, error)
 	ListFeeds(ctx context.Context, p ListFeedsParams) ([]Feed, int, error)
+	PreviewFindings(ctx context.Context, userID int64, vec pgvector.Vector, limit int) ([]PreviewMatch, error)
 }
 
 type Service struct {
@@ -54,8 +71,8 @@ func (s *Service) CreateTopic(ctx context.Context, userID int64, req CreateTopic
 		return nil, fmt.Errorf("%w: name must be 1..200 chars", ErrInvalidInput)
 	}
 
-	if len(desc) < 10 || len(desc) > 2000 {
-		return nil, fmt.Errorf("%w: description must be 10..2000 chars", ErrInvalidInput)
+	if err := validateTopicDescription(desc); err != nil {
+		return nil, err
 	}
 
 	threshold := float32(defaultMatchThreshold)
@@ -73,7 +90,7 @@ func (s *Service) CreateTopic(ctx context.Context, userID int64, req CreateTopic
 		return nil, fmt.Errorf("create topic: %w", err)
 	}
 
-	vec, err := s.embedder.Embed(ctx, name+": "+desc)
+	vec, err := s.embedder.Embed(ctx, topicEmbedText(name, desc))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
 	}
@@ -176,8 +193,8 @@ func (s *Service) UpdateTopic(ctx context.Context, userID, topicID int64, req Up
 	}
 	if p.Description != nil {
 		d := strings.TrimSpace(*p.Description)
-		if len(d) < 10 || len(d) > 2000 {
-			return nil, fmt.Errorf("%w: description must be 10..2000 chars", ErrInvalidInput)
+		if err := validateTopicDescription(d); err != nil {
+			return nil, err
 		}
 		p.Description = &d
 	}
@@ -193,7 +210,7 @@ func (s *Service) UpdateTopic(ctx context.Context, userID, topicID int64, req Up
 	}
 
 	if p.Description != nil {
-		vec, err := s.embedder.Embed(ctx, topic.Name+": "+topic.Description)
+		vec, err := s.embedder.Embed(ctx, topicEmbedText(topic.Name, topic.Description))
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
 		}
@@ -207,6 +224,34 @@ func (s *Service) UpdateTopic(ctx context.Context, userID, topicID int64, req Up
 	}
 
 	return topic, nil
+}
+
+// PreviewTopic answers "what would this description actually catch?" — it
+// embeds the draft and returns the user's best-scoring findings, without
+// persisting anything. Name is optional: users usually type the description
+// first, and the probe mirrors whatever they have so far.
+func (s *Service) PreviewTopic(ctx context.Context, userID int64, req PreviewTopicRequest) (*TopicPreview, error) {
+	name := strings.TrimSpace(req.Name)
+	desc := strings.TrimSpace(req.Description)
+
+	if len(name) > 200 {
+		return nil, fmt.Errorf("%w: name must be at most 200 chars", ErrInvalidInput)
+	}
+	if err := validateTopicDescription(desc); err != nil {
+		return nil, err
+	}
+
+	vec, err := s.embedder.Embed(ctx, topicEmbedText(name, desc))
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
+	}
+
+	items, err := s.store.PreviewFindings(ctx, userID, pgvector.NewVector(vec), previewLimit)
+	if err != nil {
+		return nil, fmt.Errorf("preview findings: %w", err)
+	}
+
+	return &TopicPreview{Items: items, Threshold: defaultMatchThreshold}, nil
 }
 
 // ListMatches returns paginated matches for a user, optionally filtered by

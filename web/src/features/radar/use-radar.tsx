@@ -5,6 +5,7 @@ import {
   listMatches,
   getMatch,
   getStatus,
+  previewTopic,
 } from "./api";
 import { PAGE_SIZE, type MatchFilters, type MatchList } from "./types";
 
@@ -15,7 +16,11 @@ export const radarKeys = {
   matches: (filters: MatchFilters) => ["radar", "matches", filters] as const,
   match: (id: number) => ["radar", "match", id] as const,
   status: ["radar", "status"] as const,
+  topicPreview: (name: string, description: string) =>
+    ["radar", "topic-preview", name, description] as const,
 };
+
+export const MIN_PREVIEW_DESCRIPTION = 10;
 
 export function useTopicsQuery() {
   return useQuery({
@@ -29,6 +34,19 @@ export function useTopicQuery(id: number) {
     queryKey: radarKeys.topic(id),
     queryFn: () => getTopic(id),
     enabled: Number.isFinite(id) && id > 0,
+  });
+}
+
+export function useTopicPreviewQuery(name: string, description: string) {
+  const trimmedName = name.trim();
+  const trimmedDescription = description.trim();
+
+  return useQuery({
+    queryKey: radarKeys.topicPreview(trimmedName, trimmedDescription),
+    queryFn: () =>
+      previewTopic({ name: trimmedName, description: trimmedDescription }),
+    enabled: trimmedDescription.length >= MIN_PREVIEW_DESCRIPTION,
+    placeholderData: (previous) => previous,
   });
 }
 

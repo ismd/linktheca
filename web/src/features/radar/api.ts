@@ -6,11 +6,13 @@ import {
   RawMatchListSchema,
   RawMatchViewSchema,
   RawRadarStatusSchema,
+  RawTopicPreviewSchema,
   mapTopic,
   mapTopicWithStats,
   mapMatchList,
   mapMatchView,
   mapRadarStatus,
+  mapTopicPreview,
 } from "./schemas";
 import type {
   Topic,
@@ -19,6 +21,7 @@ import type {
   MatchView,
   RadarStatus,
   MatchState,
+  TopicPreview,
 } from "./types";
 
 function parseInDev<T>(schema: { parse: (x: unknown) => T }, data: unknown): T {
@@ -57,6 +60,20 @@ export async function createTopic(input: CreateTopicInput): Promise<Topic> {
     body: JSON.stringify(body),
   });
   return mapTopic(parseInDev(RawTopicSchema, raw));
+}
+
+export type PreviewTopicInput = {
+  name: string;
+  description: string;
+};
+
+/** Dry run: scores the user's findings against a draft topic, saving nothing. */
+export async function previewTopic(input: PreviewTopicInput): Promise<TopicPreview> {
+  const raw = await apiFetch<unknown>(`/radar/topics/preview`, {
+    method: "POST",
+    body: JSON.stringify({ name: input.name, description: input.description }),
+  });
+  return mapTopicPreview(parseInDev(RawTopicPreviewSchema, raw));
 }
 
 export type UpdateTopicInput = {

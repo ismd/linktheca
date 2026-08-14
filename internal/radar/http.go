@@ -41,6 +41,29 @@ func (h *HTTP) createTopic(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, topic)
 }
 
+// PreviewTopicHandler returns the http.HandlerFunc for POST
+// /radar/topics/preview: a dry run that scores findings against a draft
+// description and persists nothing.
+func (h *HTTP) PreviewTopicHandler() http.HandlerFunc { return h.previewTopic }
+
+func (h *HTTP) previewTopic(w http.ResponseWriter, r *http.Request) {
+	var req PreviewTopicRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid json body")
+		return
+	}
+
+	userID := coreauth.UserID(r.Context())
+
+	preview, err := h.svc.PreviewTopic(r.Context(), userID, req)
+	if err != nil {
+		writeRadarError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, preview)
+}
+
 // DisabledHandler is mounted on /radar/* when LINKTHECA_RADAR_ENABLED=false.
 // Returns 403 (the feature is implemented but administratively disabled, not
 // unimplemented) with a stable error code so clients can show a useful message.

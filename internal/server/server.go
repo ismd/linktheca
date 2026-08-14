@@ -127,6 +127,7 @@ func New(deps Deps) *http.Server {
 			r.Use(coreauth.RequireUser(issuer))
 
 			r.Post("/topics", radarHTTP.CreateTopicHandler())
+			r.Post("/topics/preview", radarHTTP.PreviewTopicHandler())
 			r.Get("/topics", radarHTTP.ListTopicsHandler())
 			r.Get("/topics/{id}", radarHTTP.GetTopicHandler())
 			r.Patch("/topics/{id}", radarHTTP.UpdateTopicHandler())

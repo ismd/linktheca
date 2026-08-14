@@ -44,6 +44,16 @@ export type MatchView = {
   finding: MatchFinding;
 };
 
+export type PreviewMatch = {
+  similarity: number;
+  finding: MatchFinding;
+};
+
+export type TopicPreview = {
+  items: PreviewMatch[];
+  threshold: number;
+};
+
 export type MatchList = {
   items: MatchView[];
   total: number;

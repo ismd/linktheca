@@ -2,9 +2,11 @@ import { z } from "zod";
 import type {
   Topic,
   TopicWithStats,
+  MatchFinding,
   MatchView,
   MatchList,
   RadarStatus,
+  TopicPreview,
 } from "./types";
 
 export const RawTopicStatsSchema = z.object({
@@ -56,6 +58,16 @@ export const RawMatchListSchema = z.object({
   total: z.number().int(),
 });
 
+export const RawPreviewMatchSchema = z.object({
+  similarity: z.number(),
+  finding: RawMatchFindingSchema,
+});
+
+export const RawTopicPreviewSchema = z.object({
+  items: z.array(RawPreviewMatchSchema),
+  threshold: z.number(),
+});
+
 export const RawTopicsListSchema = z.object({
   items: z.array(RawTopicWithStatsSchema),
 });
@@ -94,6 +106,19 @@ export function mapTopicWithStats(raw: RawTopicWithStats): TopicWithStats {
   };
 }
 
+function mapMatchFinding(raw: z.infer<typeof RawMatchFindingSchema>): MatchFinding {
+  return {
+    id: raw.id,
+    feedId: raw.feed_id,
+    feedTitle: raw.feed_title,
+    url: raw.url,
+    title: raw.title,
+    summary: raw.summary,
+    publishedAt: raw.published_at ? new Date(raw.published_at) : null,
+    discoveredAt: new Date(raw.discovered_at),
+  };
+}
+
 export function mapMatchView(raw: RawMatchView): MatchView {
   return {
     id: raw.id,
@@ -102,16 +127,19 @@ export function mapMatchView(raw: RawMatchView): MatchView {
     similarity: raw.similarity,
     state: raw.state,
     matchedAt: new Date(raw.matched_at),
-    finding: {
-      id: raw.finding.id,
-      feedId: raw.finding.feed_id,
-      feedTitle: raw.finding.feed_title,
-      url: raw.finding.url,
-      title: raw.finding.title,
-      summary: raw.finding.summary,
-      publishedAt: raw.finding.published_at ? new Date(raw.finding.published_at) : null,
-      discoveredAt: new Date(raw.finding.discovered_at),
-    },
+    finding: mapMatchFinding(raw.finding),
+  };
+}
+
+export function mapTopicPreview(
+  raw: z.infer<typeof RawTopicPreviewSchema>,
+): TopicPreview {
+  return {
+    items: raw.items.map((i) => ({
+      similarity: i.similarity,
+      finding: mapMatchFinding(i.finding),
+    })),
+    threshold: raw.threshold,
   };
 }
 

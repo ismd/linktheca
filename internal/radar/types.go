@@ -195,6 +195,29 @@ type UpdateTopicParams struct {
 	IsActive       *bool
 }
 
+// PreviewTopicRequest is the payload for POST /radar/topics/preview.
+// It carries the draft topic the user is still typing; nothing is persisted.
+type PreviewTopicRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// PreviewMatch is a finding scored against a draft topic. It mirrors the
+// shape of MatchView (similarity + finding) so clients can render previews
+// with the same components they use for real matches.
+type PreviewMatch struct {
+	Similarity float32      `json:"similarity"`
+	Finding    MatchFinding `json:"finding"`
+}
+
+// TopicPreview is the response for POST /radar/topics/preview. Threshold is
+// the cutoff the topic would be created with, so the client can show which of
+// the returned findings would actually have become matches.
+type TopicPreview struct {
+	Items     []PreviewMatch `json:"items"`
+	Threshold float32        `json:"threshold"`
+}
+
 // UpdateMatchRequest is the payload for PATCH /radar/matches/{id}.
 type UpdateMatchRequest struct {
 	State string `json:"state"`

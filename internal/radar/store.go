@@ -256,6 +256,47 @@ func (s *Store) MatchFindingToTopics(ctx context.Context, findingID int64) (int6
 	return cmd.RowsAffected(), nil
 }
 
+// PreviewFindings scores the user's reachable findings against a probe vector
+// and returns the best `limit`, unfiltered by any threshold — the caller draws
+// the cutoff line. The subscription join mirrors MatchFindingToTopics, so a
+// preview can only promise findings the matcher would actually have seen.
+func (s *Store) PreviewFindings(ctx context.Context, userID int64, vec pgvector.Vector, limit int) ([]PreviewMatch, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT 1 - (f.embedding <=> $2) AS similarity,
+		       f.id, f.feed_id, fd.title AS feed_title,
+		       f.url, f.title, f.summary,
+		       f.published_at, f.discovered_at
+		FROM radar_findings f
+		JOIN radar_feeds fd ON fd.id = f.feed_id
+		JOIN radar_feed_subscriptions rfs
+		  ON rfs.feed_id = f.feed_id AND rfs.user_id = $1
+		WHERE f.embedding IS NOT NULL
+		ORDER BY f.embedding <=> $2
+		LIMIT $3`, userID, vec, limit)
+	if err != nil {
+		return nil, fmt.Errorf("preview findings: %w", err)
+	}
+	defer rows.Close()
+
+	items := []PreviewMatch{}
+	for rows.Next() {
+		var p PreviewMatch
+		if err := rows.Scan(
+			&p.Similarity,
+			&p.Finding.ID, &p.Finding.FeedID, &p.Finding.FeedTitle,
+			&p.Finding.URL, &p.Finding.Title, &p.Finding.Summary,
+			&p.Finding.PublishedAt, &p.Finding.DiscoveredAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan preview finding: %w", err)
+		}
+		items = append(items, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows: %w", err)
+	}
+	return items, nil
+}
+
 type FindingForEmbed struct {
 	ID           int64
 	Title        *string

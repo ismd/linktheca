@@ -699,3 +699,97 @@ func TestStore_GetMatch_otherUser(t *testing.T) {
 	_, err := store.GetMatch(ctx, userA, matchID)
 	require.ErrorIs(t, err, radar.ErrNotFound)
 }
+
+// seedFindingEmbedding sets a finding's embedding to the unit vector pointing
+// along axis, so cosine similarity against another axis is exactly 0 or 1.
+func seedFindingEmbedding(t *testing.T, pool *pgxpool.Pool, findingID int64, axis int) {
+	t.Helper()
+	vec := make([]float32, 1024)
+	vec[axis] = 1
+	_, err := pool.Exec(context.Background(),
+		`UPDATE radar_findings SET embedding = $1 WHERE id = $2`,
+		pgvector.NewVector(vec), findingID)
+	require.NoError(t, err)
+}
+
+func TestStore_PreviewFindings_ranksSubscribedFindings(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	subscribed := seedFeed(t, pool, "https://f.example/sub", "Subscribed Feed")
+	other := seedFeed(t, pool, "https://f.example/other", "Other Feed")
+	seedSubscription(t, pool, userID, subscribed)
+
+	hit := seedFinding(t, pool, subscribed, "https://p.example/hit", "Hit")
+	miss := seedFinding(t, pool, subscribed, "https://p.example/miss", "Miss")
+	unsubscribed := seedFinding(t, pool, other, "https://p.example/nope", "Unsubscribed")
+	unembedded := seedFinding(t, pool, subscribed, "https://p.example/raw", "No embedding")
+
+	seedFindingEmbedding(t, pool, hit, 0)
+	seedFindingEmbedding(t, pool, miss, 1)
+	seedFindingEmbedding(t, pool, unsubscribed, 0)
+
+	probe := make([]float32, 1024)
+	probe[0] = 1
+
+	items, err := store.PreviewFindings(ctx, userID, pgvector.NewVector(probe), 5)
+	require.NoError(t, err)
+	require.Len(t, items, 2, "unsubscribed and unembedded findings must not appear")
+
+	require.Equal(t, hit, items[0].Finding.ID)
+	require.InDelta(t, 1.0, items[0].Similarity, 0.001)
+	require.Equal(t, miss, items[1].Finding.ID)
+	require.InDelta(t, 0.0, items[1].Similarity, 0.001)
+
+	require.NotNil(t, items[0].Finding.FeedTitle)
+	require.Equal(t, "Subscribed Feed", *items[0].Finding.FeedTitle)
+	require.NotNil(t, items[0].Finding.Title)
+	require.Equal(t, "Hit", *items[0].Finding.Title)
+
+	for _, it := range items {
+		require.NotEqual(t, unsubscribed, it.Finding.ID)
+		require.NotEqual(t, unembedded, it.Finding.ID)
+	}
+}
+
+func TestStore_PreviewFindings_respectsLimit(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	feed := seedFeed(t, pool, "https://f.example/lim", "Feed")
+	seedSubscription(t, pool, userID, feed)
+
+	for i := 0; i < 4; i++ {
+		id := seedFinding(t, pool, feed, fmt.Sprintf("https://p.example/%d", i), "T")
+		seedFindingEmbedding(t, pool, id, i)
+	}
+
+	probe := make([]float32, 1024)
+	probe[0] = 1
+
+	items, err := store.PreviewFindings(ctx, userID, pgvector.NewVector(probe), 2)
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+}
+
+func TestStore_PreviewFindings_emptyForUserWithoutSubscriptions(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	feed := seedFeed(t, pool, "https://f.example/none", "Feed")
+	id := seedFinding(t, pool, feed, "https://p.example/none", "T")
+	seedFindingEmbedding(t, pool, id, 0)
+
+	probe := make([]float32, 1024)
+	probe[0] = 1
+
+	items, err := store.PreviewFindings(ctx, userID, pgvector.NewVector(probe), 5)
+	require.NoError(t, err)
+	require.Empty(t, items)
+}

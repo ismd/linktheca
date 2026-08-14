@@ -143,3 +143,9 @@ threshold.
 - `cmd/radar-sim/queries.go` `topFindingsByTopic` — этот preview-запрос
   уже написан и покрыт тестами для CLI; эндпоинту из п. 1 остаётся
   обернуть его в HTTP-слой со scoping по `user_id`.
+- `POST /radar/topics/preview` (issue #8) — соседний эндпоинт: скорит
+  findings против **черновика** темы, пока пользователь печатает
+  описание, и рисует ту же cutoff-линию по `defaultMatchThreshold`.
+  Его `Store.PreviewFindings` уже делает scoping по подпискам
+  пользователя; эндпоинту из п. 1 достаточно взять embedding из
+  `radar_topics` вместо свежего probe.

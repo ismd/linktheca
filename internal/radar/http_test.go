@@ -482,3 +482,68 @@ func TestHTTP_ListFeeds_200(t *testing.T) {
 	h.ListFeedsHandler()(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 }
+
+func TestHTTP_PreviewTopic_200(t *testing.T) {
+	store := newMockStore()
+	store.previewResult = []radar.PreviewMatch{
+		{Similarity: 0.77, Finding: radar.MatchFinding{ID: 9, URL: "https://x.example/a"}},
+	}
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	body, _ := json.Marshal(radar.PreviewTopicRequest{
+		Name: "AI", Description: "machine learning research and products",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/radar/topics/preview", bytes.NewReader(body))
+	req = req.WithContext(userOnlyContext(req.Context(), 7, false))
+	rec := httptest.NewRecorder()
+
+	h.PreviewTopicHandler()(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	var got radar.TopicPreview
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&got))
+	require.Len(t, got.Items, 1)
+	require.Equal(t, float32(0.77), got.Items[0].Similarity)
+	require.Equal(t, float32(0.55), got.Threshold)
+	require.Equal(t, int64(7), store.previewUserID)
+}
+
+func TestHTTP_PreviewTopic_400_BadJSON(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodPost, "/radar/topics/preview",
+		strings.NewReader(`{"description":}`))
+	req = req.WithContext(userOnlyContext(req.Context(), 1, false))
+	rec := httptest.NewRecorder()
+	h.PreviewTopicHandler()(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestHTTP_PreviewTopic_400_ShortDescription(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	body, _ := json.Marshal(radar.PreviewTopicRequest{Description: "short"})
+	req := httptest.NewRequest(http.MethodPost, "/radar/topics/preview", bytes.NewReader(body))
+	req = req.WithContext(userOnlyContext(req.Context(), 1, false))
+	rec := httptest.NewRecorder()
+	h.PreviewTopicHandler()(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestHTTP_PreviewTopic_503_EmbedderDown(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &errEmbedder{err: errors.New("connection refused")})
+	h := radar.NewHTTP(svc)
+
+	body, _ := json.Marshal(radar.PreviewTopicRequest{Description: "ten chars long enough"})
+	req := httptest.NewRequest(http.MethodPost, "/radar/topics/preview", bytes.NewReader(body))
+	req = req.WithContext(userOnlyContext(req.Context(), 1, false))
+	rec := httptest.NewRecorder()
+	h.PreviewTopicHandler()(rec, req)
+	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+}

@@ -3,6 +3,7 @@ package radar_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -54,6 +55,12 @@ type mockStore struct {
 	getMatchResult    *radar.MatchView
 	getMatchErr       error
 	getMatchCalled    bool
+	previewResult     []radar.PreviewMatch
+	previewErr        error
+	previewCalled     bool
+	previewUserID     int64
+	previewVec        pgvector.Vector
+	previewLimit      int
 }
 
 func newMockStore() *mockStore {
@@ -394,6 +401,16 @@ func (m *mockStore) ListFeeds(_ context.Context, _ radar.ListFeedsParams) ([]rad
 	return m.listFeedsResult, m.listFeedsTotal, m.listFeedsErr
 }
 
+func (m *mockStore) PreviewFindings(
+	_ context.Context, userID int64, vec pgvector.Vector, limit int,
+) ([]radar.PreviewMatch, error) {
+	m.previewCalled = true
+	m.previewUserID = userID
+	m.previewVec = vec
+	m.previewLimit = limit
+	return m.previewResult, m.previewErr
+}
+
 func TestService_ListTopics_passesThrough(t *testing.T) {
 	store := newMockStore()
 	store.listTopicsResult = []radar.TopicWithStats{
@@ -611,4 +628,82 @@ func TestService_ListFeeds_clampsPagination(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got.Items, 1)
 	require.Equal(t, 1, got.Total)
+}
+
+func TestService_PreviewTopic_ProbesLikeCreateTopic(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+
+	got, err := svc.PreviewTopic(context.Background(), 7, radar.PreviewTopicRequest{
+		Name: "WebAuthn", Description: "webauthn passkeys",
+	})
+	require.NoError(t, err)
+	require.Equal(t, float32(0.55), got.Threshold)
+
+	require.True(t, store.previewCalled)
+	require.Equal(t, int64(7), store.previewUserID)
+	require.Equal(t, 5, store.previewLimit)
+
+	expected, _ := emb.Embed(context.Background(), "WebAuthn: webauthn passkeys")
+	require.Equal(t, pgvector.NewVector(expected), store.previewVec,
+		"preview must probe with the same text CreateTopic embeds")
+}
+
+func TestService_PreviewTopic_WithoutNameProbesDescriptionOnly(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+
+	_, err := svc.PreviewTopic(context.Background(), 1, radar.PreviewTopicRequest{
+		Description: "webauthn passkeys",
+	})
+	require.NoError(t, err)
+
+	expected, _ := emb.Embed(context.Background(), "webauthn passkeys")
+	require.Equal(t, pgvector.NewVector(expected), store.previewVec)
+}
+
+func TestService_PreviewTopic_ReturnsScoredFindings(t *testing.T) {
+	store := newMockStore()
+	store.previewResult = []radar.PreviewMatch{
+		{Similarity: 0.81, Finding: radar.MatchFinding{ID: 3, URL: "https://x.example/a"}},
+		{Similarity: 0.42, Finding: radar.MatchFinding{ID: 4, URL: "https://x.example/b"}},
+	}
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	got, err := svc.PreviewTopic(context.Background(), 1, radar.PreviewTopicRequest{
+		Description: "ten chars long",
+	})
+	require.NoError(t, err)
+	require.Len(t, got.Items, 2)
+	require.Equal(t, float32(0.81), got.Items[0].Similarity)
+	require.Equal(t, int64(4), got.Items[1].Finding.ID)
+}
+
+func TestService_PreviewTopic_Validation(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	_, err := svc.PreviewTopic(context.Background(), 1, radar.PreviewTopicRequest{
+		Description: "short",
+	})
+	require.ErrorIs(t, err, radar.ErrInvalidInput)
+
+	_, err = svc.PreviewTopic(context.Background(), 1, radar.PreviewTopicRequest{
+		Name: strings.Repeat("x", 201), Description: "ten chars long",
+	})
+	require.ErrorIs(t, err, radar.ErrInvalidInput)
+
+	require.False(t, store.previewCalled, "invalid drafts must not reach the embedder or store")
+}
+
+func TestService_PreviewTopic_EmbedderError(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &errEmbedder{err: errors.New("boom")})
+
+	_, err := svc.PreviewTopic(context.Background(), 1, radar.PreviewTopicRequest{
+		Description: "ten chars long",
+	})
+	require.ErrorIs(t, err, radar.ErrEmbedderUnavailable)
 }

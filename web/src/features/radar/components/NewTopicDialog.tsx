@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ import { Button } from "@/shared/ui/button";
 import { ApiError } from "@/shared/api/errors";
 import { useNewTopicStore } from "../use-new-topic-store";
 import { useCreateTopic } from "../use-mutations";
+import { TopicPreviewPanel } from "./TopicPreviewPanel";
 
 const schema = z.object({
   name: z.string().min(1, "Name is required").max(200, "Name too long"),
@@ -45,11 +46,14 @@ function NewTopicForm({ onClose }: { onClose: () => void }) {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { name: "", description: "" },
   });
+  const draftName = useWatch({ control, name: "name" });
+  const draftDescription = useWatch({ control, name: "description" });
   const [topError, setTopError] = useState<string | null>(null);
 
   const onSubmit = handleSubmit(async ({ name, description }) => {
@@ -102,6 +106,8 @@ function NewTopicForm({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
+      <TopicPreviewPanel name={draftName} description={draftDescription} />
+
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose} disabled={create.isPending}>
           Cancel
@@ -125,7 +131,7 @@ export function NewTopicDialog() {
         if (!o) close();
       }}
     >
-      <DialogContent className="paper-surface">
+      <DialogContent className="paper-surface max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="display-tight text-3xl">New topic</DialogTitle>
           <DialogDescription className="label-sc text-muted-foreground">

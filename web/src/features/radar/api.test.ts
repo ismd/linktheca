@@ -12,6 +12,7 @@ import {
   getMatch,
   updateMatch,
   getStatus,
+  previewTopic,
 } from "./api";
 
 const rawTopic = (overrides: Record<string, unknown> = {}) => ({
@@ -170,5 +171,37 @@ describe("radar api", () => {
     );
     const s = await getStatus();
     expect(s.lastSweepAt).toBeInstanceOf(Date);
+  });
+});
+
+describe("previewTopic", () => {
+  it("POSTs the draft and maps scored findings", async () => {
+    let captured: unknown = null;
+    server.use(
+      http.post("/api/radar/topics/preview", async ({ request }) => {
+        captured = await request.json();
+        return HttpResponse.json({
+          items: [
+            {
+              similarity: 0.81,
+              finding: {
+                id: 200, feed_id: 5, feed_title: "Feed",
+                url: "https://x.example/a", title: "Title", summary: "Summary",
+                published_at: "2026-05-17T10:00:00Z",
+                discovered_at: "2026-05-18T09:00:00Z",
+              },
+            },
+          ],
+          threshold: 0.55,
+        });
+      }),
+    );
+
+    const preview = await previewTopic({ name: "N", description: "Desc longer than 10 chars" });
+
+    expect(captured).toEqual({ name: "N", description: "Desc longer than 10 chars" });
+    expect(preview.threshold).toBe(0.55);
+    expect(preview.items[0]!.similarity).toBe(0.81);
+    expect(preview.items[0]!.finding.publishedAt).toBeInstanceOf(Date);
   });
 });
