@@ -48,7 +48,7 @@ add / edit / disable / delete; автоподписка нового юзера 
 | `POST` | `/radar/subscriptions` | user | Без изменений; идемпотентен через `ON CONFLICT`. |
 | `DELETE` | `/radar/subscriptions/{feedId}` | user | 204. Отписка от неподписанной ленты — не ошибка. |
 | `POST` | `/radar/feeds` | admin | Без изменений. Дубль URL → 409 `duplicate`. |
-| `PATCH` | `/radar/feeds/{id}` | admin | `title`, `fetch_interval_seconds`, `is_active` — все опциональны. |
+| `PATCH` | `/radar/feeds/{id}` | admin | `title`, `fetch_interval_seconds`, `is_active` — все опциональны. Отсутствие поля = не менять; `"title": ""` = очистить (в БД NULL). |
 | `DELETE` | `/radar/feeds/{id}` | admin | 204, cascade. |
 
 Строка каталога — `FeedListItem`: текущий `Feed` плюс
