@@ -471,7 +471,11 @@ func TestHTTP_Status_200_null(t *testing.T) {
 
 func TestHTTP_ListFeeds_200(t *testing.T) {
 	store := newMockStore()
-	store.listFeedsResult = []radar.Feed{{ID: 1, URL: "https://x.example/rss"}}
+	store.listFeedsResult = []radar.FeedListItem{{
+		Feed:         radar.Feed{ID: 1, URL: "https://x.example/rss"},
+		Subscribed:   false,
+		FindingCount: 1,
+	}}
 	store.listFeedsTotal = 1
 	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
 	h := radar.NewHTTP(svc)
@@ -546,4 +550,28 @@ func TestHTTP_PreviewTopic_503_EmbedderDown(t *testing.T) {
 	rec := httptest.NewRecorder()
 	h.PreviewTopicHandler()(rec, req)
 	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+}
+
+func TestHTTP_ListFeeds_PassesCallerID(t *testing.T) {
+	store := newMockStore()
+	store.listFeedsResult = []radar.FeedListItem{{
+		Feed:       radar.Feed{ID: 7, URL: "https://x.example/rss", Kind: "rss"},
+		Subscribed: true, FindingCount: 12,
+	}}
+	store.listFeedsTotal = 1
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/feeds?limit=10", nil)
+	req = req.WithContext(userOnlyContext(req.Context(), 42, false))
+	rec := httptest.NewRecorder()
+	h.ListFeedsHandler()(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, int64(42), store.listFeedsUserID)
+
+	var got radar.FeedList
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+	require.True(t, got.Items[0].Subscribed)
+	require.Equal(t, 12, got.Items[0].FindingCount)
 }

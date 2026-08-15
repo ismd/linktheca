@@ -41,9 +41,6 @@ func (h *HTTP) createTopic(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, topic)
 }
 
-// PreviewTopicHandler returns the http.HandlerFunc for POST
-// /radar/topics/preview: a dry run that scores findings against a draft
-// description and persists nothing.
 func (h *HTTP) PreviewTopicHandler() http.HandlerFunc { return h.previewTopic }
 
 func (h *HTTP) previewTopic(w http.ResponseWriter, r *http.Request) {
@@ -314,10 +311,13 @@ func (h *HTTP) listFeeds(w http.ResponseWriter, r *http.Request) {
 	if o, err := strconv.Atoi(q.Get("offset")); err == nil {
 		params.Offset = o
 	}
-	result, err := h.svc.ListFeeds(r.Context(), params)
+
+	userID := coreauth.UserID(r.Context())
+	result, err := h.svc.ListFeeds(r.Context(), userID, params)
 	if err != nil {
 		writeRadarError(w, err)
 		return
 	}
+
 	httpx.WriteJSON(w, http.StatusOK, result)
 }

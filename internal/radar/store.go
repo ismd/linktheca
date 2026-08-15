@@ -256,10 +256,6 @@ func (s *Store) MatchFindingToTopics(ctx context.Context, findingID int64) (int6
 	return cmd.RowsAffected(), nil
 }
 
-// PreviewFindings scores the user's reachable findings against a probe vector
-// and returns the best `limit`, unfiltered by any threshold — the caller draws
-// the cutoff line. The subscription join mirrors MatchFindingToTopics, so a
-// preview can only promise findings the matcher would actually have seen.
 func (s *Store) PreviewFindings(ctx context.Context, userID int64, vec pgvector.Vector, limit int) ([]PreviewMatch, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT 1 - (f.embedding <=> $2) AS similarity,
@@ -570,35 +566,44 @@ func (s *Store) LastSweepAt(ctx context.Context, userID int64) (*time.Time, erro
 	return last, nil
 }
 
-func (s *Store) ListFeeds(ctx context.Context, p ListFeedsParams) ([]Feed, int, error) {
+func (s *Store) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) ([]FeedListItem, int, error) {
 	var total int
 	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM radar_feeds`).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count feeds: %w", err)
 	}
 
 	rows, err := s.db.Query(ctx, `
-		SELECT id, url, kind, title, fetch_interval_seconds, is_active,
-		       last_fetched_at, last_error, created_at
-		FROM radar_feeds
-		ORDER BY created_at DESC
-		LIMIT $1 OFFSET $2`, p.Limit, p.Offset)
+		SELECT f.id, f.url, f.kind, f.title, f.fetch_interval_seconds, f.is_active,
+		       f.last_fetched_at, f.last_error, f.created_at,
+		       EXISTS (SELECT 1 FROM radar_feed_subscriptions s
+		               WHERE s.feed_id = f.id AND s.user_id = $1) AS subscribed,
+		       coalesce(fc.n, 0) AS finding_count
+		FROM radar_feeds f
+		LEFT JOIN (
+			SELECT feed_id, count(*) AS n FROM radar_findings GROUP BY feed_id
+		) fc ON fc.feed_id = f.id
+		ORDER BY lower(coalesce(f.title, f.url)) ASC
+		LIMIT $2 OFFSET $3`, userID, p.Limit, p.Offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list feeds: %w", err)
 	}
 	defer rows.Close()
 
-	items := []Feed{}
+	items := []FeedListItem{}
 	for rows.Next() {
-		var f Feed
-		if err := rows.Scan(&f.ID, &f.URL, &f.Kind, &f.Title,
-			&f.FetchIntervalSeconds, &f.IsActive,
-			&f.LastFetchedAt, &f.LastError, &f.CreatedAt); err != nil {
+		var it FeedListItem
+		if err := rows.Scan(&it.ID, &it.URL, &it.Kind, &it.Title,
+			&it.FetchIntervalSeconds, &it.IsActive,
+			&it.LastFetchedAt, &it.LastError, &it.CreatedAt,
+			&it.Subscribed, &it.FindingCount); err != nil {
 			return nil, 0, fmt.Errorf("scan feed: %w", err)
 		}
-		items = append(items, f)
+		items = append(items, it)
 	}
+
 	if err := rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("rows: %w", err)
 	}
+
 	return items, total, nil
 }

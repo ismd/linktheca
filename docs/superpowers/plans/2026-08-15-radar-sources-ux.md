@@ -60,7 +60,7 @@
 - Consumes: существующие `Feed`, `ListFeedsParams`.
 - Produces: `radar.FeedListItem{Feed; Subscribed bool; FindingCount int}`; `FeedList{Items []FeedListItem; Total int}`; `Store.ListFeeds(ctx, userID int64, p ListFeedsParams) ([]FeedListItem, int, error)`; `Service.ListFeeds(ctx, userID int64, p ListFeedsParams) (*FeedList, error)`.
 
-- [ ] **Step 1: Написать падающий тест стора**
+- [x] **Step 1: Написать падающий тест стора**
 
 В `internal/radar/store_test.go`:
 
@@ -109,12 +109,12 @@ func TestStore_ListFeeds_SubscribedAndCounts(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Запустить и убедиться, что не компилируется**
+- [x] **Step 2: Запустить и убедиться, что не компилируется**
 
 Run: `go test ./internal/radar/ -run TestStore_ListFeeds_SubscribedAndCounts -count=1`
 Expected: FAIL — `too many arguments in call to store.ListFeeds`, `undefined: radar.FeedListItem`.
 
-- [ ] **Step 3: Добавить DTO в `types.go`**
+- [x] **Step 3: Добавить DTO в `types.go`**
 
 Заменить существующий блок `FeedList` на:
 
@@ -134,7 +134,7 @@ type FeedList struct {
 }
 ```
 
-- [ ] **Step 4: Переписать `Store.ListFeeds`**
+- [x] **Step 4: Переписать `Store.ListFeeds`**
 
 ```go
 func (s *Store) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) ([]FeedListItem, int, error) {
@@ -178,7 +178,7 @@ func (s *Store) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) 
 }
 ```
 
-- [ ] **Step 5: Провести userID через сервис**
+- [x] **Step 5: Провести userID через сервис**
 
 В `internal/radar/service.go` заменить строку интерфейса `StoreAPI` на
 
@@ -210,7 +210,7 @@ func (s *Service) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams
 }
 ```
 
-- [ ] **Step 6: Обновить mockStore**
+- [x] **Step 6: Обновить mockStore**
 
 В `internal/radar/service_test.go` заменить поле `listFeedsResult []radar.Feed` на `listFeedsResult []radar.FeedListItem` и метод на:
 
@@ -224,7 +224,7 @@ func (m *mockStore) ListFeeds(_ context.Context, userID int64, p radar.ListFeeds
 
 Добавить в структуру `mockStore` поля `listFeedsUserID int64` и `listFeedsParams radar.ListFeedsParams`.
 
-- [ ] **Step 7: Обновить хендлер**
+- [x] **Step 7: Обновить хендлер**
 
 В `internal/radar/http.go` в `listFeeds` перед вызовом сервиса добавить пользователя:
 
@@ -233,7 +233,7 @@ func (m *mockStore) ListFeeds(_ context.Context, userID int64, p radar.ListFeeds
 	result, err := h.svc.ListFeeds(r.Context(), userID, params)
 ```
 
-- [ ] **Step 8: Тест хендлера на прокидывание userID**
+- [x] **Step 8: Тест хендлера на прокидывание userID**
 
 В `internal/radar/http_test.go`:
 
@@ -265,16 +265,16 @@ func TestHTTP_ListFeeds_PassesCallerID(t *testing.T) {
 
 Существующий `TestHTTP_ListFeeds_*` в файле поправить под новый тип, если он собирает `[]radar.Feed`.
 
-- [ ] **Step 9: Открыть маршрут всем ролям**
+- [x] **Step 9: Открыть маршрут всем ролям**
 
 В `internal/server/server.go` перенести `r.Get("/feeds", radarHTTP.ListFeedsHandler())` из группы `RequireAdmin` в общую user-группу (рядом с `r.Post("/subscriptions", …)`). В админской группе остаётся только `r.Post("/feeds", …)`.
 
-- [ ] **Step 10: Прогнать тесты**
+- [x] **Step 10: Прогнать тесты**
 
 Run: `make test-unit && go test ./internal/radar/ -run 'TestStore_ListFeeds|TestHTTP_ListFeeds' -count=1`
 Expected: PASS.
 
-- [ ] **Step 11: Коммит**
+- [x] **Step 11: Коммит**
 
 ```bash
 git add internal/radar internal/server/server.go

@@ -133,6 +133,7 @@ func New(deps Deps) *http.Server {
 			r.Patch("/topics/{id}", radarHTTP.UpdateTopicHandler())
 			r.Delete("/topics/{id}", radarHTTP.DeleteTopicHandler())
 
+			r.Get("/feeds", radarHTTP.ListFeedsHandler())
 			r.Post("/subscriptions", radarHTTP.SubscribeHandler())
 
 			r.Get("/matches", radarHTTP.ListMatchesHandler())
@@ -144,7 +145,6 @@ func New(deps Deps) *http.Server {
 			r.Group(func(r chi.Router) {
 				r.Use(coreauth.RequireAdmin)
 				r.Post("/feeds", radarHTTP.AddFeedHandler())
-				r.Get("/feeds", radarHTTP.ListFeedsHandler())
 			})
 		})
 	} else {

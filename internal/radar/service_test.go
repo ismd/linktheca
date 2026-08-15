@@ -49,7 +49,9 @@ type mockStore struct {
 	updateMatchState  string
 	lastSweepResult   *time.Time
 	lastSweepErr      error
-	listFeedsResult   []radar.Feed
+	listFeedsUserID   int64
+	listFeedsParams   radar.ListFeedsParams
+	listFeedsResult   []radar.FeedListItem
 	listFeedsTotal    int
 	listFeedsErr      error
 	getMatchResult    *radar.MatchView
@@ -397,7 +399,9 @@ func (m *mockStore) LastSweepAt(_ context.Context, _ int64) (*time.Time, error) 
 	return m.lastSweepResult, m.lastSweepErr
 }
 
-func (m *mockStore) ListFeeds(_ context.Context, _ radar.ListFeedsParams) ([]radar.Feed, int, error) {
+func (m *mockStore) ListFeeds(_ context.Context, userID int64, p radar.ListFeedsParams) ([]radar.FeedListItem, int, error) {
+	m.listFeedsUserID = userID
+	m.listFeedsParams = p
 	return m.listFeedsResult, m.listFeedsTotal, m.listFeedsErr
 }
 
@@ -620,11 +624,11 @@ func TestService_LastSweep_passesThrough(t *testing.T) {
 
 func TestService_ListFeeds_clampsPagination(t *testing.T) {
 	store := newMockStore()
-	store.listFeedsResult = []radar.Feed{{ID: 1}}
+	store.listFeedsResult = []radar.FeedListItem{{Feed: radar.Feed{ID: 1}}}
 	store.listFeedsTotal = 1
 	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
 
-	got, err := svc.ListFeeds(context.Background(), radar.ListFeedsParams{Limit: 0, Offset: -1})
+	got, err := svc.ListFeeds(context.Background(), 1, radar.ListFeedsParams{Limit: 0, Offset: -1})
 	require.NoError(t, err)
 	require.Len(t, got.Items, 1)
 	require.Equal(t, 1, got.Total)

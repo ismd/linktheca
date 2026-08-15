@@ -172,10 +172,18 @@ type ListFeedsParams struct {
 	Offset int
 }
 
+// FeedListItem is one catalog row: the feed plus per-user subscription state
+// and how many findings it has produced.
+type FeedListItem struct {
+	Feed
+	Subscribed   bool `json:"subscribed"`
+	FindingCount int  `json:"finding_count"`
+}
+
 // FeedList holds the paginated response for GET /radar/feeds.
 type FeedList struct {
-	Items []Feed `json:"items"`
-	Total int    `json:"total"`
+	Items []FeedListItem `json:"items"`
+	Total int            `json:"total"`
 }
 
 // UpdateTopicRequest is the payload for PATCH /radar/topics/{id}.

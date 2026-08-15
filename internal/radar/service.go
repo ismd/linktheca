@@ -47,7 +47,7 @@ type StoreAPI interface {
 	GetMatch(ctx context.Context, userID, matchID int64) (*MatchView, error)
 	UpdateMatchState(ctx context.Context, userID, matchID int64, state string) error
 	LastSweepAt(ctx context.Context, userID int64) (*time.Time, error)
-	ListFeeds(ctx context.Context, p ListFeedsParams) ([]Feed, int, error)
+	ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) ([]FeedListItem, int, error)
 	PreviewFindings(ctx context.Context, userID int64, vec pgvector.Vector, limit int) ([]PreviewMatch, error)
 }
 
@@ -226,10 +226,6 @@ func (s *Service) UpdateTopic(ctx context.Context, userID, topicID int64, req Up
 	return topic, nil
 }
 
-// PreviewTopic answers "what would this description actually catch?" — it
-// embeds the draft and returns the user's best-scoring findings, without
-// persisting anything. Name is optional: users usually type the description
-// first, and the probe mirrors whatever they have so far.
 func (s *Service) PreviewTopic(ctx context.Context, userID int64, req PreviewTopicRequest) (*TopicPreview, error) {
 	name := strings.TrimSpace(req.Name)
 	desc := strings.TrimSpace(req.Description)
@@ -294,8 +290,9 @@ func (s *Service) LastSweep(ctx context.Context, userID int64) (*time.Time, erro
 	return s.store.LastSweepAt(ctx, userID)
 }
 
-// ListFeeds returns paginated feeds (admin scope; middleware enforces).
-func (s *Service) ListFeeds(ctx context.Context, p ListFeedsParams) (*FeedList, error) {
+// ListFeeds returns the instance feed catalog with the caller's subscription
+// state on every row.
+func (s *Service) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) (*FeedList, error) {
 	if p.Limit <= 0 || p.Limit > 100 {
 		if p.Limit > 100 {
 			p.Limit = 100
@@ -306,7 +303,7 @@ func (s *Service) ListFeeds(ctx context.Context, p ListFeedsParams) (*FeedList, 
 	if p.Offset < 0 {
 		p.Offset = 0
 	}
-	items, total, err := s.store.ListFeeds(ctx, p)
+	items, total, err := s.store.ListFeeds(ctx, userID, p)
 	if err != nil {
 		return nil, err
 	}

@@ -633,18 +633,19 @@ func TestStore_ListFeeds_pagination(t *testing.T) {
 	store := radar.NewStore(pool)
 	ctx := context.Background()
 
+	userID := seedUser(t, pool)
 	for i := 0; i < 4; i++ {
 		seedFeed(t, pool,
 			fmt.Sprintf("https://feed-%d.example/rss", i),
 			fmt.Sprintf("Feed %d", i))
 	}
 
-	items, total, err := store.ListFeeds(ctx, radar.ListFeedsParams{Limit: 2, Offset: 0})
+	items, total, err := store.ListFeeds(ctx, userID, radar.ListFeedsParams{Limit: 2, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, items, 2)
 	require.Equal(t, 4, total)
 
-	items, _, err = store.ListFeeds(ctx, radar.ListFeedsParams{Limit: 2, Offset: 3})
+	items, _, err = store.ListFeeds(ctx, userID, radar.ListFeedsParams{Limit: 2, Offset: 3})
 	require.NoError(t, err)
 	require.Len(t, items, 1)
 }
@@ -792,4 +793,47 @@ func TestStore_PreviewFindings_emptyForUserWithoutSubscriptions(t *testing.T) {
 	items, err := store.PreviewFindings(ctx, userID, pgvector.NewVector(probe), 5)
 	require.NoError(t, err)
 	require.Empty(t, items)
+}
+
+func TestStore_ListFeeds_SubscribedAndCounts(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+
+	subscribed, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: fmt.Sprintf("https://a.example/%d.xml", userID), Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+	other, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: fmt.Sprintf("https://b.example/%d.xml", userID), Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+
+	_, err = store.Subscribe(ctx, userID, subscribed.ID)
+	require.NoError(t, err)
+
+	for i := 0; i < 3; i++ {
+		ext := fmt.Sprintf("ext-%d", i)
+		_, _, err = store.UpsertFinding(ctx, radar.FindingUpsert{
+			FeedID: subscribed.ID, ExternalID: &ext,
+			URL: fmt.Sprintf("https://a.example/post/%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	items, total, err := store.ListFeeds(ctx, userID, radar.ListFeedsParams{Limit: 100})
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, total, 2)
+
+	byID := map[int64]radar.FeedListItem{}
+	for _, it := range items {
+		byID[it.ID] = it
+	}
+
+	require.True(t, byID[subscribed.ID].Subscribed)
+	require.Equal(t, 3, byID[subscribed.ID].FindingCount)
+	require.False(t, byID[other.ID].Subscribed)
+	require.Equal(t, 0, byID[other.ID].FindingCount)
 }
