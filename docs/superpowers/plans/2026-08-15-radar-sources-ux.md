@@ -1971,7 +1971,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `useAddFeed`, `useUpdateFeed`, `useDeleteFeed` (Task 7), `SourceRow` (Task 8).
 - Produces: `AddFeedDialog{open, onOpenChange}`; `EditFeedDialog{feed: FeedListItem | null, onOpenChange}`; `DeleteFeedConfirm{feed: FeedListItem | null, pending, onOpenChange, onConfirm}`.
 
-- [ ] **Step 1: Тест диалога добавления на 409**
+- [x] **Step 1: Тест диалога добавления на 409**
 
 `web/src/features/radar/components/AddFeedDialog.test.tsx`:
 
@@ -1998,12 +1998,12 @@ it("shows the duplicate error inline", async () => {
 
 Форму ошибки ответа сверить с `ApiError` в `web/src/shared/api/errors.ts` и msw-стабами в `use-mutations.test.tsx`, чтобы `err.status === 409` действительно выставлялся.
 
-- [ ] **Step 2: Запустить, убедиться в провале**
+- [x] **Step 2: Запустить, убедиться в провале**
 
 Run: `cd web && npx vitest run src/features/radar/components/AddFeedDialog.test.tsx`
 Expected: FAIL — модуль `./AddFeedDialog` не найден.
 
-- [ ] **Step 3: `AddFeedDialog`**
+- [x] **Step 3: `AddFeedDialog`**
 
 По образцу `NewTopicDialog.tsx` (react-hook-form + zodResolver + `Dialog`):
 
@@ -2035,11 +2035,11 @@ function mapError(err: unknown): string {
 
 Сабмит вызывает `useAddFeed().mutateAsync`, при успехе — `toast.success("Feed added")` и закрытие, при ошибке — `setTopError(mapError(err))` в блоке `role="alert"` (та же разметка, что в `NewTopicDialog`).
 
-- [ ] **Step 4: `EditFeedDialog`**
+- [x] **Step 4: `EditFeedDialog`**
 
 Тот же каркас; поля — `title` (текст, пустое значение отправляется как `""` и очищает название), селект интервала из `INTERVAL_OPTIONS`, чекбокс `Paused` (в запрос уходит `isActive: !paused`). Значения по умолчанию берутся из пропса `feed`. Сабмит — `useUpdateFeed().mutateAsync({ id: feed.id, input })`.
 
-- [ ] **Step 5: `DeleteFeedConfirm`**
+- [x] **Step 5: `DeleteFeedConfirm`**
 
 Копия структуры `DeleteTopicConfirm.tsx` с другим текстом:
 
@@ -2053,7 +2053,7 @@ function mapError(err: unknown): string {
         </AlertDialogDescription>
 ```
 
-- [ ] **Step 6: Подключить диалоги к экрану**
+- [x] **Step 6: Подключить диалоги к экрану**
 
 В `web/src/routes/radar.sources.tsx` добавить локальное состояние и заменить заглушки:
 
@@ -2080,7 +2080,7 @@ function mapError(err: unknown): string {
         }}
 ```
 
-- [ ] **Step 7: Тест экрана на админские действия**
+- [x] **Step 7: Тест экрана на админские действия**
 
 В `web/src/routes/radar.sources.test.tsx`:
 
@@ -2104,7 +2104,7 @@ it("shows the finding count in the delete confirmation", async () => {
 
 Хелпер `rawFeed` из Step 4 Task 8 расширить третьим аргументом-переопределением.
 
-- [ ] **Step 8: Прогнать всё и закоммитить**
+- [x] **Step 8: Прогнать всё и закоммитить** — тесты/typecheck/lint/test-unit прогнаны и зелёные; коммит отложен по просьбе.
 
 Run: `cd web && npm test && npm run typecheck && npm run lint && cd .. && make test-unit`
 Expected: PASS.

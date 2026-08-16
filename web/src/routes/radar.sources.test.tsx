@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
@@ -7,7 +8,11 @@ import { server } from "@/test/setup";
 import { useAuthStore } from "@/features/auth/store";
 import SourcesRoute from "./radar.sources";
 
-const rawFeed = (id: number, subscribed: boolean) => ({
+const rawFeed = (
+  id: number,
+  subscribed: boolean,
+  over: Record<string, unknown> = {},
+) => ({
   id,
   url: `https://f${id}.example/rss`,
   kind: "rss",
@@ -19,6 +24,7 @@ const rawFeed = (id: number, subscribed: boolean) => ({
   created_at: "2026-08-01T10:00:00Z",
   subscribed,
   finding_count: 0,
+  ...over,
 });
 
 function renderAt(path: string) {
@@ -78,6 +84,35 @@ describe("SourcesRoute", () => {
 
     renderAt("/radar/sources");
     expect(await screen.findByRole("checkbox", { name: /feed 3/i })).toBeChecked();
+  });
+
+  it("shows the finding count in the delete confirmation", async () => {
+    server.use(
+      http.get("/api/radar/feeds", () =>
+        HttpResponse.json({
+          items: [rawFeed(3, true, { finding_count: 214 })],
+          total: 1,
+        }),
+      ),
+    );
+
+    signIn(true);
+    renderAt("/radar/sources");
+
+    await userEvent.click(await screen.findByRole("button", { name: /delete/i }));
+    expect(await screen.findByText(/214 findings/i)).toBeInTheDocument();
+  });
+
+  it("hides the add-feed button from ordinary users", async () => {
+    server.use(
+      http.get("/api/radar/feeds", () =>
+        HttpResponse.json({ items: [rawFeed(3, true)], total: 1 }),
+      ),
+    );
+
+    renderAt("/radar/sources");
+    await screen.findByRole("checkbox", { name: /feed 3/i });
+    expect(screen.queryByRole("button", { name: /add feed/i })).not.toBeInTheDocument();
   });
 
   it("renders the disabled screen when radar is off", async () => {
