@@ -1947,7 +1947,7 @@ export default function SourcesRoute() {
           </Link>
 ```
 
-- [ ] **Step 7: Прогнать тесты и закоммитить** — тесты/typecheck/lint прогнаны и зелёные; коммит отложен по просьбе.
+- [x] **Step 7: Прогнать тесты и закоммитить** — тесты/typecheck/lint прогнаны и зелёные; коммит отложен по просьбе.
 
 Run: `cd web && npm test && npm run typecheck && npm run lint`
 Expected: PASS.
