@@ -67,6 +67,8 @@ type mockStore struct {
 	updateFeedCalled  bool
 	updateFeedParams  radar.UpdateFeedParams
 	updateFeedErr     error
+	deleteFeedCalled  bool
+	deleteFeedErr     error
 }
 
 func newMockStore() *mockStore {
@@ -749,6 +751,23 @@ func (m *mockStore) UpdateFeed(_ context.Context, feedID int64, p radar.UpdateFe
 	}
 
 	return f, nil
+}
+
+func (m *mockStore) DeleteFeed(_ context.Context, feedID int64) error {
+	m.deleteFeedCalled = true
+
+	if m.deleteFeedErr != nil {
+		return m.deleteFeedErr
+	}
+
+	f, ok := m.feeds[feedID]
+	if !ok {
+		return radar.ErrNotFound
+	}
+
+	delete(m.feedsByURL, f.URL)
+	delete(m.feeds, feedID)
+	return nil
 }
 
 func TestService_UpdateFeed_Validation(t *testing.T) {

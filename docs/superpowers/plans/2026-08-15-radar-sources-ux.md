@@ -820,7 +820,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `ErrNotFound`.
 - Produces: `Store.DeleteFeed(ctx, feedID int64) error`; `Service.DeleteFeed(ctx, feedID int64) error`; `HTTP.DeleteFeedHandler()`.
 
-- [ ] **Step 1: Интеграционный тест каскада**
+- [x] **Step 1: Интеграционный тест каскада**
 
 ```go
 func TestIntegrationDeleteFeedCascades(t *testing.T) {
@@ -863,12 +863,12 @@ func TestIntegrationDeleteFeedCascades(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Запустить, убедиться в провале**
+- [x] **Step 2: Запустить, убедиться в провале**
 
 Run: `go test ./internal/radar/ -run TestIntegrationDeleteFeedCascades -count=1`
 Expected: FAIL — `svc.DeleteFeed undefined`.
 
-- [ ] **Step 3: Стор**
+- [x] **Step 3: Стор**
 
 ```go
 // DeleteFeed removes a feed. Findings and their matches go with it via
@@ -885,7 +885,7 @@ func (s *Store) DeleteFeed(ctx context.Context, feedID int64) error {
 }
 ```
 
-- [ ] **Step 4: Сервис, StoreAPI и mockStore**
+- [x] **Step 4: Сервис, StoreAPI и mockStore**
 
 ```go
 // DeleteFeed removes a feed from the catalog. Admin scope; middleware enforces.
@@ -917,7 +917,7 @@ func (m *mockStore) DeleteFeed(_ context.Context, feedID int64) error {
 
 плюс поля `deleteFeedCalled bool`, `deleteFeedErr error`.
 
-- [ ] **Step 5: Хендлер и маршрут**
+- [x] **Step 5: Хендлер и маршрут**
 
 ```go
 // DeleteFeedHandler returns the http.HandlerFunc for DELETE /radar/feeds/{id} (admin).
@@ -941,7 +941,7 @@ func (h *HTTP) deleteFeed(w http.ResponseWriter, r *http.Request) {
 
 В `server.go`, в группе `RequireAdmin`: `r.Delete("/feeds/{id}", radarHTTP.DeleteFeedHandler())`.
 
-- [ ] **Step 6: Тест хендлера на 404**
+- [x] **Step 6: Тест хендлера на 404**
 
 ```go
 func TestHTTP_DeleteFeed_404(t *testing.T) {
@@ -958,7 +958,7 @@ func TestHTTP_DeleteFeed_404(t *testing.T) {
 }
 ```
 
-- [ ] **Step 7: Прогнать тесты и закоммитить**
+- [x] **Step 7: Прогнать тесты и закоммитить** — тесты прогнаны и зелёные; коммит отложен по просьбе.
 
 Run: `make test-unit && go test ./internal/radar/ -run 'DeleteFeed' -count=1`
 Expected: PASS.

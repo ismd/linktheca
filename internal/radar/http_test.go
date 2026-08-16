@@ -609,3 +609,16 @@ func TestHTTP_UpdateFeed_EmptyPatch400(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	require.False(t, store.updateFeedCalled)
 }
+
+func TestHTTP_DeleteFeed_404(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/radar/feeds/77", nil)
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 1, true), "77"))
+	rec := httptest.NewRecorder()
+	h.DeleteFeedHandler()(rec, req)
+
+	require.Equal(t, http.StatusNotFound, rec.Code)
+}

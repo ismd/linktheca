@@ -334,6 +334,49 @@ func TestIntegrationUnsubscribeStopsNewMatchesOnly(t *testing.T) {
 	require.True(t, stillThere)
 }
 
+func TestIntegrationDeleteFeedCascades(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	ctx := context.Background()
+
+	userID := seedRadarUser(t, pool, true)
+	topic, err := store.CreateTopic(ctx, radar.CreateTopicParams{
+		UserID: userID, Name: "Rust", Description: "rust language news and releases",
+		MatchThreshold: 0.5,
+	})
+	require.NoError(t, err)
+
+	vec := make([]float32, 1024)
+	vec[0] = 1
+	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec)))
+
+	feed, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: "https://feed.example/cascade.xml", Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+	_, err = store.Subscribe(ctx, userID, feed.ID)
+	require.NoError(t, err)
+
+	findingID := matchFinding(t, ctx, store, vec, feed.ID, "cascade-1")
+	require.Equal(t, 1, countMatches(t, pool, topic.ID))
+
+	require.NoError(t, svc.DeleteFeed(ctx, feed.ID))
+
+	require.Equal(t, 0, countMatches(t, pool, topic.ID))
+
+	var findings int
+	require.NoError(t, pool.QueryRow(ctx,
+		`SELECT count(*) FROM radar_findings WHERE id = $1`, findingID).Scan(&findings))
+	require.Equal(t, 0, findings)
+
+	require.ErrorIs(t, svc.DeleteFeed(ctx, feed.ID), radar.ErrNotFound)
+}
+
 // matchFinding upserts a finding with the given embedding, runs the matcher and
 // returns the finding id.
 func matchFinding(t *testing.T, ctx context.Context, store *radar.Store,

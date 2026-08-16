@@ -51,6 +51,7 @@ type StoreAPI interface {
 	PreviewFindings(ctx context.Context, userID int64, vec pgvector.Vector, limit int) ([]PreviewMatch, error)
 	Unsubscribe(ctx context.Context, userID, feedID int64) error
 	UpdateFeed(ctx context.Context, feedID int64, p UpdateFeedParams) (*Feed, error)
+	DeleteFeed(ctx context.Context, feedID int64) error
 }
 
 type Service struct {
@@ -353,4 +354,13 @@ func (s *Service) UpdateFeed(ctx context.Context, feedID int64, req UpdateFeedRe
 		FetchIntervalSeconds: req.FetchIntervalSeconds,
 		IsActive:             req.IsActive,
 	})
+}
+
+// DeleteFeed removes a feed from the catalog. Admin scope; middleware enforces.
+func (s *Service) DeleteFeed(ctx context.Context, feedID int64) error {
+	if feedID <= 0 {
+		return fmt.Errorf("%w: feed id must be positive", ErrInvalidInput)
+	}
+
+	return s.store.DeleteFeed(ctx, feedID)
 }

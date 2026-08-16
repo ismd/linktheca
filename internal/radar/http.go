@@ -371,3 +371,23 @@ func (h *HTTP) updateFeed(w http.ResponseWriter, r *http.Request) {
 
 	httpx.WriteJSON(w, http.StatusOK, feed)
 }
+
+// DeleteFeedHandler returns the http.HandlerFunc for DELETE /radar/feeds/{id} (admin).
+func (h *HTTP) DeleteFeedHandler() http.HandlerFunc {
+	return h.deleteFeed
+}
+
+func (h *HTTP) deleteFeed(w http.ResponseWriter, r *http.Request) {
+	feedID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid feed id")
+		return
+	}
+
+	if err := h.svc.DeleteFeed(r.Context(), feedID); err != nil {
+		writeRadarError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

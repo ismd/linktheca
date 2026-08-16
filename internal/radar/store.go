@@ -655,6 +655,21 @@ func (s *Store) UpdateFeed(ctx context.Context, feedID int64, p UpdateFeedParams
 	return &f, nil
 }
 
+// DeleteFeed removes a feed. Findings and their matches go with it via
+// ON DELETE CASCADE, for every user on the instance.
+func (s *Store) DeleteFeed(ctx context.Context, feedID int64) error {
+	cmd, err := s.db.Exec(ctx, `DELETE FROM radar_feeds WHERE id = $1`, feedID)
+	if err != nil {
+		return fmt.Errorf("delete feed: %w", err)
+	}
+
+	if cmd.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
 func (s *Store) Unsubscribe(ctx context.Context, userID, feedID int64) error {
 	if _, err := s.db.Exec(ctx,
 		`DELETE FROM radar_feed_subscriptions WHERE user_id = $1 AND feed_id = $2`,

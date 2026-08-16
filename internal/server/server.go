@@ -147,6 +147,7 @@ func New(deps Deps) *http.Server {
 				r.Use(coreauth.RequireAdmin)
 				r.Post("/feeds", radarHTTP.AddFeedHandler())
 				r.Patch("/feeds/{id}", radarHTTP.UpdateFeedHandler())
+				r.Delete("/feeds/{id}", radarHTTP.DeleteFeedHandler())
 			})
 		})
 	} else {
