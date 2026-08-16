@@ -67,12 +67,12 @@ export type PreviewTopicInput = {
   description: string;
 };
 
-/** Dry run: scores the user's findings against a draft topic, saving nothing. */
 export async function previewTopic(input: PreviewTopicInput): Promise<TopicPreview> {
   const raw = await apiFetch<unknown>(`/radar/topics/preview`, {
     method: "POST",
     body: JSON.stringify({ name: input.name, description: input.description }),
   });
+
   return mapTopicPreview(parseInDev(RawTopicPreviewSchema, raw));
 }
 
