@@ -7,6 +7,8 @@ import {
   RawMatchViewSchema,
   RawRadarStatusSchema,
   RawTopicPreviewSchema,
+  RawFeedListSchema,
+  mapFeedListItem,
   mapTopic,
   mapTopicWithStats,
   mapMatchList,
@@ -22,6 +24,7 @@ import type {
   RadarStatus,
   MatchState,
   TopicPreview,
+  FeedListItem,
 } from "./types";
 
 function parseInDev<T>(schema: { parse: (x: unknown) => T }, data: unknown): T {
@@ -142,4 +145,56 @@ export async function updateMatch(
 export async function getStatus(): Promise<RadarStatus> {
   const raw = await apiFetch<unknown>(`/radar/status`);
   return mapRadarStatus(parseInDev(RawRadarStatusSchema, raw));
+}
+
+export async function listFeeds(): Promise<FeedListItem[]> {
+  const raw = await apiFetch<unknown>(`/radar/feeds?limit=100`);
+  const parsed = parseInDev(RawFeedListSchema, raw);
+  return parsed.items.map(mapFeedListItem);
+}
+
+export async function subscribeFeed(feedId: number): Promise<void> {
+  await apiFetch<void>(`/radar/subscriptions`, {
+    method: "POST",
+    body: JSON.stringify({ feed_id: feedId }),
+  });
+}
+
+export async function unsubscribeFeed(feedId: number): Promise<void> {
+  await apiFetch<void>(`/radar/subscriptions/${feedId}`, { method: "DELETE" });
+}
+
+export type AddFeedInput = { url: string; fetchIntervalSeconds: number };
+
+export async function addFeed(input: AddFeedInput): Promise<void> {
+  await apiFetch<void>(`/radar/feeds`, {
+    method: "POST",
+    body: JSON.stringify({
+      url: input.url,
+      fetch_interval_seconds: input.fetchIntervalSeconds,
+    }),
+  });
+}
+
+export type UpdateFeedInput = {
+  title?: string;
+  fetchIntervalSeconds?: number;
+  isActive?: boolean;
+};
+
+export async function updateFeed(id: number, input: UpdateFeedInput): Promise<void> {
+  const body: Record<string, unknown> = {};
+  if (input.title !== undefined) body.title = input.title;
+  if (input.fetchIntervalSeconds !== undefined) {
+    body.fetch_interval_seconds = input.fetchIntervalSeconds;
+  }
+  if (input.isActive !== undefined) body.is_active = input.isActive;
+  await apiFetch<void>(`/radar/feeds/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteFeed(id: number): Promise<void> {
+  await apiFetch<void>(`/radar/feeds/${id}`, { method: "DELETE" });
 }

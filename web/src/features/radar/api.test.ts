@@ -13,6 +13,8 @@ import {
   updateMatch,
   getStatus,
   previewTopic,
+  listFeeds,
+  updateFeed,
 } from "./api";
 
 const rawTopic = (overrides: Record<string, unknown> = {}) => ({
@@ -203,5 +205,48 @@ describe("previewTopic", () => {
     expect(preview.threshold).toBe(0.55);
     expect(preview.items[0]!.similarity).toBe(0.81);
     expect(preview.items[0]!.finding.publishedAt).toBeInstanceOf(Date);
+  });
+});
+
+describe("radar feeds api", () => {
+  it("maps the feed catalog", async () => {
+    server.use(
+      http.get("/api/radar/feeds", () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: 3, url: "https://theverge.com/rss", kind: "rss", title: "The Verge",
+              fetch_interval_seconds: 3600, is_active: true,
+              last_fetched_at: "2026-08-15T10:00:00Z", last_error: null,
+              created_at: "2026-08-01T10:00:00Z",
+              subscribed: true, finding_count: 214,
+            },
+          ],
+          total: 1,
+        })),
+    );
+
+    const feeds = await listFeeds();
+    expect(feeds[0]!.title).toBe("The Verge");
+    expect(feeds[0]!.subscribed).toBe(true);
+    expect(feeds[0]!.findingCount).toBe(214);
+    expect(feeds[0]!.lastFetchedAt).toBeInstanceOf(Date);
+  });
+
+  it("sends an empty title to clear it", async () => {
+    let captured: unknown = null;
+    server.use(
+      http.patch("/api/radar/feeds/3", async ({ request }) => {
+        captured = await request.json();
+        return HttpResponse.json({
+          id: 3, url: "https://theverge.com/rss", kind: "rss", title: null,
+          fetch_interval_seconds: 3600, is_active: true,
+          last_fetched_at: null, last_error: null, created_at: "2026-08-01T10:00:00Z",
+        });
+      }),
+    );
+
+    await updateFeed(3, { title: "" });
+    expect(captured).toEqual({ title: "" });
   });
 });

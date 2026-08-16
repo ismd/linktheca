@@ -1363,7 +1363,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: JSON `GET /radar/feeds` из Task 1, мутации из Task 2-4.
 - Produces: тип `FeedListItem`; `listFeeds(): Promise<FeedListItem[]>`; `subscribeFeed(feedId: number)`, `unsubscribeFeed(feedId: number)`, `addFeed(input: AddFeedInput)`, `updateFeed(id, input: UpdateFeedInput)`, `deleteFeed(id)`; `radarKeys.feeds`; хуки `useFeedsQuery`, `useToggleSubscription`, `useAddFeed`, `useUpdateFeed`, `useDeleteFeed`.
 
-- [ ] **Step 1: Тест API-слоя**
+- [x] **Step 1: Тест API-слоя**
 
 В `web/src/features/radar/api.test.ts` (файл уже настроен на msw через `@/test/setup`):
 
@@ -1411,12 +1411,12 @@ it("sends an empty title to clear it", async () => {
 });
 ```
 
-- [ ] **Step 2: Запустить, убедиться в провале**
+- [x] **Step 2: Запустить, убедиться в провале**
 
 Run: `cd web && npx vitest run src/features/radar/api.test.ts`
 Expected: FAIL — `listFeeds is not exported`.
 
-- [ ] **Step 3: Тип в `types.ts`**
+- [x] **Step 3: Тип в `types.ts`**
 
 ```ts
 export type FeedListItem = {
@@ -1434,7 +1434,7 @@ export type FeedListItem = {
 };
 ```
 
-- [ ] **Step 4: Схемы в `schemas.ts`**
+- [x] **Step 4: Схемы в `schemas.ts`**
 
 ```ts
 export const RawFeedSchema = z.object({
@@ -1480,7 +1480,7 @@ export function mapFeedListItem(
 
 Импортировать `FeedListItem` из `./types` в шапке файла.
 
-- [ ] **Step 5: Функции в `api.ts`**
+- [x] **Step 5: Функции в `api.ts`**
 
 ```ts
 export async function listFeeds(): Promise<FeedListItem[]> {
@@ -1536,7 +1536,7 @@ export async function deleteFeed(id: number): Promise<void> {
 }
 ```
 
-- [ ] **Step 6: Запрос в `use-radar.tsx`**
+- [x] **Step 6: Запрос в `use-radar.tsx`**
 
 Добавить в `radarKeys`: `feeds: ["radar", "feeds"] as const,` и хук:
 
@@ -1549,7 +1549,7 @@ export function useFeedsQuery() {
 }
 ```
 
-- [ ] **Step 7: Тест оптимистичного тумблера**
+- [x] **Step 7: Тест оптимистичного тумблера**
 
 В `web/src/features/radar/use-mutations.test.tsx`:
 
@@ -1589,7 +1589,7 @@ it("rolls the subscription toggle back when the request fails", async () => {
 });
 ```
 
-- [ ] **Step 8: Мутации в `use-mutations.tsx`**
+- [x] **Step 8: Мутации в `use-mutations.tsx`**
 
 ```tsx
 type ToggleArgs = { feedId: number; subscribed: boolean };
@@ -1649,7 +1649,7 @@ export function useDeleteFeed() {
 
 Дописать импорты `subscribeFeed`, `unsubscribeFeed`, `addFeed`, `updateFeed`, `deleteFeed`, типы `AddFeedInput`, `UpdateFeedInput`, `FeedListItem`.
 
-- [ ] **Step 9: Прогнать тесты и закоммитить**
+- [x] **Step 9: Прогнать тесты и закоммитить** — тесты/typecheck/lint прогнаны и зелёные; коммит отложен по просьбе.
 
 Run: `cd web && npm test && npm run typecheck && npm run lint`
 Expected: PASS.

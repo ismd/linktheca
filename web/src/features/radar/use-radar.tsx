@@ -6,6 +6,7 @@ import {
   getMatch,
   getStatus,
   previewTopic,
+  listFeeds,
 } from "./api";
 import { PAGE_SIZE, type MatchFilters, type MatchList } from "./types";
 
@@ -16,6 +17,7 @@ export const radarKeys = {
   matches: (filters: MatchFilters) => ["radar", "matches", filters] as const,
   match: (id: number) => ["radar", "match", id] as const,
   status: ["radar", "status"] as const,
+  feeds: ["radar", "feeds"] as const,
   topicPreview: (name: string, description: string) =>
     ["radar", "topic-preview", name, description] as const,
 };
@@ -97,5 +99,12 @@ export function useRadarStatusQuery() {
   return useQuery({
     queryKey: radarKeys.status,
     queryFn: getStatus,
+  });
+}
+
+export function useFeedsQuery() {
+  return useQuery({
+    queryKey: radarKeys.feeds,
+    queryFn: listFeeds,
   });
 }

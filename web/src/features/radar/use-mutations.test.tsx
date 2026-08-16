@@ -5,12 +5,14 @@ import { http, HttpResponse } from "msw";
 import { server } from "@/test/setup";
 import { useAuthStore } from "@/features/auth/store";
 import { ApiError } from "@/shared/api/errors";
-import { radarKeys } from "./use-radar";
+import { radarKeys, useFeedsQuery } from "./use-radar";
+import type { FeedListItem } from "./types";
 import {
   useCreateTopic,
   useUpdateTopic,
   useDeleteTopic,
   useMarkMatchSeen,
+  useToggleSubscription,
 } from "./use-mutations";
 
 function makeWrapper() {
@@ -187,3 +189,37 @@ function mapTopic(raw: ReturnType<typeof rawTopic>) {
     },
   };
 }
+
+const rawFeed = (id: number, subscribed: boolean) => ({
+  id, url: `https://f${id}.example/rss`, kind: "rss", title: `Feed ${id}`,
+  fetch_interval_seconds: 3600, is_active: true,
+  last_fetched_at: null, last_error: null, created_at: "2026-08-01T10:00:00Z",
+  subscribed, finding_count: 0,
+});
+
+describe("useToggleSubscription", () => {
+  it("rolls the subscription toggle back when the request fails", async () => {
+    server.use(
+      http.get("/api/radar/feeds", () =>
+        HttpResponse.json({ items: [rawFeed(3, false)], total: 1 })),
+      http.post("/api/radar/subscriptions", () =>
+        HttpResponse.json({ error: "internal" }, { status: 500 })),
+    );
+
+    const { qc, wrapper } = makeWrapper();
+    const { result } = renderHook(
+      () => ({ feeds: useFeedsQuery(), toggle: useToggleSubscription() }),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.feeds.isSuccess).toBe(true));
+
+    await act(async () => {
+      await result.current.toggle
+        .mutateAsync({ feedId: 3, subscribed: true })
+        .catch(() => undefined);
+    });
+
+    const cached = qc.getQueryData<FeedListItem[]>(radarKeys.feeds);
+    expect(cached?.[0]!.subscribed).toBe(false);
+  });
+});

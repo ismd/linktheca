@@ -76,3 +76,17 @@ export type InboxFilters = {
 };
 
 export const PAGE_SIZE = 20;
+
+export type FeedListItem = {
+  id: number;
+  url: string;
+  kind: string;
+  title: string | null;
+  fetchIntervalSeconds: number;
+  isActive: boolean;
+  lastFetchedAt: Date | null;
+  lastError: string | null;
+  createdAt: Date;
+  subscribed: boolean;
+  findingCount: number;
+};

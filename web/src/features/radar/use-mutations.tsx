@@ -4,11 +4,18 @@ import {
   updateTopic,
   deleteTopic,
   updateMatch,
+  subscribeFeed,
+  unsubscribeFeed,
+  addFeed,
+  updateFeed,
+  deleteFeed,
   type CreateTopicInput,
   type UpdateTopicInput,
+  type AddFeedInput,
+  type UpdateFeedInput,
 } from "./api";
 import { radarKeys } from "./use-radar";
-import type { Topic, TopicWithStats } from "./types";
+import type { Topic, TopicWithStats, FeedListItem } from "./types";
 
 type UpdateArgs = { id: number; input: UpdateTopicInput };
 
@@ -95,6 +102,66 @@ export function useMarkMatchSeen() {
       qc.invalidateQueries({ queryKey: radarKeys.match(id) });
       qc.invalidateQueries({ queryKey: ["radar", "matches"] });
       qc.invalidateQueries({ queryKey: radarKeys.topics });
+    },
+  });
+}
+
+type ToggleArgs = { feedId: number; subscribed: boolean };
+
+export function useToggleSubscription() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, ToggleArgs, { previous: FeedListItem[] | undefined }>({
+    mutationFn: ({ feedId, subscribed }) =>
+      subscribed ? subscribeFeed(feedId) : unsubscribeFeed(feedId),
+    onMutate: async ({ feedId, subscribed }) => {
+      await qc.cancelQueries({ queryKey: radarKeys.feeds });
+      const previous = qc.getQueryData<FeedListItem[]>(radarKeys.feeds);
+      if (previous) {
+        qc.setQueryData<FeedListItem[]>(
+          radarKeys.feeds,
+          previous.map((f) => (f.id === feedId ? { ...f, subscribed } : f)),
+        );
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous !== undefined) {
+        qc.setQueryData(radarKeys.feeds, ctx.previous);
+      }
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: radarKeys.feeds });
+    },
+  });
+}
+
+export function useAddFeed() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: AddFeedInput) => addFeed(input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: radarKeys.feeds });
+    },
+  });
+}
+
+export function useUpdateFeed() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: UpdateFeedInput }) =>
+      updateFeed(id, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: radarKeys.feeds });
+    },
+  });
+}
+
+export function useDeleteFeed() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteFeed(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: radarKeys.feeds });
     },
   });
 }

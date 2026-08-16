@@ -7,6 +7,7 @@ import type {
   MatchList,
   RadarStatus,
   TopicPreview,
+  FeedListItem,
 } from "./types";
 
 export const RawTopicStatsSchema = z.object({
@@ -153,5 +154,45 @@ export function mapMatchList(raw: z.infer<typeof RawMatchListSchema>): MatchList
 export function mapRadarStatus(raw: z.infer<typeof RawRadarStatusSchema>): RadarStatus {
   return {
     lastSweepAt: raw.last_sweep_at ? new Date(raw.last_sweep_at) : null,
+  };
+}
+
+export const RawFeedSchema = z.object({
+  id: z.number().int(),
+  url: z.string(),
+  kind: z.string(),
+  title: z.string().nullable(),
+  fetch_interval_seconds: z.number().int(),
+  is_active: z.boolean(),
+  last_fetched_at: z.string().nullable().optional(),
+  last_error: z.string().nullable().optional(),
+  created_at: z.string(),
+});
+
+export const RawFeedListItemSchema = RawFeedSchema.extend({
+  subscribed: z.boolean(),
+  finding_count: z.number().int(),
+});
+
+export const RawFeedListSchema = z.object({
+  items: z.array(RawFeedListItemSchema),
+  total: z.number().int(),
+});
+
+export function mapFeedListItem(
+  raw: z.infer<typeof RawFeedListItemSchema>,
+): FeedListItem {
+  return {
+    id: raw.id,
+    url: raw.url,
+    kind: raw.kind,
+    title: raw.title,
+    fetchIntervalSeconds: raw.fetch_interval_seconds,
+    isActive: raw.is_active,
+    lastFetchedAt: raw.last_fetched_at ? new Date(raw.last_fetched_at) : null,
+    lastError: raw.last_error ?? null,
+    createdAt: new Date(raw.created_at),
+    subscribed: raw.subscribed,
+    findingCount: raw.finding_count,
   };
 }
