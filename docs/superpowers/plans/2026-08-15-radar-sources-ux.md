@@ -1674,7 +1674,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `useFeedsQuery`, `useToggleSubscription` (Task 7), `FeedListItem`, `useAuthStore`, `RadarDisabled`, `PageHeader`.
 - Produces: компонент `SourceRow` с пропсами `{ feed: FeedListItem; isAdmin: boolean; onToggle: (subscribed: boolean) => void; onEdit: () => void; onDelete: () => void }`; роут `radar/sources`.
 
-- [ ] **Step 1: Тест строки каталога**
+- [x] **Step 1: Тест строки каталога**
 
 `web/src/features/radar/components/SourceRow.test.tsx`:
 
@@ -1741,12 +1741,12 @@ describe("SourceRow", () => {
 });
 ```
 
-- [ ] **Step 2: Запустить, убедиться в провале**
+- [x] **Step 2: Запустить, убедиться в провале**
 
 Run: `cd web && npx vitest run src/features/radar/components/SourceRow.test.tsx`
 Expected: FAIL — модуль `./SourceRow` не найден.
 
-- [ ] **Step 3: Реализовать `SourceRow`**
+- [x] **Step 3: Реализовать `SourceRow`**
 
 ```tsx
 import { relativeFromNow } from "@/features/library/time";
@@ -1841,7 +1841,7 @@ export function SourceRow({ feed, isAdmin, onToggle, onEdit, onDelete }: Props) 
 }
 ```
 
-- [ ] **Step 4: Тест экрана**
+- [x] **Step 4: Тест экрана**
 
 `web/src/routes/radar.sources.test.tsx` — по образцу `radar._index.test.tsx` (msw + `MemoryRouter`):
 
@@ -1871,7 +1871,7 @@ it("lists the catalog", async () => {
 });
 ```
 
-- [ ] **Step 5: Реализовать роут**
+- [x] **Step 5: Реализовать роут**
 
 `web/src/routes/radar.sources.tsx`:
 
@@ -1932,7 +1932,7 @@ export default function SourcesRoute() {
 
 Заглушки `onEdit` / `onDelete` заполняются в Task 9.
 
-- [ ] **Step 6: Регистрация роута и навигация**
+- [x] **Step 6: Регистрация роута и навигация**
 
 В `web/src/App.tsx` добавить импорт `import SourcesRoute from "./routes/radar.sources";` и элемент `{ path: "radar/sources", element: <SourcesRoute /> },` рядом с `radar/topics`.
 
@@ -1947,7 +1947,7 @@ export default function SourcesRoute() {
           </Link>
 ```
 
-- [ ] **Step 7: Прогнать тесты и закоммитить**
+- [ ] **Step 7: Прогнать тесты и закоммитить** — тесты/typecheck/lint прогнаны и зелёные; коммит отложен по просьбе.
 
 Run: `cd web && npm test && npm run typecheck && npm run lint`
 Expected: PASS.

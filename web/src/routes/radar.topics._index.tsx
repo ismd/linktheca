@@ -33,7 +33,18 @@ export default function TopicsListRoute() {
 
   return (
     <div>
-      <PageHeader title="Topics" subtitle="Everything on your radar" />
+      <PageHeader
+        title="Topics"
+        subtitle="Everything on your radar"
+        actions={
+          <Link
+            to="/radar/sources"
+            className="label-sc text-muted-foreground hover:text-vermillion"
+          >
+            Sources →
+          </Link>
+        }
+      />
       <div className="px-4 lg:px-8 pb-6 pt-6">
         <Link
           to="/radar"

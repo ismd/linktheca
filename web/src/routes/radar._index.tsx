@@ -63,12 +63,20 @@ export default function RadarInboxRoute() {
         title="Radar"
         subtitle={fmtSweep(status.data?.lastSweepAt ?? null)}
         actions={
-          <Link
-            to="/radar/topics"
-            className="label-sc text-muted-foreground hover:text-vermillion"
-          >
-            Topics →
-          </Link>
+          <>
+            <Link
+              to="/radar/topics"
+              className="label-sc text-muted-foreground hover:text-vermillion"
+            >
+              Topics →
+            </Link>
+            <Link
+              to="/radar/sources"
+              className="label-sc text-muted-foreground hover:text-vermillion"
+            >
+              Sources →
+            </Link>
+          </>
         }
       />
       <div className="px-4 lg:px-8 pb-10">
