@@ -655,6 +655,20 @@ func (s *Store) UpdateFeed(ctx context.Context, feedID int64, p UpdateFeedParams
 	return &f, nil
 }
 
+// SeedSubscriptions subscribes a fresh user to every active catalog feed and
+// returns how many subscriptions were inserted. Re-running it inserts nothing.
+func (s *Store) SeedSubscriptions(ctx context.Context, userID int64) (int, error) {
+	cmd, err := s.db.Exec(ctx, `
+		INSERT INTO radar_feed_subscriptions (user_id, feed_id)
+		SELECT $1, id FROM radar_feeds WHERE is_active
+		ON CONFLICT DO NOTHING`, userID)
+	if err != nil {
+		return 0, fmt.Errorf("seed subscriptions: %w", err)
+	}
+
+	return int(cmd.RowsAffected()), nil
+}
+
 // DeleteFeed removes a feed. Findings and their matches go with it via
 // ON DELETE CASCADE, for every user on the instance.
 func (s *Store) DeleteFeed(ctx context.Context, feedID int64) error {

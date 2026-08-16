@@ -890,3 +890,40 @@ func TestStore_UpdateFeed_PartialAndClearTitle(t *testing.T) {
 	_, err = store.UpdateFeed(ctx, 999999, radar.UpdateFeedParams{Title: &title})
 	require.ErrorIs(t, err, radar.ErrNotFound)
 }
+
+func TestStore_SeedSubscriptions_ActiveOnlyAndIdempotent(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	stamp := time.Now().UnixNano()
+	active, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: fmt.Sprintf("https://seed-a.example/%d.xml", stamp), Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+	paused, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: fmt.Sprintf("https://seed-b.example/%d.xml", stamp), Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+	off := false
+	_, err = store.UpdateFeed(ctx, paused.ID, radar.UpdateFeedParams{IsActive: &off})
+	require.NoError(t, err)
+
+	userID := seedUser(t, pool)
+	n, err := store.SeedSubscriptions(ctx, userID)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, n, 1)
+
+	items, _, err := store.ListFeeds(ctx, userID, radar.ListFeedsParams{Limit: 100})
+	require.NoError(t, err)
+	byID := map[int64]radar.FeedListItem{}
+	for _, it := range items {
+		byID[it.ID] = it
+	}
+	require.True(t, byID[active.ID].Subscribed)
+	require.False(t, byID[paused.ID].Subscribed)
+
+	again, err := store.SeedSubscriptions(ctx, userID)
+	require.NoError(t, err)
+	require.Equal(t, 0, again, "second seeding inserts nothing")
+}

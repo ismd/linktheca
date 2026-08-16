@@ -1001,7 +1001,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 а внутри `if cfg.RadarEnabled && deps.Radar != nil` переменная получает реальное значение.
 
-- [ ] **Step 1: Тест auth на вызов хука**
+- [x] **Step 1: Тест auth на вызов хука**
 
 В `internal/auth/service_test.go`:
 
@@ -1038,12 +1038,12 @@ func TestRegister_NilHookIsFine(t *testing.T) {
 
 Сверить сигнатуру `coreauth.NewJWTIssuer` и поля `auth.RegisterRequest` с существующими тестами в файле и подогнать.
 
-- [ ] **Step 2: Запустить, убедиться в провале**
+- [x] **Step 2: Запустить, убедиться в провале**
 
 Run: `go test ./internal/auth/ -run TestRegister_ -count=1`
 Expected: FAIL — `unknown field OnUserCreated in struct literal`.
 
-- [ ] **Step 3: Хук в auth**
+- [x] **Step 3: Хук в auth**
 
 В `ServiceConfig`:
 
@@ -1068,7 +1068,7 @@ type ServiceConfig struct {
 	}
 ```
 
-- [ ] **Step 4: Тест стора на сидинг**
+- [x] **Step 4: Тест стора на сидинг**
 
 В `internal/radar/store_test.go`:
 
@@ -1111,7 +1111,7 @@ func TestStore_SeedSubscriptions_ActiveOnlyAndIdempotent(t *testing.T) {
 }
 ```
 
-- [ ] **Step 5: Стор и сервис**
+- [x] **Step 5: Стор и сервис**
 
 ```go
 // SeedSubscriptions subscribes a fresh user to every active catalog feed and
@@ -1163,7 +1163,7 @@ func (m *mockStore) SeedSubscriptions(_ context.Context, userID int64) (int, err
 
 плюс поле `seedErr error`.
 
-- [ ] **Step 6: Проводка в server.go**
+- [x] **Step 6: Проводка в server.go**
 
 Заменить создание `authSvc` на вариант с переменной-хуком (см. блок в шапке задачи), а внутри ветки `if cfg.RadarEnabled && deps.Radar != nil`, сразу после `radarSvc := radar.NewService(...)`:
 
@@ -1177,12 +1177,12 @@ func (m *mockStore) SeedSubscriptions(_ context.Context, userID int64) (int, err
 
 Добавить `"context"` в импорты `server.go`.
 
-- [ ] **Step 7: Прогнать тесты**
+- [x] **Step 7: Прогнать тесты**
 
 Run: `make test-unit && go test ./internal/auth/ ./internal/radar/ ./internal/server/ -count=1`
 Expected: PASS.
 
-- [ ] **Step 8: Коммит**
+- [x] **Step 8: Коммит**
 
 ```bash
 git add internal/auth internal/radar internal/server

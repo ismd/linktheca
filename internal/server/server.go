@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"os"
@@ -47,9 +48,19 @@ func New(deps Deps) *http.Server {
 
 	// Auth module
 	authStore := auth.NewStore(deps.DB)
+
+	// Assigned below once Radar is wired; the closure reads it at call time
+	// because authSvc has to exist before radarSvc does.
+	var onUserCreated func(ctx context.Context, userID int64)
+
 	authSvc := auth.NewService(authStore, issuer, auth.ServiceConfig{
 		RefreshTTL:          cfg.JWTRefreshTTL,
 		RegistrationEnabled: cfg.RegistrationEnabled,
+		OnUserCreated: func(ctx context.Context, userID int64) {
+			if onUserCreated != nil {
+				onUserCreated(ctx, userID)
+			}
+		},
 	})
 	authHTTP := auth.NewHTTP(authSvc, issuer)
 
@@ -122,6 +133,12 @@ func New(deps Deps) *http.Server {
 		radarStore := radar.NewStore(deps.DB)
 		radarSvc := radar.NewService(radarStore, deps.Radar.Embedder)
 		radarHTTP := radar.NewHTTP(radarSvc)
+
+		onUserCreated = func(ctx context.Context, userID int64) {
+			if err := radarSvc.SeedSubscriptions(ctx, userID); err != nil {
+				logger.Error("seed radar subscriptions", "user_id", userID, "error", err)
+			}
+		}
 
 		r.Route("/radar", func(r chi.Router) {
 			r.Use(coreauth.RequireUser(issuer))

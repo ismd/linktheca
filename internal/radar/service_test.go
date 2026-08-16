@@ -69,6 +69,7 @@ type mockStore struct {
 	updateFeedErr     error
 	deleteFeedCalled  bool
 	deleteFeedErr     error
+	seedErr           error
 }
 
 func newMockStore() *mockStore {
@@ -768,6 +769,27 @@ func (m *mockStore) DeleteFeed(_ context.Context, feedID int64) error {
 	delete(m.feedsByURL, f.URL)
 	delete(m.feeds, feedID)
 	return nil
+}
+
+func (m *mockStore) SeedSubscriptions(_ context.Context, userID int64) (int, error) {
+	if m.seedErr != nil {
+		return 0, m.seedErr
+	}
+
+	n := 0
+	for id, f := range m.feeds {
+		if !f.IsActive {
+			continue
+		}
+		key := keyOf(userID, id)
+		if _, ok := m.subs[key]; ok {
+			continue
+		}
+		m.subs[key] = &radar.Subscription{UserID: userID, FeedID: id, CreatedAt: time.Now()}
+		n++
+	}
+
+	return n, nil
 }
 
 func TestService_UpdateFeed_Validation(t *testing.T) {

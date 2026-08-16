@@ -30,6 +30,12 @@ type StoreAPI interface {
 type ServiceConfig struct {
 	RefreshTTL          time.Duration
 	RegistrationEnabled bool
+
+	// OnUserCreated runs right after a user row is created. It is best-effort
+	// bookkeeping for other modules (Radar seeds feed subscriptions here), so
+	// it returns nothing: the caller owns its error policy and registration
+	// must not fail because a side module is unhappy.
+	OnUserCreated func(ctx context.Context, userID int64)
 }
 
 type Service struct {
@@ -66,6 +72,10 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthRespo
 	user, err := s.store.CreateUser(ctx, req.Email, hash, req.DisplayName, isAdmin)
 	if err != nil {
 		return nil, err
+	}
+
+	if s.cfg.OnUserCreated != nil {
+		s.cfg.OnUserCreated(ctx, user.ID)
 	}
 
 	tokens, err := s.issueTokens(ctx, user)

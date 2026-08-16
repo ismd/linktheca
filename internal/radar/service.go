@@ -52,6 +52,7 @@ type StoreAPI interface {
 	Unsubscribe(ctx context.Context, userID, feedID int64) error
 	UpdateFeed(ctx context.Context, feedID int64, p UpdateFeedParams) (*Feed, error)
 	DeleteFeed(ctx context.Context, feedID int64) error
+	SeedSubscriptions(ctx context.Context, userID int64) (int, error)
 }
 
 type Service struct {
@@ -363,4 +364,10 @@ func (s *Service) DeleteFeed(ctx context.Context, feedID int64) error {
 	}
 
 	return s.store.DeleteFeed(ctx, feedID)
+}
+
+// SeedSubscriptions is called from the auth module's OnUserCreated hook.
+func (s *Service) SeedSubscriptions(ctx context.Context, userID int64) error {
+	_, err := s.store.SeedSubscriptions(ctx, userID)
+	return err
 }

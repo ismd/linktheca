@@ -120,6 +120,43 @@ func newTestService(t *testing.T, store auth.StoreAPI, registration bool) *auth.
 	})
 }
 
+// newTestServiceWithHook mirrors newTestService but wires an OnUserCreated hook.
+func newTestServiceWithHook(t *testing.T, store auth.StoreAPI,
+	hook func(ctx context.Context, userID int64)) *auth.Service {
+	t.Helper()
+	issuer := coreauth.NewJWTIssuer("test-secret-at-least-32-bytes-long-for-hmac", 15*time.Minute)
+
+	return auth.NewService(store, issuer, auth.ServiceConfig{
+		RefreshTTL:          720 * time.Hour,
+		RegistrationEnabled: true,
+		OnUserCreated:       hook,
+	})
+}
+
+func TestRegisterCallsOnUserCreated(t *testing.T) {
+	store := newMockStore()
+	var got int64
+	svc := newTestServiceWithHook(t, store, func(_ context.Context, userID int64) { got = userID })
+
+	res, err := svc.Register(context.Background(), auth.RegisterRequest{
+		Email: "hook@example.com", Password: "a-strong-password", DisplayName: "Hook",
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, res.User.ID, got)
+}
+
+func TestRegisterNilHookIsFine(t *testing.T) {
+	store := newMockStore()
+	svc := newTestServiceWithHook(t, store, nil)
+
+	_, err := svc.Register(context.Background(), auth.RegisterRequest{
+		Email: "nohook@example.com", Password: "a-strong-password", DisplayName: "NoHook",
+	})
+
+	require.NoError(t, err)
+}
+
 func TestRegisterFirstUserBecomesAdmin(t *testing.T) {
 	store := newMockStore()
 	svc := newTestService(t, store, true)
