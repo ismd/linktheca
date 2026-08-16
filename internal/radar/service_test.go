@@ -64,6 +64,9 @@ type mockStore struct {
 	previewVec        pgvector.Vector
 	previewLimit      int
 	unsubscribeErr    error
+	updateFeedCalled  bool
+	updateFeedParams  radar.UpdateFeedParams
+	updateFeedErr     error
 }
 
 func newMockStore() *mockStore {
@@ -720,4 +723,56 @@ func (m *mockStore) Unsubscribe(_ context.Context, userID, feedID int64) error {
 
 	delete(m.subs, keyOf(userID, feedID))
 	return nil
+}
+
+func (m *mockStore) UpdateFeed(_ context.Context, feedID int64, p radar.UpdateFeedParams) (*radar.Feed, error) {
+	m.updateFeedCalled = true
+	m.updateFeedParams = p
+
+	if m.updateFeedErr != nil {
+		return nil, m.updateFeedErr
+	}
+
+	f, ok := m.feeds[feedID]
+	if !ok {
+		return &radar.Feed{ID: feedID}, nil
+	}
+
+	if p.Title != nil {
+		f.Title = p.Title
+	}
+	if p.FetchIntervalSeconds != nil {
+		f.FetchIntervalSeconds = *p.FetchIntervalSeconds
+	}
+	if p.IsActive != nil {
+		f.IsActive = *p.IsActive
+	}
+
+	return f, nil
+}
+
+func TestService_UpdateFeed_Validation(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	ctx := context.Background()
+
+	_, err := svc.UpdateFeed(ctx, 1, radar.UpdateFeedRequest{})
+	require.ErrorIs(t, err, radar.ErrInvalidInput)
+
+	tooFast := 60
+	_, err = svc.UpdateFeed(ctx, 1, radar.UpdateFeedRequest{FetchIntervalSeconds: &tooFast})
+	require.ErrorIs(t, err, radar.ErrInvalidInput)
+
+	tooSlow := 999999
+	_, err = svc.UpdateFeed(ctx, 1, radar.UpdateFeedRequest{FetchIntervalSeconds: &tooSlow})
+	require.ErrorIs(t, err, radar.ErrInvalidInput)
+
+	ok := 1800
+	paused := false
+	_, err = svc.UpdateFeed(ctx, 1, radar.UpdateFeedRequest{
+		FetchIntervalSeconds: &ok, IsActive: &paused,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1800, *store.updateFeedParams.FetchIntervalSeconds)
+	require.False(t, *store.updateFeedParams.IsActive)
 }

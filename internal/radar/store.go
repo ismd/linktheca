@@ -608,6 +608,53 @@ func (s *Store) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) 
 	return items, total, nil
 }
 
+// UpdateFeed applies a partial patch. An empty title clears the column so the
+// crawler can fill it from the channel again.
+func (s *Store) UpdateFeed(ctx context.Context, feedID int64, p UpdateFeedParams) (*Feed, error) {
+	setClauses := []string{}
+	args := []any{}
+	argIdx := 1
+
+	if p.Title != nil {
+		setClauses = append(setClauses, fmt.Sprintf("title = nullif($%d, '')", argIdx))
+		args = append(args, *p.Title)
+		argIdx++
+	}
+	if p.FetchIntervalSeconds != nil {
+		setClauses = append(setClauses, fmt.Sprintf("fetch_interval_seconds = $%d", argIdx))
+		args = append(args, *p.FetchIntervalSeconds)
+		argIdx++
+	}
+	if p.IsActive != nil {
+		setClauses = append(setClauses, fmt.Sprintf("is_active = $%d", argIdx))
+		args = append(args, *p.IsActive)
+		argIdx++
+	}
+
+	if len(setClauses) == 0 {
+		// Defensive: caller (service) is expected to validate non-empty patch.
+		return nil, fmt.Errorf("%w: no fields to update", ErrInvalidInput)
+	}
+
+	args = append(args, feedID)
+	query := fmt.Sprintf(`
+		UPDATE radar_feeds SET %s
+		WHERE id = $%d
+		RETURNING id, url, kind, title, fetch_interval_seconds, is_active,
+		          last_fetched_at, last_error, created_at`,
+		strings.Join(setClauses, ", "), argIdx)
+
+	var f Feed
+	if err := s.db.QueryRow(ctx, query, args...).Scan(&f.ID, &f.URL, &f.Kind, &f.Title,
+		&f.FetchIntervalSeconds, &f.IsActive,
+		&f.LastFetchedAt, &f.LastError, &f.CreatedAt); err != nil {
+		// wrapPgError already turns pgx.ErrNoRows into ErrNotFound.
+		return nil, wrapPgError(err)
+	}
+
+	return &f, nil
+}
+
 func (s *Store) Unsubscribe(ctx context.Context, userID, feedID int64) error {
 	if _, err := s.db.Exec(ctx,
 		`DELETE FROM radar_feed_subscriptions WHERE user_id = $1 AND feed_id = $2`,

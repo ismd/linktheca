@@ -344,3 +344,30 @@ func (h *HTTP) unsubscribe(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// UpdateFeedHandler returns the http.HandlerFunc for PATCH /radar/feeds/{id} (admin).
+func (h *HTTP) UpdateFeedHandler() http.HandlerFunc {
+	return h.updateFeed
+}
+
+func (h *HTTP) updateFeed(w http.ResponseWriter, r *http.Request) {
+	feedID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid feed id")
+		return
+	}
+
+	var req UpdateFeedRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid json body")
+		return
+	}
+
+	feed, err := h.svc.UpdateFeed(r.Context(), feedID, req)
+	if err != nil {
+		writeRadarError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, feed)
+}

@@ -235,3 +235,19 @@ type UpdateMatchRequest struct {
 type RadarStatus struct {
 	LastSweepAt *time.Time `json:"last_sweep_at"`
 }
+
+// UpdateFeedRequest is the payload for PATCH /radar/feeds/{id} (admin).
+// All fields are optional; only non-nil fields are updated. An empty title
+// clears the manual override and lets the crawler fill it in again.
+type UpdateFeedRequest struct {
+	Title                *string `json:"title,omitempty"`
+	FetchIntervalSeconds *int    `json:"fetch_interval_seconds,omitempty"`
+	IsActive             *bool   `json:"is_active,omitempty"`
+}
+
+// UpdateFeedParams is the store-level analogue of UpdateFeedRequest.
+type UpdateFeedParams struct {
+	Title                *string
+	FetchIntervalSeconds *int
+	IsActive             *bool
+}

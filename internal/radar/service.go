@@ -50,6 +50,7 @@ type StoreAPI interface {
 	ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) ([]FeedListItem, int, error)
 	PreviewFindings(ctx context.Context, userID int64, vec pgvector.Vector, limit int) ([]PreviewMatch, error)
 	Unsubscribe(ctx context.Context, userID, feedID int64) error
+	UpdateFeed(ctx context.Context, feedID int64, p UpdateFeedParams) (*Feed, error)
 }
 
 type Service struct {
@@ -135,9 +136,8 @@ func (s *Service) AddFeed(ctx context.Context, req AddFeedRequest) (*Feed, error
 	interval := defaultFetchIntervalSeconds
 	if req.FetchIntervalSeconds != nil {
 		interval = *req.FetchIntervalSeconds
-		if interval < minFetchIntervalSeconds || interval > maxFetchIntervalSeconds {
-			return nil, fmt.Errorf("%w: fetch_interval_seconds must be %d..%d",
-				ErrInvalidInput, minFetchIntervalSeconds, maxFetchIntervalSeconds)
+		if err := validateFetchInterval(interval); err != nil {
+			return nil, err
 		}
 	}
 
@@ -317,4 +317,40 @@ func (s *Service) Unsubscribe(ctx context.Context, userID, feedID int64) error {
 	}
 
 	return s.store.Unsubscribe(ctx, userID, feedID)
+}
+
+func validateFetchInterval(seconds int) error {
+	if seconds < minFetchIntervalSeconds || seconds > maxFetchIntervalSeconds {
+		return fmt.Errorf("%w: fetch_interval_seconds must be %d..%d",
+			ErrInvalidInput, minFetchIntervalSeconds, maxFetchIntervalSeconds)
+	}
+	return nil
+}
+
+// UpdateFeed patches a catalog feed. Admin scope; middleware enforces.
+func (s *Service) UpdateFeed(ctx context.Context, feedID int64, req UpdateFeedRequest) (*Feed, error) {
+	if feedID <= 0 {
+		return nil, fmt.Errorf("%w: feed id must be positive", ErrInvalidInput)
+	}
+	if req.Title == nil && req.FetchIntervalSeconds == nil && req.IsActive == nil {
+		return nil, fmt.Errorf("%w: no fields to update", ErrInvalidInput)
+	}
+	if req.FetchIntervalSeconds != nil {
+		if err := validateFetchInterval(*req.FetchIntervalSeconds); err != nil {
+			return nil, err
+		}
+	}
+	if req.Title != nil {
+		trimmed := strings.TrimSpace(*req.Title)
+		if len(trimmed) > 500 {
+			return nil, fmt.Errorf("%w: title must be at most 500 chars", ErrInvalidInput)
+		}
+		req.Title = &trimmed
+	}
+
+	return s.store.UpdateFeed(ctx, feedID, UpdateFeedParams{
+		Title:                req.Title,
+		FetchIntervalSeconds: req.FetchIntervalSeconds,
+		IsActive:             req.IsActive,
+	})
 }

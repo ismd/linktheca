@@ -595,3 +595,17 @@ func TestHTTP_Unsubscribe_204Twice(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, call())
 	require.Equal(t, http.StatusNoContent, call())
 }
+
+func TestHTTP_UpdateFeed_EmptyPatch400(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodPatch, "/radar/feeds/1", strings.NewReader(`{}`))
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 1, true), "1"))
+	rec := httptest.NewRecorder()
+	h.UpdateFeedHandler()(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.False(t, store.updateFeedCalled)
+}

@@ -538,7 +538,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `Feed`, `ErrNotFound`, `ErrInvalidInput`.
 - Produces: `UpdateFeedRequest{Title *string; FetchIntervalSeconds *int; IsActive *bool}`; `UpdateFeedParams` с теми же полями; `Store.UpdateFeed(ctx, feedID int64, p UpdateFeedParams) (*Feed, error)`; `Service.UpdateFeed(ctx, feedID int64, req UpdateFeedRequest) (*Feed, error)`; `HTTP.UpdateFeedHandler()`.
 
-- [ ] **Step 1: Тест сервиса на валидацию**
+- [x] **Step 1: Тест сервиса на валидацию**
 
 В `internal/radar/service_test.go`:
 
@@ -570,12 +570,12 @@ func TestService_UpdateFeed_Validation(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Запустить, убедиться в провале**
+- [x] **Step 2: Запустить, убедиться в провале**
 
 Run: `go test ./internal/radar/ -run TestService_UpdateFeed_Validation -count=1`
 Expected: FAIL — `undefined: radar.UpdateFeedRequest`.
 
-- [ ] **Step 3: DTO в `types.go`**
+- [x] **Step 3: DTO в `types.go`**
 
 ```go
 // UpdateFeedRequest is the payload for PATCH /radar/feeds/{id} (admin).
@@ -595,7 +595,7 @@ type UpdateFeedParams struct {
 }
 ```
 
-- [ ] **Step 4: Вынести валидацию интервала и написать сервис**
+- [x] **Step 4: Вынести валидацию интервала и написать сервис**
 
 В `internal/radar/service.go` добавить хелпер и заменить им проверку внутри `AddFeed`:
 
@@ -639,7 +639,7 @@ func (s *Service) UpdateFeed(ctx context.Context, feedID int64, req UpdateFeedRe
 
 В `StoreAPI` добавить `UpdateFeed(ctx context.Context, feedID int64, p UpdateFeedParams) (*Feed, error)`.
 
-- [ ] **Step 5: mockStore**
+- [x] **Step 5: mockStore**
 
 ```go
 func (m *mockStore) UpdateFeed(_ context.Context, feedID int64, p radar.UpdateFeedParams) (*radar.Feed, error) {
@@ -667,7 +667,7 @@ func (m *mockStore) UpdateFeed(_ context.Context, feedID int64, p radar.UpdateFe
 
 плюс поля `updateFeedCalled bool`, `updateFeedParams radar.UpdateFeedParams`, `updateFeedErr error`.
 
-- [ ] **Step 6: Стор**
+- [x] **Step 6: Стор**
 
 ```go
 // UpdateFeed applies a partial patch. An empty title clears the column so the
@@ -717,7 +717,7 @@ func (s *Store) UpdateFeed(ctx context.Context, feedID int64, p UpdateFeedParams
 }
 ```
 
-- [ ] **Step 7: Тест стора**
+- [x] **Step 7: Тест стора**
 
 ```go
 func TestStore_UpdateFeed_PartialAndClearTitle(t *testing.T) {
@@ -747,7 +747,7 @@ func TestStore_UpdateFeed_PartialAndClearTitle(t *testing.T) {
 }
 ```
 
-- [ ] **Step 8: Хендлер и маршрут**
+- [x] **Step 8: Хендлер и маршрут**
 
 ```go
 // UpdateFeedHandler returns the http.HandlerFunc for PATCH /radar/feeds/{id} (admin).
@@ -778,7 +778,7 @@ func (h *HTTP) updateFeed(w http.ResponseWriter, r *http.Request) {
 
 В `server.go`, в группе `RequireAdmin`: `r.Patch("/feeds/{id}", radarHTTP.UpdateFeedHandler())`.
 
-- [ ] **Step 9: Тест хендлера на пустой патч**
+- [x] **Step 9: Тест хендлера на пустой патч**
 
 ```go
 func TestHTTP_UpdateFeed_EmptyPatch400(t *testing.T) {
@@ -796,7 +796,7 @@ func TestHTTP_UpdateFeed_EmptyPatch400(t *testing.T) {
 }
 ```
 
-- [ ] **Step 10: Прогнать тесты и закоммитить**
+- [x] **Step 10: Прогнать тесты и закоммитить**
 
 Run: `make test-unit && go test ./internal/radar/ -run 'UpdateFeed' -count=1`
 Expected: PASS.

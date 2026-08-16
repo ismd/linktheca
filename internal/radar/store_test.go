@@ -864,3 +864,29 @@ func TestStore_Unsubscribe(t *testing.T) {
 	// Idempotent: a second call is not an error.
 	require.NoError(t, store.Unsubscribe(ctx, userID, feed.ID))
 }
+
+func TestStore_UpdateFeed_PartialAndClearTitle(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	feed, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL:  fmt.Sprintf("https://patch.example/%d.xml", time.Now().UnixNano()),
+		Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+
+	title := "The Verge"
+	updated, err := store.UpdateFeed(ctx, feed.ID, radar.UpdateFeedParams{Title: &title})
+	require.NoError(t, err)
+	require.Equal(t, "The Verge", *updated.Title)
+	require.Equal(t, 3600, updated.FetchIntervalSeconds, "untouched field keeps its value")
+
+	empty := ""
+	cleared, err := store.UpdateFeed(ctx, feed.ID, radar.UpdateFeedParams{Title: &empty})
+	require.NoError(t, err)
+	require.Nil(t, cleared.Title)
+
+	_, err = store.UpdateFeed(ctx, 999999, radar.UpdateFeedParams{Title: &title})
+	require.ErrorIs(t, err, radar.ErrNotFound)
+}

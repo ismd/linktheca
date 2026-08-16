@@ -146,6 +146,7 @@ func New(deps Deps) *http.Server {
 			r.Group(func(r chi.Router) {
 				r.Use(coreauth.RequireAdmin)
 				r.Post("/feeds", radarHTTP.AddFeedHandler())
+				r.Patch("/feeds/{id}", radarHTTP.UpdateFeedHandler())
 			})
 		})
 	} else {
