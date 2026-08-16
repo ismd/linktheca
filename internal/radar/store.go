@@ -149,12 +149,15 @@ func (s *Store) GetFeedForFetch(ctx context.Context, feedID int64) (*FeedFetchSt
 	return &st, nil
 }
 
-func (s *Store) MarkFeedFetched(ctx context.Context, feedID int64, etag, lastModified *string) error {
+// MarkFeedFetched records a successful fetch. The channel title is written
+// only when the column is still empty, so an admin's manual name always wins.
+func (s *Store) MarkFeedFetched(ctx context.Context, feedID int64, etag, lastModified, title *string) error {
 	_, err := s.db.Exec(ctx, `
 		UPDATE radar_feeds
-		SET last_fetched_at = now(), etag = $1, last_modified = $2, last_error = NULL
+		SET last_fetched_at = now(), etag = $1, last_modified = $2, last_error = NULL,
+		    title = coalesce(title, nullif(btrim($4), ''))
 		WHERE id = $3
-	`, etag, lastModified, feedID)
+	`, etag, lastModified, feedID, title)
 
 	return err
 }

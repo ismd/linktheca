@@ -44,16 +44,16 @@ func (w *CrawlFeedWorker) Work(ctx context.Context, job *river.Job[CrawlFeedArgs
 		return fmt.Errorf("fetch feed %d: %w", feedID, err)
 	}
 	if res.NotModified {
-		return w.store.MarkFeedFetched(ctx, feedID, ptrOrNil(res.Etag), ptrOrNil(res.LastModified))
+		return w.store.MarkFeedFetched(ctx, feedID, ptrOrNil(res.Etag), ptrOrNil(res.LastModified), nil)
 	}
 
-	items, err := crawler.Parse(res.Body)
+	parsed, err := crawler.Parse(res.Body)
 	if err != nil {
 		_ = w.store.MarkFeedError(ctx, feedID, err.Error())
 		return fmt.Errorf("parse feed %d: %w", feedID, err)
 	}
 
-	for _, up := range crawler.ToUpserts(feedID, items) {
+	for _, up := range crawler.ToUpserts(feedID, parsed.Items) {
 		f, created, err := w.store.UpsertFinding(ctx, up)
 
 		if err != nil {
@@ -71,7 +71,8 @@ func (w *CrawlFeedWorker) Work(ctx context.Context, job *river.Job[CrawlFeedArgs
 		}
 	}
 
-	return w.store.MarkFeedFetched(ctx, feedID, ptrOrNil(res.Etag), ptrOrNil(res.LastModified))
+	return w.store.MarkFeedFetched(ctx, feedID,
+		ptrOrNil(res.Etag), ptrOrNil(res.LastModified), ptrOrNil(parsed.Title))
 }
 
 func ptrOrNil(s string) *string {

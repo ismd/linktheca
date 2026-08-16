@@ -927,3 +927,44 @@ func TestStore_SeedSubscriptions_ActiveOnlyAndIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, again, "second seeding inserts nothing")
 }
+
+func TestStore_MarkFeedFetched_TitleFillsOnlyWhenEmpty(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	feed, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL:  fmt.Sprintf("https://title.example/%d.xml", time.Now().UnixNano()),
+		Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+
+	auto := "Auto Title"
+	require.NoError(t, store.MarkFeedFetched(ctx, feed.ID, nil, nil, &auto))
+
+	items, _, err := store.ListFeeds(ctx, 0, radar.ListFeedsParams{Limit: 100})
+	require.NoError(t, err)
+	require.Equal(t, "Auto Title", *findFeed(t, items, feed.ID).Title)
+
+	manual := "Manual Title"
+	_, err = store.UpdateFeed(ctx, feed.ID, radar.UpdateFeedParams{Title: &manual})
+	require.NoError(t, err)
+
+	other := "Auto Again"
+	require.NoError(t, store.MarkFeedFetched(ctx, feed.ID, nil, nil, &other))
+
+	items, _, err = store.ListFeeds(ctx, 0, radar.ListFeedsParams{Limit: 100})
+	require.NoError(t, err)
+	require.Equal(t, "Manual Title", *findFeed(t, items, feed.ID).Title)
+}
+
+func findFeed(t *testing.T, items []radar.FeedListItem, id int64) radar.FeedListItem {
+	t.Helper()
+	for _, it := range items {
+		if it.ID == id {
+			return it
+		}
+	}
+	t.Fatalf("feed %d not in catalog", id)
+	return radar.FeedListItem{}
+}

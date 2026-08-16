@@ -68,15 +68,27 @@ func TestParse_RSS(t *testing.T) {
 
 	got, err := crawler.Parse(rss)
 	require.NoError(t, err)
-	require.Len(t, got, 1)
+	require.Len(t, got.Items, 1)
 
-	upserts := crawler.ToUpserts(42, got)
+	upserts := crawler.ToUpserts(42, got.Items)
 	require.Equal(t, int64(42), upserts[0].FeedID)
 	require.Equal(t, "https://news.example/post/1", upserts[0].URL)
 	require.NotNil(t, upserts[0].ExternalID)
 	require.Equal(t, "hn:1", *upserts[0].ExternalID)
 	require.NotNil(t, upserts[0].Title)
 	require.Equal(t, "OpenAI ships", *upserts[0].Title)
+}
+
+func TestParse_ReturnsChannelTitle(t *testing.T) {
+	rss := []byte(`<?xml version="1.0"?><rss version="2.0"><channel>
+	  <title>  The Verge  </title>
+	  <item><title>Post</title><link>https://example.com/1</link></item>
+	</channel></rss>`)
+
+	got, err := crawler.Parse(rss)
+	require.NoError(t, err)
+	require.Equal(t, "The Verge", got.Title)
+	require.Len(t, got.Items, 1)
 }
 
 func TestParse_GarbageReturnsError(t *testing.T) {
@@ -111,10 +123,10 @@ func TestToUpserts_DropsUselessSummary(t *testing.T) {
   <description><![CDATA[` + tc.desc + `]]></description>
 </item></channel></rss>`)
 
-			items, err := crawler.Parse(rss)
+			parsed, err := crawler.Parse(rss)
 			require.NoError(t, err)
 
-			ups := crawler.ToUpserts(1, items)
+			ups := crawler.ToUpserts(1, parsed.Items)
 			require.Len(t, ups, 1)
 			require.Nil(t, ups[0].Summary, "useless summary should be dropped")
 		})
@@ -129,10 +141,10 @@ func TestToUpserts_KeepsRealSummary(t *testing.T) {
   <description><![CDATA[<p>A meaningful description with <a href="https://x">a link</a> in it.</p>]]></description>
 </item></channel></rss>`)
 
-	items, err := crawler.Parse(rss)
+	parsed, err := crawler.Parse(rss)
 	require.NoError(t, err)
 
-	ups := crawler.ToUpserts(1, items)
+	ups := crawler.ToUpserts(1, parsed.Items)
 	require.Len(t, ups, 1)
 	require.NotNil(t, ups[0].Summary)
 	require.Contains(t, *ups[0].Summary, "meaningful description")

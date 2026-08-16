@@ -83,7 +83,14 @@ func (f *HTTPFetcher) Fetch(ctx context.Context, url, etag, lastModified string)
 	}, nil
 }
 
-func Parse(body []byte) ([]*gofeed.Item, error) {
+// ParsedFeed is what one fetched document yields: the channel's own title and
+// its entries.
+type ParsedFeed struct {
+	Title string
+	Items []*gofeed.Item
+}
+
+func Parse(body []byte) (*ParsedFeed, error) {
 	parser := gofeed.NewParser()
 
 	feed, err := parser.Parse(bytes.NewReader(body))
@@ -91,7 +98,7 @@ func Parse(body []byte) ([]*gofeed.Item, error) {
 		return nil, fmt.Errorf("parse feed: %w", err)
 	}
 
-	return feed.Items, nil
+	return &ParsedFeed{Title: strings.TrimSpace(feed.Title), Items: feed.Items}, nil
 }
 
 func ToUpserts(feedID int64, items []*gofeed.Item) []radar.FindingUpsert {

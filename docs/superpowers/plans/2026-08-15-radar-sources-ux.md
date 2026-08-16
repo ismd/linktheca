@@ -1205,7 +1205,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `Store.UpdateFeed` (Task 3) — в тестах для проверки приоритета ручного названия.
 - Produces: `crawler.ParsedFeed{Title string; Items []*gofeed.Item}`; `crawler.Parse(body []byte) (*ParsedFeed, error)`; `Store.MarkFeedFetched(ctx, feedID int64, etag, lastModified, title *string) error`.
 
-- [ ] **Step 1: Тест парсера**
+- [x] **Step 1: Тест парсера**
 
 В `internal/radar/crawler/crawler_test.go`:
 
@@ -1223,12 +1223,12 @@ func TestParse_ReturnsChannelTitle(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Запустить, убедиться в провале**
+- [x] **Step 2: Запустить, убедиться в провале**
 
 Run: `go test ./internal/radar/crawler/ -run TestParse_ReturnsChannelTitle -count=1`
 Expected: FAIL — `got.Title undefined (type []*gofeed.Item has no field Title)`.
 
-- [ ] **Step 3: Новая форма Parse**
+- [x] **Step 3: Новая форма Parse**
 
 ```go
 // ParsedFeed is what one fetched document yields: the channel's own title and
@@ -1252,7 +1252,7 @@ func Parse(body []byte) (*ParsedFeed, error) {
 
 Поправить существующие вызовы `crawler.Parse` в `crawler_test.go` (`TestParse_RSS`, `TestToUpserts_*`) — теперь это `parsed.Items`.
 
-- [ ] **Step 4: MarkFeedFetched пишет только пустой title**
+- [x] **Step 4: MarkFeedFetched пишет только пустой title**
 
 ```go
 // MarkFeedFetched records a successful fetch. The channel title is written
@@ -1269,7 +1269,7 @@ func (s *Store) MarkFeedFetched(ctx context.Context, feedID int64, etag, lastMod
 }
 ```
 
-- [ ] **Step 5: Тест стора на приоритет ручного имени**
+- [x] **Step 5: Тест стора на приоритет ручного имени**
 
 ```go
 func TestStore_MarkFeedFetched_TitleFillsOnlyWhenEmpty(t *testing.T) {
@@ -1314,7 +1314,7 @@ func findFeed(t *testing.T, items []radar.FeedListItem, id int64) radar.FeedList
 }
 ```
 
-- [ ] **Step 6: Прокинуть заголовок в джобе**
+- [x] **Step 6: Прокинуть заголовок в джобе**
 
 В `internal/radar/jobs/crawl_feed.go`:
 
@@ -1339,7 +1339,7 @@ func findFeed(t *testing.T, items []radar.FeedListItem, id int64) radar.FeedList
 		ptrOrNil(res.Etag), ptrOrNil(res.LastModified), ptrOrNil(parsed.Title))
 ```
 
-- [ ] **Step 7: Прогнать тесты и закоммитить**
+- [x] **Step 7: Прогнать тесты и закоммитить** — тесты прогнаны и зелёные; коммит отложен по просьбе.
 
 Run: `make test-unit && go test ./internal/radar/... -count=1`
 Expected: PASS.
