@@ -63,6 +63,7 @@ type mockStore struct {
 	previewUserID     int64
 	previewVec        pgvector.Vector
 	previewLimit      int
+	unsubscribeErr    error
 }
 
 func newMockStore() *mockStore {
@@ -710,4 +711,13 @@ func TestService_PreviewTopic_EmbedderError(t *testing.T) {
 		Description: "ten chars long",
 	})
 	require.ErrorIs(t, err, radar.ErrEmbedderUnavailable)
+}
+
+func (m *mockStore) Unsubscribe(_ context.Context, userID, feedID int64) error {
+	if m.unsubscribeErr != nil {
+		return m.unsubscribeErr
+	}
+
+	delete(m.subs, keyOf(userID, feedID))
+	return nil
 }

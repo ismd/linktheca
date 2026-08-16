@@ -837,3 +837,30 @@ func TestStore_ListFeeds_SubscribedAndCounts(t *testing.T) {
 	require.False(t, byID[other.ID].Subscribed)
 	require.Equal(t, 0, byID[other.ID].FindingCount)
 }
+
+func TestStore_Unsubscribe(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	feed, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: fmt.Sprintf("https://unsub.example/%d.xml", userID), Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+	_, err = store.Subscribe(ctx, userID, feed.ID)
+	require.NoError(t, err)
+
+	require.NoError(t, store.Unsubscribe(ctx, userID, feed.ID))
+
+	items, _, err := store.ListFeeds(ctx, userID, radar.ListFeedsParams{Limit: 100})
+	require.NoError(t, err)
+	for _, it := range items {
+		if it.ID == feed.ID {
+			require.False(t, it.Subscribed)
+		}
+	}
+
+	// Idempotent: a second call is not an error.
+	require.NoError(t, store.Unsubscribe(ctx, userID, feed.ID))
+}

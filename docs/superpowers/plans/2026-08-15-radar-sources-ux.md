@@ -298,7 +298,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `Store.Subscribe` из Task 1 без изменений.
 - Produces: `Store.Unsubscribe(ctx, userID, feedID int64) error`; `Service.Unsubscribe(ctx, userID, feedID int64) error`; `HTTP.UnsubscribeHandler() http.HandlerFunc` для `DELETE /radar/subscriptions/{feedId}`.
 
-- [ ] **Step 1: Написать падающий тест стора**
+- [x] **Step 1: Написать падающий тест стора**
 
 ```go
 func TestStore_Unsubscribe(t *testing.T) {
@@ -329,12 +329,12 @@ func TestStore_Unsubscribe(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Запустить, убедиться в провале**
+- [x] **Step 2: Запустить, убедиться в провале**
 
 Run: `go test ./internal/radar/ -run TestStore_Unsubscribe -count=1`
 Expected: FAIL — `store.Unsubscribe undefined`.
 
-- [ ] **Step 3: Реализовать стор**
+- [x] **Step 3: Реализовать стор**
 
 ```go
 // Unsubscribe drops the user's subscription. Removing one that is not there is
@@ -349,7 +349,7 @@ func (s *Store) Unsubscribe(ctx context.Context, userID, feedID int64) error {
 }
 ```
 
-- [ ] **Step 4: Сервис и mockStore**
+- [x] **Step 4: Сервис и mockStore**
 
 В `StoreAPI` добавить `Unsubscribe(ctx context.Context, userID, feedID int64) error`, в сервис:
 
@@ -376,7 +376,7 @@ func (m *mockStore) Unsubscribe(_ context.Context, userID, feedID int64) error {
 
 плюс поле `unsubscribeErr error` в структуру.
 
-- [ ] **Step 5: Хендлер**
+- [x] **Step 5: Хендлер**
 
 В `internal/radar/http.go`:
 
@@ -403,7 +403,7 @@ func (h *HTTP) unsubscribe(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 6: Тест хендлера на идемпотентность**
+- [x] **Step 6: Тест хендлера на идемпотентность**
 
 ```go
 func TestHTTP_Unsubscribe_204Twice(t *testing.T) {
@@ -427,7 +427,7 @@ func TestHTTP_Unsubscribe_204Twice(t *testing.T) {
 }
 ```
 
-- [ ] **Step 7: Маршрут**
+- [x] **Step 7: Маршрут**
 
 В `internal/server/server.go` в user-группе рядом с `r.Post("/subscriptions", …)`:
 
@@ -435,7 +435,7 @@ func TestHTTP_Unsubscribe_204Twice(t *testing.T) {
 			r.Delete("/subscriptions/{feedId}", radarHTTP.UnsubscribeHandler())
 ```
 
-- [ ] **Step 8: Интеграционный тест — старые матчи живут, новых нет**
+- [x] **Step 8: Интеграционный тест — старые матчи живут, новых нет**
 
 В `internal/radar/integration_test.go`:
 
@@ -512,12 +512,12 @@ func countMatches(t *testing.T, pool *pgxpool.Pool, topicID int64) int {
 
 Сверить сигнатуру `embeddings.FakeEmbedder.Embed` с существующим использованием в `internal/radar/jobs/jobs_test.go` и подогнать вызов, если она отличается.
 
-- [ ] **Step 9: Прогнать тесты**
+- [x] **Step 9: Прогнать тесты**
 
 Run: `make test-unit && go test ./internal/radar/ -run 'Unsubscribe' -count=1`
 Expected: PASS.
 
-- [ ] **Step 10: Коммит**
+- [x] **Step 10: Коммит**
 
 ```bash
 git add internal/radar internal/server/server.go

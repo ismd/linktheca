@@ -575,3 +575,23 @@ func TestHTTP_ListFeeds_PassesCallerID(t *testing.T) {
 	require.True(t, got.Items[0].Subscribed)
 	require.Equal(t, 12, got.Items[0].FindingCount)
 }
+
+func TestHTTP_Unsubscribe_204Twice(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	call := func() int {
+		req := httptest.NewRequest(http.MethodDelete, "/radar/subscriptions/5", nil)
+		ctx := userOnlyContext(req.Context(), 1, false)
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("feedId", "5")
+		req = req.WithContext(context.WithValue(ctx, chi.RouteCtxKey, rctx))
+		rec := httptest.NewRecorder()
+		h.UnsubscribeHandler()(rec, req)
+		return rec.Code
+	}
+
+	require.Equal(t, http.StatusNoContent, call())
+	require.Equal(t, http.StatusNoContent, call())
+}

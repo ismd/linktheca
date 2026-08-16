@@ -49,6 +49,7 @@ type StoreAPI interface {
 	LastSweepAt(ctx context.Context, userID int64) (*time.Time, error)
 	ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) ([]FeedListItem, int, error)
 	PreviewFindings(ctx context.Context, userID int64, vec pgvector.Vector, limit int) ([]PreviewMatch, error)
+	Unsubscribe(ctx context.Context, userID, feedID int64) error
 }
 
 type Service struct {
@@ -308,4 +309,12 @@ func (s *Service) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams
 		return nil, err
 	}
 	return &FeedList{Items: items, Total: total}, nil
+}
+
+func (s *Service) Unsubscribe(ctx context.Context, userID, feedID int64) error {
+	if feedID <= 0 {
+		return fmt.Errorf("%w: feed_id must be positive", ErrInvalidInput)
+	}
+
+	return s.store.Unsubscribe(ctx, userID, feedID)
 }

@@ -607,3 +607,13 @@ func (s *Store) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) 
 
 	return items, total, nil
 }
+
+func (s *Store) Unsubscribe(ctx context.Context, userID, feedID int64) error {
+	if _, err := s.db.Exec(ctx,
+		`DELETE FROM radar_feed_subscriptions WHERE user_id = $1 AND feed_id = $2`,
+		userID, feedID); err != nil {
+		return fmt.Errorf("unsubscribe: %w", err)
+	}
+
+	return nil
+}

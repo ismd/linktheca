@@ -135,6 +135,7 @@ func New(deps Deps) *http.Server {
 
 			r.Get("/feeds", radarHTTP.ListFeedsHandler())
 			r.Post("/subscriptions", radarHTTP.SubscribeHandler())
+			r.Delete("/subscriptions/{feedId}", radarHTTP.UnsubscribeHandler())
 
 			r.Get("/matches", radarHTTP.ListMatchesHandler())
 			r.Get("/matches/{id}", radarHTTP.GetMatchHandler())

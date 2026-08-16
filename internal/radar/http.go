@@ -321,3 +321,26 @@ func (h *HTTP) listFeeds(w http.ResponseWriter, r *http.Request) {
 
 	httpx.WriteJSON(w, http.StatusOK, result)
 }
+
+// UnsubscribeHandler returns the http.HandlerFunc for
+// DELETE /radar/subscriptions/{feedId}.
+func (h *HTTP) UnsubscribeHandler() http.HandlerFunc {
+	return h.unsubscribe
+}
+
+func (h *HTTP) unsubscribe(w http.ResponseWriter, r *http.Request) {
+	feedID, err := strconv.ParseInt(chi.URLParam(r, "feedId"), 10, 64)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid feed id")
+		return
+	}
+
+	userID := coreauth.UserID(r.Context())
+
+	if err := h.svc.Unsubscribe(r.Context(), userID, feedID); err != nil {
+		writeRadarError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

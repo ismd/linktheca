@@ -16,6 +16,7 @@ import (
 	"github.com/ismd/linktheca/internal/radar"
 	"github.com/ismd/linktheca/internal/testing/testdb"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pgvector/pgvector-go"
 	"github.com/stretchr/testify/require"
 )
 
@@ -285,4 +286,76 @@ func TestIntegrationRadarReadAPI(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &matchesResp))
 	require.Empty(t, matchesResp.Items)
+}
+
+func TestIntegrationUnsubscribeStopsNewMatchesOnly(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	ctx := context.Background()
+
+	userID := seedRadarUser(t, pool, false)
+	topic, err := store.CreateTopic(ctx, radar.CreateTopicParams{
+		UserID: userID, Name: "Rust", Description: "rust language news and releases",
+		MatchThreshold: 0.5,
+	})
+	require.NoError(t, err)
+
+	vec := make([]float32, 1024)
+	vec[0] = 1
+	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec)))
+
+	feed, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: "https://feed.example/unsub.xml", Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+	_, err = store.Subscribe(ctx, userID, feed.ID)
+	require.NoError(t, err)
+
+	// A finding discovered while subscribed produces a match.
+	before := matchFinding(t, ctx, store, vec, feed.ID, "before")
+	require.Equal(t, 1, countMatches(t, pool, topic.ID))
+
+	require.NoError(t, svc.Unsubscribe(ctx, userID, feed.ID))
+
+	// A finding discovered after unsubscribing produces none…
+	_ = matchFinding(t, ctx, store, vec, feed.ID, "after")
+	require.Equal(t, 1, countMatches(t, pool, topic.ID))
+
+	// …and the earlier match is untouched.
+	var stillThere bool
+	require.NoError(t, pool.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM radar_topic_matches WHERE finding_id = $1)`,
+		before).Scan(&stillThere))
+	require.True(t, stillThere)
+}
+
+// matchFinding upserts a finding with the given embedding, runs the matcher and
+// returns the finding id.
+func matchFinding(t *testing.T, ctx context.Context, store *radar.Store,
+	vec []float32, feedID int64, ext string) int64 {
+	t.Helper()
+	title := "Rust 2.0 released"
+	f, _, err := store.UpsertFinding(ctx, radar.FindingUpsert{
+		FeedID: feedID, ExternalID: &ext,
+		URL: "https://feed.example/" + ext, Title: &title,
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, store.UpdateFindingEmbedding(ctx, f.ID, pgvector.NewVector(vec)))
+	_, err = store.MatchFindingToTopics(ctx, f.ID)
+	require.NoError(t, err)
+	return f.ID
+}
+
+func countMatches(t *testing.T, pool *pgxpool.Pool, topicID int64) int {
+	t.Helper()
+	var n int
+	require.NoError(t, pool.QueryRow(context.Background(),
+		`SELECT count(*) FROM radar_topic_matches WHERE topic_id = $1`, topicID).Scan(&n))
+	return n
 }
