@@ -513,7 +513,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `Store.AddFeed` with an owner (Task 1), `Store.ListFeeds` with `Scope` (Task 2).
 - Produces: no signature changes. `Store.Subscribe` returns `ErrFeedNotFound` for an invisible feed; `Store.SeedSubscriptions` subscribes only to active global feeds.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `internal/radar/store_test.go`:
 
@@ -579,12 +579,12 @@ func TestStore_SeedSubscriptions_GlobalOnly(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run them and confirm they fail**
+- [x] **Step 2: Run them and confirm they fail**
 
 Run: `go test ./internal/radar/ -run 'TestStore_Subscribe_RejectsForeignPersonalFeed|TestStore_SeedSubscriptions_GlobalOnly' -count=1`
 Expected: FAIL — subscribing to a foreign feed succeeds instead of returning `ErrFeedNotFound`.
 
-- [ ] **Step 3: Rewrite `Store.Subscribe`**
+- [x] **Step 3: Rewrite `Store.Subscribe`**
 
 ```go
 // Subscribe adds the user's subscription. The visibility predicate lives in the
@@ -616,7 +616,7 @@ Here `pgx.ErrNoRows` means "the feed is invisible or absent", so it is mapped to
 `ErrFeedNotFound` before `wrapPgError`, which would have turned it into
 `ErrNotFound`.
 
-- [ ] **Step 4: Restrict `SeedSubscriptions` to global feeds**
+- [x] **Step 4: Restrict `SeedSubscriptions` to global feeds**
 
 ```go
 	cmd, err := s.db.Exec(ctx, `
@@ -625,12 +625,12 @@ Here `pgx.ErrNoRows` means "the feed is invisible or absent", so it is mapped to
 		ON CONFLICT DO NOTHING`, userID)
 ```
 
-- [ ] **Step 5: Run the tests**
+- [x] **Step 5: Run the tests**
 
 Run: `make test-unit && go test ./internal/radar/ -run 'Subscribe|SeedSubscriptions' -count=1`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/radar

@@ -1082,3 +1082,63 @@ func TestStore_ListFeeds_Visibility(t *testing.T) {
 		require.NotEqual(t, mine.ID, it.ID)
 	}
 }
+
+func TestStore_Subscribe_RejectsForeignPersonalFeed(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userA := seedUser(t, pool)
+	userB := seedUser(t, pool)
+	stamp := time.Now().UnixNano()
+
+	theirs, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: fmt.Sprintf("https://sub-b.example/%d.xml", stamp), Kind: "rss",
+		FetchIntervalSeconds: 3600, OwnerUserID: &userB,
+	})
+	require.NoError(t, err)
+
+	_, err = store.Subscribe(ctx, userA, theirs.ID)
+	require.ErrorIs(t, err, radar.ErrFeedNotFound)
+
+	// The owner still can, and it stays idempotent.
+	_, err = store.Subscribe(ctx, userB, theirs.ID)
+	require.NoError(t, err)
+	_, err = store.Subscribe(ctx, userB, theirs.ID)
+	require.NoError(t, err)
+}
+
+func TestStore_SeedSubscriptions_GlobalOnly(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	owner := seedUser(t, pool)
+	stamp := time.Now().UnixNano()
+
+	global, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: fmt.Sprintf("https://seed-g.example/%d.xml", stamp), Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+	personal, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: fmt.Sprintf("https://seed-p.example/%d.xml", stamp), Kind: "rss",
+		FetchIntervalSeconds: 3600, OwnerUserID: &owner,
+	})
+	require.NoError(t, err)
+
+	newcomer := seedUser(t, pool)
+	n, err := store.SeedSubscriptions(ctx, newcomer)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, n, 1)
+
+	items, _, err := store.ListFeeds(ctx, newcomer, radar.ListFeedsParams{
+		Limit: 100, Scope: radar.FeedScopeVisible,
+	})
+	require.NoError(t, err)
+	byID := map[int64]radar.FeedListItem{}
+	for _, it := range items {
+		byID[it.ID] = it
+	}
+	require.True(t, byID[global.ID].Subscribed)
+	require.NotContains(t, byID, personal.ID, "someone else's personal feed is not seeded")
+}

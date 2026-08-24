@@ -93,13 +93,18 @@ func (s *Store) AddFeed(ctx context.Context, p AddFeedParams) (*Feed, error) {
 func (s *Store) Subscribe(ctx context.Context, userID, feedID int64) (*Subscription, error) {
 	row := s.db.QueryRow(ctx, `
 		INSERT INTO radar_feed_subscriptions (user_id, feed_id)
-		VALUES ($1, $2)
-		ON CONFLICT (user_id, feed_id) DO UPDATE SET created_at = radar_feed_subscriptions.created_at
+		SELECT $1, f.id FROM radar_feeds f
+		WHERE f.id = $2 AND (f.owner_user_id IS NULL OR f.owner_user_id = $1)
+		ON CONFLICT (user_id, feed_id)
+		  DO UPDATE SET created_at = radar_feed_subscriptions.created_at
 		RETURNING user_id, feed_id, created_at
 	`, userID, feedID)
 
 	var sub Subscription
 	if err := row.Scan(&sub.UserID, &sub.FeedID, &sub.CreatedAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrFeedNotFound
+		}
 		return nil, wrapPgError(err)
 	}
 
@@ -674,7 +679,7 @@ func (s *Store) UpdateFeed(ctx context.Context, feedID int64, p UpdateFeedParams
 func (s *Store) SeedSubscriptions(ctx context.Context, userID int64) (int, error) {
 	cmd, err := s.db.Exec(ctx, `
 		INSERT INTO radar_feed_subscriptions (user_id, feed_id)
-		SELECT $1, id FROM radar_feeds WHERE is_active
+		SELECT $1, id FROM radar_feeds WHERE is_active AND owner_user_id IS NULL
 		ON CONFLICT DO NOTHING`, userID)
 	if err != nil {
 		return 0, fmt.Errorf("seed subscriptions: %w", err)
