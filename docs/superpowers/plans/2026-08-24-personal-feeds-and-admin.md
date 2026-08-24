@@ -62,7 +62,7 @@
 - Consumes: the existing `Feed`, `AddFeedParams`, `Store.AddFeed`.
 - Produces: `AddFeedParams{URL string; Kind string; FetchIntervalSeconds int; OwnerUserID *int64}`; `Store.AddFeed` writes the owner; in the database, the `radar_feeds.owner_user_id` column and the `radar_feeds_global_url_idx`, `radar_feeds_owner_url_idx`, `radar_feeds_owner_idx` indexes.
 
-- [ ] **Step 1: Write the failing store test**
+- [x] **Step 1: Write the failing store test**
 
 In `internal/radar/store_test.go`:
 
@@ -138,12 +138,12 @@ func TestStore_DeletingUserRemovesTheirFeeds(t *testing.T) {
 `seedUser` already exists in `store_test.go` — check its signature; if it takes
 only `(t, pool)`, call it twice, since it must return distinct ids.
 
-- [ ] **Step 2: Run it and confirm it does not compile**
+- [x] **Step 2: Run it and confirm it does not compile**
 
 Run: `go test ./internal/radar/ -run TestStore_AddFeed_OwnershipAndPartialUniqueness -count=1`
 Expected: FAIL — `unknown field OwnerUserID in struct literal`.
 
-- [ ] **Step 3: Write the migration**
+- [x] **Step 3: Write the migration**
 
 `migrations/014_radar_feeds_owner.sql`:
 
@@ -175,7 +175,7 @@ ALTER TABLE radar_feeds ADD CONSTRAINT radar_feeds_url_key UNIQUE (url);
 ALTER TABLE radar_feeds DROP COLUMN owner_user_id;
 ```
 
-- [ ] **Step 4: Add the field to `AddFeedParams`**
+- [x] **Step 4: Add the field to `AddFeedParams`**
 
 In `internal/radar/types.go`, replace the `AddFeedParams` block with:
 
@@ -190,7 +190,7 @@ type AddFeedParams struct {
 }
 ```
 
-- [ ] **Step 5: Write the owner in `Store.AddFeed`**
+- [x] **Step 5: Write the owner in `Store.AddFeed`**
 
 In `internal/radar/store.go`, replace the query inside `AddFeed`:
 
@@ -203,7 +203,7 @@ In `internal/radar/store.go`, replace the query inside `AddFeed`:
 	`, p.URL, p.Kind, p.FetchIntervalSeconds, p.OwnerUserID)
 ```
 
-- [ ] **Step 6: Fix `mockStore.AddFeed`**
+- [x] **Step 6: Fix `mockStore.AddFeed`**
 
 In `internal/radar/service_test.go` the mock deduplicates by bare URL — the key
 is composite now. Replace the method body with:
@@ -246,12 +246,12 @@ the `"fmt"` import if it is not there yet. The existing `DeleteFeed`
 `delete(m.feedsByURL, feedKey(f.URL, m.feedOwners[feedID]))` and
 `delete(m.feedOwners, feedID)`.
 
-- [ ] **Step 7: Run the tests**
+- [x] **Step 7: Run the tests**
 
 Run: `make test-unit && go test ./internal/radar/ -run 'TestStore_AddFeed|TestStore_DeletingUser' -count=1`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add migrations internal/radar

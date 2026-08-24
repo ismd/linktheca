@@ -3,6 +3,7 @@ package radar_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -70,6 +71,7 @@ type mockStore struct {
 	deleteFeedCalled  bool
 	deleteFeedErr     error
 	seedErr           error
+	feedOwners        map[int64]*int64
 }
 
 func newMockStore() *mockStore {
@@ -78,6 +80,7 @@ func newMockStore() *mockStore {
 		topicEmb:   make(map[int64]pgvector.Vector),
 		feeds:      make(map[int64]*radar.Feed),
 		feedsByURL: make(map[string]*radar.Feed),
+		feedOwners: make(map[int64]*int64),
 		subs:       make(map[string]*radar.Subscription),
 	}
 }
@@ -113,7 +116,8 @@ func (m *mockStore) AddFeed(_ context.Context, p radar.AddFeedParams) (*radar.Fe
 	if m.addFeedErr != nil {
 		return nil, m.addFeedErr
 	}
-	if _, ok := m.feedsByURL[p.URL]; ok {
+	key := feedKey(p.URL, p.OwnerUserID)
+	if _, ok := m.feedsByURL[key]; ok {
 		return nil, radar.ErrDuplicate
 	}
 	m.nextFeedID++
@@ -123,8 +127,18 @@ func (m *mockStore) AddFeed(_ context.Context, p radar.AddFeedParams) (*radar.Fe
 		CreatedAt: time.Now(),
 	}
 	m.feeds[f.ID] = f
-	m.feedsByURL[p.URL] = f
+	m.feedsByURL[key] = f
+	m.feedOwners[f.ID] = p.OwnerUserID
 	return f, nil
+}
+
+// feedKey mirrors the partial unique indexes: one global row per URL, one
+// personal row per (URL, owner).
+func feedKey(url string, owner *int64) string {
+	if owner == nil {
+		return "global:" + url
+	}
+	return fmt.Sprintf("user:%d:%s", *owner, url)
 }
 
 func (m *mockStore) Subscribe(_ context.Context, userID, feedID int64) (*radar.Subscription, error) {
@@ -766,7 +780,8 @@ func (m *mockStore) DeleteFeed(_ context.Context, feedID int64) error {
 		return radar.ErrNotFound
 	}
 
-	delete(m.feedsByURL, f.URL)
+	delete(m.feedsByURL, feedKey(f.URL, m.feedOwners[feedID]))
+	delete(m.feedOwners, feedID)
 	delete(m.feeds, feedID)
 	return nil
 }

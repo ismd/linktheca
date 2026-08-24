@@ -99,6 +99,7 @@ type AddFeedParams struct {
 	URL                  string
 	Kind                 string
 	FetchIntervalSeconds int
+	OwnerUserID          *int64
 }
 
 type FindingUpsert struct {

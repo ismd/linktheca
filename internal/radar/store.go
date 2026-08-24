@@ -74,11 +74,11 @@ func wrapPgError(err error) error {
 
 func (s *Store) AddFeed(ctx context.Context, p AddFeedParams) (*Feed, error) {
 	row := s.db.QueryRow(ctx, `
-		INSERT INTO radar_feeds (url, kind, fetch_interval_seconds)
-		VALUES ($1, $2, $3)
+		INSERT INTO radar_feeds (url, kind, fetch_interval_seconds, owner_user_id)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id, url, kind, title, fetch_interval_seconds, is_active,
 		          last_fetched_at, last_error, created_at
-	`, p.URL, p.Kind, p.FetchIntervalSeconds)
+	`, p.URL, p.Kind, p.FetchIntervalSeconds, p.OwnerUserID)
 
 	var f Feed
 	if err := row.Scan(&f.ID, &f.URL, &f.Kind, &f.Title,

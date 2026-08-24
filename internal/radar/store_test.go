@@ -968,3 +968,65 @@ func findFeed(t *testing.T, items []radar.FeedListItem, id int64) radar.FeedList
 	t.Fatalf("feed %d not in catalog", id)
 	return radar.FeedListItem{}
 }
+
+func TestStore_AddFeed_OwnershipAndPartialUniqueness(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userA := seedUser(t, pool)
+	userB := seedUser(t, pool)
+	url := fmt.Sprintf("https://own.example/%d.xml", time.Now().UnixNano())
+
+	// The same URL is fine for two different owners.
+	a, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: url, Kind: "rss", FetchIntervalSeconds: 3600, OwnerUserID: &userA,
+	})
+	require.NoError(t, err)
+	b, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: url, Kind: "rss", FetchIntervalSeconds: 3600, OwnerUserID: &userB,
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, a.ID, b.ID)
+
+	// The same owner may not add it twice.
+	_, err = store.AddFeed(ctx, radar.AddFeedParams{
+		URL: url, Kind: "rss", FetchIntervalSeconds: 3600, OwnerUserID: &userA,
+	})
+	require.ErrorIs(t, err, radar.ErrDuplicate)
+
+	// A global row with that URL is still allowed…
+	_, err = store.AddFeed(ctx, radar.AddFeedParams{
+		URL: url, Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+
+	// …but only one of it.
+	_, err = store.AddFeed(ctx, radar.AddFeedParams{
+		URL: url, Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.ErrorIs(t, err, radar.ErrDuplicate)
+}
+
+func TestStore_DeletingUserRemovesTheirFeeds(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	owner := seedUser(t, pool)
+	feed, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL:                  fmt.Sprintf("https://cascade.example/%d.xml", time.Now().UnixNano()),
+		Kind:                 "rss",
+		FetchIntervalSeconds: 3600,
+		OwnerUserID:          &owner,
+	})
+	require.NoError(t, err)
+
+	_, err = pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, owner)
+	require.NoError(t, err)
+
+	var left int
+	require.NoError(t, pool.QueryRow(ctx,
+		`SELECT count(*) FROM radar_feeds WHERE id = $1`, feed.ID).Scan(&left))
+	require.Equal(t, 0, left, "a deleted user's feeds go with them, they are not promoted")
+}
