@@ -67,8 +67,10 @@ type mockStore struct {
 	unsubscribeErr    error
 	updateFeedCalled  bool
 	updateFeedParams  radar.UpdateFeedParams
+	updateFeedOwner   *int64
 	updateFeedErr     error
 	deleteFeedCalled  bool
+	deleteFeedOwner   *int64
 	deleteFeedErr     error
 	seedErr           error
 	feedOwners        map[int64]*int64
@@ -742,9 +744,10 @@ func (m *mockStore) Unsubscribe(_ context.Context, userID, feedID int64) error {
 	return nil
 }
 
-func (m *mockStore) UpdateFeed(_ context.Context, feedID int64, p radar.UpdateFeedParams) (*radar.Feed, error) {
+func (m *mockStore) UpdateFeed(_ context.Context, feedID int64, owner *int64, p radar.UpdateFeedParams) (*radar.Feed, error) {
 	m.updateFeedCalled = true
 	m.updateFeedParams = p
+	m.updateFeedOwner = owner
 
 	if m.updateFeedErr != nil {
 		return nil, m.updateFeedErr
@@ -758,9 +761,11 @@ func (m *mockStore) UpdateFeed(_ context.Context, feedID int64, p radar.UpdateFe
 	if p.Title != nil {
 		f.Title = p.Title
 	}
+
 	if p.FetchIntervalSeconds != nil {
 		f.FetchIntervalSeconds = *p.FetchIntervalSeconds
 	}
+
 	if p.IsActive != nil {
 		f.IsActive = *p.IsActive
 	}
@@ -768,8 +773,9 @@ func (m *mockStore) UpdateFeed(_ context.Context, feedID int64, p radar.UpdateFe
 	return f, nil
 }
 
-func (m *mockStore) DeleteFeed(_ context.Context, feedID int64) error {
+func (m *mockStore) DeleteFeed(_ context.Context, feedID int64, owner *int64) error {
 	m.deleteFeedCalled = true
+	m.deleteFeedOwner = owner
 
 	if m.deleteFeedErr != nil {
 		return m.deleteFeedErr
@@ -783,6 +789,7 @@ func (m *mockStore) DeleteFeed(_ context.Context, feedID int64) error {
 	delete(m.feedsByURL, feedKey(f.URL, m.feedOwners[feedID]))
 	delete(m.feedOwners, feedID)
 	delete(m.feeds, feedID)
+
 	return nil
 }
 

@@ -50,8 +50,8 @@ type StoreAPI interface {
 	ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) ([]FeedListItem, int, error)
 	PreviewFindings(ctx context.Context, userID int64, vec pgvector.Vector, limit int) ([]PreviewMatch, error)
 	Unsubscribe(ctx context.Context, userID, feedID int64) error
-	UpdateFeed(ctx context.Context, feedID int64, p UpdateFeedParams) (*Feed, error)
-	DeleteFeed(ctx context.Context, feedID int64) error
+	UpdateFeed(ctx context.Context, feedID int64, owner *int64, p UpdateFeedParams) (*Feed, error)
+	DeleteFeed(ctx context.Context, feedID int64, owner *int64) error
 	SeedSubscriptions(ctx context.Context, userID int64) (int, error)
 }
 
@@ -357,7 +357,7 @@ func (s *Service) UpdateFeed(ctx context.Context, feedID int64, req UpdateFeedRe
 		req.Title = &trimmed
 	}
 
-	return s.store.UpdateFeed(ctx, feedID, UpdateFeedParams{
+	return s.store.UpdateFeed(ctx, feedID, nil, UpdateFeedParams{
 		Title:                req.Title,
 		FetchIntervalSeconds: req.FetchIntervalSeconds,
 		IsActive:             req.IsActive,
@@ -370,7 +370,7 @@ func (s *Service) DeleteFeed(ctx context.Context, feedID int64) error {
 		return fmt.Errorf("%w: feed id must be positive", ErrInvalidInput)
 	}
 
-	return s.store.DeleteFeed(ctx, feedID)
+	return s.store.DeleteFeed(ctx, feedID, nil)
 }
 
 // SeedSubscriptions is called from the auth module's OnUserCreated hook.

@@ -653,7 +653,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `Store.AddFeed` with an owner (Task 1).
 - Produces: `Store.UpdateFeed(ctx, feedID int64, owner *int64, p UpdateFeedParams) (*Feed, error)`; `Store.DeleteFeed(ctx, feedID int64, owner *int64) error`. `owner == nil` addresses global rows, a value addresses that user's personal feeds. The `Service.UpdateFeed`/`DeleteFeed` signatures do **not** change in this task — they pass `nil` for now and keep today's admin behaviour; Task 5 replaces them with the pairs.
 
-- [ ] **Step 1: Write the failing store test**
+- [x] **Step 1: Write the failing store test**
 
 In `internal/radar/store_test.go`:
 
@@ -704,12 +704,12 @@ func TestStore_UpdateDeleteFeed_ScopedToOwner(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `go test ./internal/radar/ -run TestStore_UpdateDeleteFeed_ScopedToOwner -count=1`
 Expected: FAIL — `too many arguments in call to store.UpdateFeed`.
 
-- [ ] **Step 3: Scope in `Store.UpdateFeed`**
+- [x] **Step 3: Scope in `Store.UpdateFeed`**
 
 Change the signature and add the scope predicate to the `WHERE`:
 
@@ -736,7 +736,7 @@ argument block with:
 `IS NOT DISTINCT FROM` is the only form where `NULL = NULL` holds, so one
 predicate covers both scopes.
 
-- [ ] **Step 4: Scope in `Store.DeleteFeed`**
+- [x] **Step 4: Scope in `Store.DeleteFeed`**
 
 ```go
 // DeleteFeed removes a feed inside one ownership scope. Findings and their
@@ -755,7 +755,7 @@ func (s *Store) DeleteFeed(ctx context.Context, feedID int64, owner *int64) erro
 }
 ```
 
-- [ ] **Step 5: Thread the new signature through `StoreAPI` and the service**
+- [x] **Step 5: Thread the new signature through `StoreAPI` and the service**
 
 In `StoreAPI` (`internal/radar/service.go`), replace the two lines with:
 
@@ -774,7 +774,7 @@ behaviour stays today's admin behaviour, and the pairs arrive in Task 5:
 	return s.store.DeleteFeed(ctx, feedID, nil)
 ```
 
-- [ ] **Step 6: Update `mockStore`**
+- [x] **Step 6: Update `mockStore`**
 
 ```go
 func (m *mockStore) UpdateFeed(_ context.Context, feedID int64, owner *int64, p radar.UpdateFeedParams) (*radar.Feed, error) {
@@ -820,12 +820,31 @@ func (m *mockStore) DeleteFeed(_ context.Context, feedID int64, owner *int64) er
 Add `updateFeedOwner *int64` and `deleteFeedOwner *int64` fields to the
 `mockStore` struct.
 
-- [ ] **Step 7: Run the tests**
+- [x] **Step 7: Fix the existing `store.UpdateFeed` call sites**
+
+The signature change breaks every call already in `internal/radar/store_test.go`.
+All of them operate on feeds created without an `OwnerUserID`, so all of them
+take `nil`:
+
+```bash
+grep -n 'store.UpdateFeed(ctx' internal/radar/store_test.go
+```
+
+Insert `nil` as the third argument in each — in
+`TestStore_UpdateFeed_PartialAndClearTitle` (three calls),
+`TestStore_SeedSubscriptions_ActiveOnlyAndIdempotent` (one), and
+`TestStore_MarkFeedFetched_TitleFillsOnlyWhenEmpty` (one):
+
+```go
+	updated, err := store.UpdateFeed(ctx, feed.ID, nil, radar.UpdateFeedParams{Title: &title})
+```
+
+- [x] **Step 8: Run the tests**
 
 Run: `make test-unit && go test ./internal/radar/ -run 'UpdateFeed|DeleteFeed' -count=1`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add internal/radar

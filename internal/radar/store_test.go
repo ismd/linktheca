@@ -877,17 +877,17 @@ func TestStore_UpdateFeed_PartialAndClearTitle(t *testing.T) {
 	require.NoError(t, err)
 
 	title := "The Verge"
-	updated, err := store.UpdateFeed(ctx, feed.ID, radar.UpdateFeedParams{Title: &title})
+	updated, err := store.UpdateFeed(ctx, feed.ID, nil, radar.UpdateFeedParams{Title: &title})
 	require.NoError(t, err)
 	require.Equal(t, "The Verge", *updated.Title)
 	require.Equal(t, 3600, updated.FetchIntervalSeconds, "untouched field keeps its value")
 
 	empty := ""
-	cleared, err := store.UpdateFeed(ctx, feed.ID, radar.UpdateFeedParams{Title: &empty})
+	cleared, err := store.UpdateFeed(ctx, feed.ID, nil, radar.UpdateFeedParams{Title: &empty})
 	require.NoError(t, err)
 	require.Nil(t, cleared.Title)
 
-	_, err = store.UpdateFeed(ctx, 999999, radar.UpdateFeedParams{Title: &title})
+	_, err = store.UpdateFeed(ctx, 999999, nil, radar.UpdateFeedParams{Title: &title})
 	require.ErrorIs(t, err, radar.ErrNotFound)
 }
 
@@ -906,7 +906,7 @@ func TestStore_SeedSubscriptions_ActiveOnlyAndIdempotent(t *testing.T) {
 	})
 	require.NoError(t, err)
 	off := false
-	_, err = store.UpdateFeed(ctx, paused.ID, radar.UpdateFeedParams{IsActive: &off})
+	_, err = store.UpdateFeed(ctx, paused.ID, nil, radar.UpdateFeedParams{IsActive: &off})
 	require.NoError(t, err)
 
 	userID := seedUser(t, pool)
@@ -947,7 +947,7 @@ func TestStore_MarkFeedFetched_TitleFillsOnlyWhenEmpty(t *testing.T) {
 	require.Equal(t, "Auto Title", *findFeed(t, items, feed.ID).Title)
 
 	manual := "Manual Title"
-	_, err = store.UpdateFeed(ctx, feed.ID, radar.UpdateFeedParams{Title: &manual})
+	_, err = store.UpdateFeed(ctx, feed.ID, nil, radar.UpdateFeedParams{Title: &manual})
 	require.NoError(t, err)
 
 	other := "Auto Again"
@@ -1141,4 +1141,49 @@ func TestStore_SeedSubscriptions_GlobalOnly(t *testing.T) {
 	}
 	require.True(t, byID[global.ID].Subscribed)
 	require.NotContains(t, byID, personal.ID, "someone else's personal feed is not seeded")
+}
+
+func TestStore_UpdateDeleteFeed_ScopedToOwner(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userA := seedUser(t, pool)
+	userB := seedUser(t, pool)
+	stamp := time.Now().UnixNano()
+
+	global, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: fmt.Sprintf("https://scope-g.example/%d.xml", stamp), Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+	mine, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: fmt.Sprintf("https://scope-a.example/%d.xml", stamp), Kind: "rss",
+		FetchIntervalSeconds: 3600, OwnerUserID: &userA,
+	})
+	require.NoError(t, err)
+
+	title := "Renamed"
+
+	// A user may patch their own feed…
+	updated, err := store.UpdateFeed(ctx, mine.ID, &userA, radar.UpdateFeedParams{Title: &title})
+	require.NoError(t, err)
+	require.Equal(t, "Renamed", *updated.Title)
+
+	// …but not a catalog feed, and not someone else's.
+	_, err = store.UpdateFeed(ctx, global.ID, &userA, radar.UpdateFeedParams{Title: &title})
+	require.ErrorIs(t, err, radar.ErrNotFound)
+	_, err = store.UpdateFeed(ctx, mine.ID, &userB, radar.UpdateFeedParams{Title: &title})
+	require.ErrorIs(t, err, radar.ErrNotFound)
+
+	// The admin scope reaches catalog rows only.
+	_, err = store.UpdateFeed(ctx, global.ID, nil, radar.UpdateFeedParams{Title: &title})
+	require.NoError(t, err)
+	_, err = store.UpdateFeed(ctx, mine.ID, nil, radar.UpdateFeedParams{Title: &title})
+	require.ErrorIs(t, err, radar.ErrNotFound)
+
+	// Same rules for deletion.
+	require.ErrorIs(t, store.DeleteFeed(ctx, mine.ID, nil), radar.ErrNotFound)
+	require.ErrorIs(t, store.DeleteFeed(ctx, global.ID, &userA), radar.ErrNotFound)
+	require.NoError(t, store.DeleteFeed(ctx, mine.ID, &userA))
+	require.NoError(t, store.DeleteFeed(ctx, global.ID, nil))
 }

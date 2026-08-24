@@ -629,7 +629,7 @@ func (s *Store) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) 
 
 // UpdateFeed applies a partial patch. An empty title clears the column so the
 // crawler can fill it from the channel again.
-func (s *Store) UpdateFeed(ctx context.Context, feedID int64, p UpdateFeedParams) (*Feed, error) {
+func (s *Store) UpdateFeed(ctx context.Context, feedID int64, owner *int64, p UpdateFeedParams) (*Feed, error) {
 	setClauses := []string{}
 	args := []any{}
 	argIdx := 1
@@ -655,13 +655,13 @@ func (s *Store) UpdateFeed(ctx context.Context, feedID int64, p UpdateFeedParams
 		return nil, fmt.Errorf("%w: no fields to update", ErrInvalidInput)
 	}
 
-	args = append(args, feedID)
+	args = append(args, feedID, owner)
 	query := fmt.Sprintf(`
 		UPDATE radar_feeds SET %s
-		WHERE id = $%d
+		WHERE id = $%d AND owner_user_id IS NOT DISTINCT FROM $%d
 		RETURNING id, url, kind, title, fetch_interval_seconds, is_active,
 		          last_fetched_at, last_error, created_at`,
-		strings.Join(setClauses, ", "), argIdx)
+		strings.Join(setClauses, ", "), argIdx, argIdx+1)
 
 	var f Feed
 	if err := s.db.QueryRow(ctx, query, args...).Scan(&f.ID, &f.URL, &f.Kind, &f.Title,
@@ -688,18 +688,16 @@ func (s *Store) SeedSubscriptions(ctx context.Context, userID int64) (int, error
 	return int(cmd.RowsAffected()), nil
 }
 
-// DeleteFeed removes a feed. Findings and their matches go with it via
-// ON DELETE CASCADE, for every user on the instance.
-func (s *Store) DeleteFeed(ctx context.Context, feedID int64) error {
-	cmd, err := s.db.Exec(ctx, `DELETE FROM radar_feeds WHERE id = $1`, feedID)
+func (s *Store) DeleteFeed(ctx context.Context, feedID int64, owner *int64) error {
+	cmd, err := s.db.Exec(ctx,
+		`DELETE FROM radar_feeds
+		 WHERE id = $1 AND owner_user_id IS NOT DISTINCT FROM $2`, feedID, owner)
 	if err != nil {
 		return fmt.Errorf("delete feed: %w", err)
 	}
-
 	if cmd.RowsAffected() == 0 {
 		return ErrNotFound
 	}
-
 	return nil
 }
 
