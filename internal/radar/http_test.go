@@ -622,3 +622,23 @@ func TestHTTP_DeleteFeed_404(t *testing.T) {
 
 	require.Equal(t, http.StatusNotFound, rec.Code)
 }
+
+func TestHTTP_ListFeeds_ExposesIsOwn(t *testing.T) {
+	store := newMockStore()
+	store.listFeedsResult = []radar.FeedListItem{{
+		Feed:       radar.Feed{ID: 7, URL: "https://x.example/rss", Kind: "rss"},
+		Subscribed: true, FindingCount: 12, IsOwn: true,
+	}}
+	store.listFeedsTotal = 1
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/feeds?limit=10", nil)
+	req = req.WithContext(userOnlyContext(req.Context(), 42, false))
+	rec := httptest.NewRecorder()
+	h.ListFeedsHandler()(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, radar.FeedScopeVisible, store.listFeedsParams.Scope)
+	require.Contains(t, rec.Body.String(), `"is_own":true`)
+}

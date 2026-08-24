@@ -167,18 +167,30 @@ type MatchList struct {
 	Total int         `json:"total"`
 }
 
-// ListFeedsParams holds query parameters for GET /radar/feeds (admin).
+type FeedScope string
+
+const (
+	// FeedScopeVisible is what a user may see: the shared catalog plus their
+	// own personal feeds.
+	FeedScopeVisible FeedScope = "visible"
+	// FeedScopeGlobal is the shared catalog alone, for the admin screen.
+	FeedScopeGlobal FeedScope = "global"
+)
+
+// ListFeedsParams holds query parameters for the feed catalog.
 type ListFeedsParams struct {
 	Limit  int
 	Offset int
+	Scope  FeedScope
 }
 
-// FeedListItem is one catalog row: the feed plus per-user subscription state
-// and how many findings it has produced.
+// FeedListItem is one catalog row: the feed plus per-user subscription state,
+// how many findings it has produced, and whether the caller owns it.
 type FeedListItem struct {
 	Feed
 	Subscribed   bool `json:"subscribed"`
 	FindingCount int  `json:"finding_count"`
+	IsOwn        bool `json:"is_own"`
 }
 
 // FeedList holds the paginated response for GET /radar/feeds.

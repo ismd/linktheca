@@ -303,13 +303,20 @@ func (s *Service) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams
 			p.Limit = 50
 		}
 	}
+
 	if p.Offset < 0 {
 		p.Offset = 0
 	}
+
+	if p.Scope == "" {
+		p.Scope = FeedScopeVisible
+	}
+
 	items, total, err := s.store.ListFeeds(ctx, userID, p)
 	if err != nil {
 		return nil, err
 	}
+
 	return &FeedList{Items: items, Total: total}, nil
 }
 

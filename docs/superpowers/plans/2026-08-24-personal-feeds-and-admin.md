@@ -275,7 +275,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `Store.AddFeed` with an owner (Task 1).
 - Produces: `radar.FeedScope` with the constants `FeedScopeVisible` and `FeedScopeGlobal`; `ListFeedsParams{Limit, Offset int; Scope FeedScope}`; `FeedListItem` with an `IsOwn bool` field (json `is_own`). The `Store.ListFeeds` and `Service.ListFeeds` signatures do not change.
 
-- [ ] **Step 1: Write the failing store test**
+- [x] **Step 1: Write the failing store test**
 
 In `internal/radar/store_test.go`:
 
@@ -337,12 +337,12 @@ The test compares `total` with the page length, which holds because `limit` is
 well above the number of feeds in the test schema (every test gets its own
 database schema).
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `go test ./internal/radar/ -run TestStore_ListFeeds_Visibility -count=1`
 Expected: FAIL — `undefined: radar.FeedScopeVisible`, `it.IsOwn undefined`.
 
-- [ ] **Step 3: Types in `types.go`**
+- [x] **Step 3: Types in `types.go`**
 
 Replace the `ListFeedsParams` and `FeedListItem` blocks with:
 
@@ -375,21 +375,25 @@ type FeedListItem struct {
 }
 ```
 
-- [ ] **Step 4: The filter in `Store.ListFeeds`**
+- [x] **Step 4: The filter in `Store.ListFeeds`**
 
 Replace the method body with:
 
 ```go
 func (s *Store) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) ([]FeedListItem, int, error) {
-	// The predicate is shared by the count and the page so the two agree.
+	// The predicate is shared by the count and the page so the two agree. The
+	// global scope needs no user id, so the count's argument list follows the
+	// predicate; the page query always binds $1 through its subscribed subquery.
 	where := `(f.owner_user_id IS NULL OR f.owner_user_id = $1)`
+	countArgs := []any{userID}
 	if p.Scope == FeedScopeGlobal {
 		where = `f.owner_user_id IS NULL`
+		countArgs = nil
 	}
 
 	var total int
 	if err := s.db.QueryRow(ctx,
-		`SELECT count(*) FROM radar_feeds f WHERE `+where, userID).Scan(&total); err != nil {
+		`SELECT count(*) FROM radar_feeds f WHERE `+where, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count feeds: %w", err)
 	}
 
@@ -435,7 +439,7 @@ against `$1`: `where` has already excluded other people's personal feeds, so any
 remaining personal row is the caller's. Under `FeedScopeGlobal` there are no
 personal rows at all and the flag is always `false`.
 
-- [ ] **Step 5: Normalize the scope in the service**
+- [x] **Step 5: Normalize the scope in the service**
 
 In `internal/radar/service.go`, inside `ListFeeds`, before calling the store:
 
@@ -445,7 +449,7 @@ In `internal/radar/service.go`, inside `ListFeeds`, before calling the store:
 	}
 ```
 
-- [ ] **Step 6: The handler sets the user scope**
+- [x] **Step 6: The handler sets the user scope**
 
 In `internal/radar/http.go`, inside `listFeeds`, replace the initialization:
 
@@ -457,7 +461,7 @@ While here, drop the stale "(admin)" from the `ListFeedsParams` comment in
 `types.go` — already done in Step 3 — and from the comment above `listFeeds` if
 it carries one.
 
-- [ ] **Step 7: Handler test for `is_own` in the JSON**
+- [x] **Step 7: Handler test for `is_own` in the JSON**
 
 In `internal/radar/http_test.go`:
 
@@ -483,12 +487,12 @@ func TestHTTP_ListFeeds_ExposesIsOwn(t *testing.T) {
 }
 ```
 
-- [ ] **Step 8: Run the tests**
+- [x] **Step 8: Run the tests**
 
 Run: `make test-unit && go test ./internal/radar/ -run 'ListFeeds' -count=1`
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add internal/radar

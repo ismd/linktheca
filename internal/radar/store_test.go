@@ -1030,3 +1030,55 @@ func TestStore_DeletingUserRemovesTheirFeeds(t *testing.T) {
 		`SELECT count(*) FROM radar_feeds WHERE id = $1`, feed.ID).Scan(&left))
 	require.Equal(t, 0, left, "a deleted user's feeds go with them, they are not promoted")
 }
+
+func TestStore_ListFeeds_Visibility(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userA := seedUser(t, pool)
+	userB := seedUser(t, pool)
+	stamp := time.Now().UnixNano()
+
+	global, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: fmt.Sprintf("https://vis-g.example/%d.xml", stamp), Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+	mine, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: fmt.Sprintf("https://vis-a.example/%d.xml", stamp), Kind: "rss", FetchIntervalSeconds: 3600,
+		OwnerUserID: &userA,
+	})
+	require.NoError(t, err)
+	theirs, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: fmt.Sprintf("https://vis-b.example/%d.xml", stamp), Kind: "rss", FetchIntervalSeconds: 3600,
+		OwnerUserID: &userB,
+	})
+	require.NoError(t, err)
+
+	items, total, err := store.ListFeeds(ctx, userA, radar.ListFeedsParams{
+		Limit: 100, Scope: radar.FeedScopeVisible,
+	})
+	require.NoError(t, err)
+
+	byID := map[int64]radar.FeedListItem{}
+	for _, it := range items {
+		byID[it.ID] = it
+	}
+	require.Contains(t, byID, global.ID)
+	require.Contains(t, byID, mine.ID)
+	require.NotContains(t, byID, theirs.ID, "another account's personal feed must be invisible")
+	require.Equal(t, len(items), total, "total must be scoped like the page")
+
+	require.True(t, byID[mine.ID].IsOwn)
+	require.False(t, byID[global.ID].IsOwn)
+
+	// The admin catalog view hides personal feeds entirely.
+	adminItems, _, err := store.ListFeeds(ctx, userA, radar.ListFeedsParams{
+		Limit: 100, Scope: radar.FeedScopeGlobal,
+	})
+	require.NoError(t, err)
+	for _, it := range adminItems {
+		require.False(t, it.IsOwn)
+		require.NotEqual(t, mine.ID, it.ID)
+	}
+}

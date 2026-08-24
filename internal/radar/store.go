@@ -570,8 +570,19 @@ func (s *Store) LastSweepAt(ctx context.Context, userID int64) (*time.Time, erro
 }
 
 func (s *Store) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) ([]FeedListItem, int, error) {
+	// The predicate is shared by the count and the page so the two agree. The
+	// global scope needs no user id, so the count's argument list follows the
+	// predicate; the page query always binds $1 through its subscribed subquery.
+	where := `(f.owner_user_id IS NULL OR f.owner_user_id = $1)`
+	countArgs := []any{userID}
+	if p.Scope == FeedScopeGlobal {
+		where = `f.owner_user_id IS NULL`
+		countArgs = nil
+	}
+
 	var total int
-	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM radar_feeds`).Scan(&total); err != nil {
+	if err := s.db.QueryRow(ctx,
+		`SELECT count(*) FROM radar_feeds f WHERE `+where, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count feeds: %w", err)
 	}
 
@@ -580,12 +591,14 @@ func (s *Store) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) 
 		       f.last_fetched_at, f.last_error, f.created_at,
 		       EXISTS (SELECT 1 FROM radar_feed_subscriptions s
 		               WHERE s.feed_id = f.id AND s.user_id = $1) AS subscribed,
-		       coalesce(fc.n, 0) AS finding_count
+		       coalesce(fc.n, 0) AS finding_count,
+		       f.owner_user_id IS NOT NULL AS is_own
 		FROM radar_feeds f
 		LEFT JOIN (
 			SELECT feed_id, count(*) AS n FROM radar_findings GROUP BY feed_id
 		) fc ON fc.feed_id = f.id
-		ORDER BY lower(coalesce(f.title, f.url)) ASC
+		WHERE `+where+`
+		ORDER BY (f.owner_user_id IS NULL) ASC, lower(coalesce(f.title, f.url)) ASC
 		LIMIT $2 OFFSET $3`, userID, p.Limit, p.Offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list feeds: %w", err)
@@ -598,16 +611,14 @@ func (s *Store) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) 
 		if err := rows.Scan(&it.ID, &it.URL, &it.Kind, &it.Title,
 			&it.FetchIntervalSeconds, &it.IsActive,
 			&it.LastFetchedAt, &it.LastError, &it.CreatedAt,
-			&it.Subscribed, &it.FindingCount); err != nil {
+			&it.Subscribed, &it.FindingCount, &it.IsOwn); err != nil {
 			return nil, 0, fmt.Errorf("scan feed: %w", err)
 		}
 		items = append(items, it)
 	}
-
 	if err := rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("rows: %w", err)
 	}
-
 	return items, total, nil
 }
 

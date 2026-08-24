@@ -304,7 +304,7 @@ func (h *HTTP) status(w http.ResponseWriter, r *http.Request) {
 
 func (h *HTTP) listFeeds(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	params := ListFeedsParams{}
+	params := ListFeedsParams{Scope: FeedScopeVisible}
 	if l, err := strconv.Atoi(q.Get("limit")); err == nil {
 		params.Limit = l
 	}
