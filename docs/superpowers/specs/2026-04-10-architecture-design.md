@@ -1,49 +1,55 @@
-# Linktheca: архитектурный дизайн MVP
+# Linktheca: MVP architecture design
 
-**Дата:** 2026-04-10
-**Статус:** approved, готов к writing-plans
+**Date:** 2026-04-10
+**Status:** approved, ready for writing-plans
 
-## Контекст
+## Context
 
-Linktheca — open source self-hosted read-it-later сервис с мониторингом новостей по темам через семантический поиск на локальных embeddings.
+Linktheca is an open-source, self-hosted read-it-later service with topic-based
+news monitoring built on semantic search over local embeddings.
 
-Модули:
-- **Library** (read-it-later) — ручное сохранение ссылок пользователем.
-- **Radar** (мониторинг новостей) — автоматическая находка релевантных статей по подписанным темам.
-- **Core** — общие сервисы: auth, парсинг контента, embeddings, БД.
+The modules:
+- **Library** (read-it-later) — links the user saves by hand.
+- **Radar** (news monitoring) — relevant articles found automatically for
+  subscribed topics.
+- **Core** — shared services: auth, content parsing, embeddings, the database.
 
-**Ключевое UX-решение (из CLAUDE.md):** Library и Radar не смешиваются. Пользовательские сохранения и автоматические находки живут в разных разделах.
+**The key UX decision (from CLAUDE.md):** Library and Radar do not mix. What the
+user saves and what the crawler finds live in different sections.
 
-## Констрейнты и решения верхнего уровня
+## Top-level constraints and decisions
 
-Приняты в процессе brainstorming:
+Taken during brainstorming:
 
-| # | Вопрос | Решение |
+| # | Question | Decision |
 |---|---|---|
-| 1 | Модель пользователей | Multi-user self-hosted, регистрация закрывается через env |
-| 2 | Масштаб одного инстанса | Средний: ~100 юзеров, сотни тысяч статей. В перспективе — shared public instance (но не оптимизируем под это сейчас) |
-| 3 | Scope MVP | Library полноценно + минимальный Radar (RSS only, embeddings, без уведомлений) |
-| 4 | Mobile | First-class с первого дня: чистое JSON API, Bearer tokens |
-| 5 | Деплой | Docker Compose |
-| 6 | Опыт разработчика | Новичок в Go — предпочитаем идиоматичные и простые решения |
+| 1 | User model | Multi-user self-hosted, with registration closed off through env |
+| 2 | Scale of a single instance | Medium: ~100 users, hundreds of thousands of articles. Eventually a shared public instance (but we are not optimizing for that now) |
+| 3 | MVP scope | Library in full plus a minimal Radar (RSS only, embeddings, no notifications) |
+| 4 | Mobile | First-class from day one: a clean JSON API, Bearer tokens |
+| 5 | Deployment | Docker Compose |
+| 6 | Developer experience | New to Go — prefer idiomatic, simple solutions |
 
-## Архитектура верхнего уровня
+## Top-level architecture
 
-Монолит с чистыми границами между модулями. Один Go-модуль, один бинарь, границы между `library`/`radar`/`core` обеспечиваются через `internal/` пакеты и направление импортов.
+A monolith with clean boundaries between modules. One Go module, one binary, and
+the boundaries between `library`/`radar`/`core` enforced through `internal/`
+packages and the direction of imports.
 
 ### Docker Compose shape
 
 ```
 docker compose
-├── web          nginx со статикой собранного React
-├── backend      Go бинарь: HTTP API + workers (River) в одном процессе
-├── postgres     Postgres 18 + pgvector (данные, векторы, River queue, FTS)
-└── ollama       embedding-сервер, bge-m3 модель
+├── web          nginx serving the built React static files
+├── backend      the Go binary: the HTTP API plus workers (River) in one process
+├── postgres     Postgres 18 + pgvector (data, vectors, the River queue, FTS)
+└── ollama       the embedding server, the bge-m3 model
 ```
 
-Mobile-клиент живёт в **отдельном репозитории** (`linktheca-mobile`), это данный репо не затрагивает.
+The mobile client lives in a **separate repository** (`linktheca-mobile`) and
+does not touch this one.
 
-## 1. Репо-layout
+## 1. Repository layout
 
 ```
 linktheca/
@@ -55,35 +61,35 @@ linktheca/
 ├── Makefile
 │
 ├── cmd/
-│   └── linktheca/main.go           # единственный бинарь backend
+│   └── linktheca/main.go           # the one backend binary
 │
 ├── internal/
 │   ├── core/
-│   │   ├── config/                 # загрузка конфига через env
-│   │   ├── db/                     # pgx pool, миграции через embed
+│   │   ├── config/                 # loading config from env
+│   │   ├── db/                     # the pgx pool, migrations through embed
 │   │   ├── httpx/                  # middleware, response helpers
 │   │   ├── auth/                   # JWT, argon2id, middleware
-│   │   ├── content/                # парсинг статей (readability)
-│   │   ├── embeddings/             # клиент к Ollama
+│   │   ├── content/                # article parsing (readability)
+│   │   ├── embeddings/             # the Ollama client
 │   │   └── logging/                # slog
-│   ├── library/                    # read-it-later модуль
+│   ├── library/                    # the read-it-later module
 │   │   ├── types.go
-│   │   ├── store.go                # SQL через pgx
-│   │   ├── service.go              # бизнес-логика
+│   │   ├── store.go                # SQL through pgx
+│   │   ├── service.go              # business logic
 │   │   └── http.go                 # HTTP handlers
-│   ├── radar/                      # мониторинг новостей
+│   ├── radar/                      # news monitoring
 │   │   ├── types.go
 │   │   ├── store.go
 │   │   ├── service.go
 │   │   ├── http.go
-│   │   ├── crawler/                # RSS/Atom fetcher (gofeed)
+│   │   ├── crawler/                # the RSS/Atom fetcher (gofeed)
 │   │   └── jobs/                   # River workers
 │   └── server/
-│       └── server.go               # DI, собирает chi router
+│       └── server.go               # DI, assembles the chi router
 │
-├── migrations/                     # SQL миграции (goose)
+├── migrations/                     # SQL migrations (goose)
 │
-├── web/                            # React SPA — отдельный npm-проект
+├── web/                            # the React SPA — a separate npm project
 │   ├── package.json
 │   ├── vite.config.ts
 │   ├── tailwind.config.ts
@@ -97,85 +103,100 @@ linktheca/
 │       │   └── radar/
 │       ├── shared/
 │       │   ├── api/
-│       │   ├── ui/                 # shadcn/ui компоненты
+│       │   ├── ui/                 # shadcn/ui components
 │       │   ├── layout/
 │       │   ├── hooks/
 │       │   └── lib/
 │       └── styles/
 │
-├── prototype/index.html            # существующий визуальный прототип, не трогаем
+├── prototype/index.html            # the existing visual prototype, left alone
 │
-├── docs/superpowers/specs/         # spec-документы
+├── docs/superpowers/specs/         # spec documents
 │
-├── go.mod                          # один Go-модуль на весь backend
+├── go.mod                          # one Go module for the whole backend
 ├── go.sum
 └── .github/workflows/              # CI
 ```
 
-**Ключевые решения:**
+**Key decisions:**
 
-- **Один `go.mod` на весь backend.** Не workspace, не multi-module. Границы между модулями обеспечиваются через `internal/` и направление импортов.
-- **Модули `library` и `radar` не импортят друг друга напрямую.** Общение — только через интерфейсы, объявленные в месте использования (см. раздел «Общение между модулями»).
-- **Один бинарь (`cmd/linktheca`).** API и workers в одном процессе. При необходимости разделения — добавим второй `cmd/worker` позже.
-- **`web/` — отдельный npm-проект в том же репо.** Монорепо из-за синхронных изменений API↔UI, общего релизного цикла, одного CI.
-- **Frontend билдится в nginx-образ** на этапе Docker build, в compose это отдельный контейнер `web`.
+- **One `go.mod` for the whole backend.** Not a workspace, not multi-module. The
+  boundaries between modules are enforced through `internal/` and the direction
+  of imports.
+- **The `library` and `radar` modules never import each other directly.** They
+  communicate only through interfaces declared at the point of use (see
+  "Communication between modules").
+- **One binary (`cmd/linktheca`).** The API and the workers in one process. If
+  they ever need splitting, we add a second `cmd/worker` later.
+- **`web/` is a separate npm project in the same repo.** A monorepo, because API
+  and UI change together, share a release cycle, and share one CI.
+- **The frontend is built into an nginx image** during the Docker build; in
+  compose it is a separate `web` container.
 
-## 2. Backend: библиотеки и внутреннее устройство
+## 2. Backend: libraries and internals
 
-### Библиотеки
+### Libraries
 
-| Задача | Библиотека | Роль |
+| Concern | Library | Role |
 |---|---|---|
-| HTTP роутинг | `go-chi/chi/v5` | Тонкий слой над `net/http` |
-| Postgres driver | `jackc/pgx/v5` | Pool, типы, нативная поддержка pgvector |
-| Векторы в pgx | `pgvector/pgvector-go` | `vector` type для pgx |
-| SQL | raw SQL через pgx | Никаких ORM, никакой кодогенерации на MVP. Если SQL станет многословным — введём `sqlc` позже отдельным решением |
-| Миграции | `pressly/goose` | `.sql` файлы, запуск из embed при старте |
-| Job queue | `riverqueue/river` | Postgres-backed, для crawler/embed/match |
-| Валидация | `go-playground/validator/v10` | Теги на структурах |
-| JWT | `golang-jwt/jwt/v5` | Access-токены |
-| Password hashing | `golang.org/x/crypto/argon2` | argon2id с PHC-строкой |
-| Парсинг контента | `go-shiori/go-readability` | Извлечение текста статей |
-| RSS/Atom | `mmcdole/gofeed` | Парсер feeds |
-| Логи | `log/slog` (stdlib) | Structured logging |
-| Конфиг | `caarlos0/env` | Env vars → struct |
-| Rate limit | `go-chi/httprate` | In-memory token bucket для /login, /register |
+| HTTP routing | `go-chi/chi/v5` | A thin layer over `net/http` |
+| Postgres driver | `jackc/pgx/v5` | Pool, types, native pgvector support |
+| Vectors in pgx | `pgvector/pgvector-go` | The `vector` type for pgx |
+| SQL | raw SQL through pgx | No ORM, no codegen in the MVP. If the SQL gets verbose we introduce `sqlc` later as its own decision |
+| Migrations | `pressly/goose` | `.sql` files, run from embed at startup |
+| Job queue | `riverqueue/river` | Postgres-backed, for crawl/embed/match |
+| Validation | `go-playground/validator/v10` | Struct tags |
+| JWT | `golang-jwt/jwt/v5` | Access tokens |
+| Password hashing | `golang.org/x/crypto/argon2` | argon2id with a PHC string |
+| Content parsing | `go-shiori/go-readability` | Extracting article text |
+| RSS/Atom | `mmcdole/gofeed` | The feed parser |
+| Logs | `log/slog` (stdlib) | Structured logging |
+| Config | `caarlos0/env` | Env vars → struct |
+| Rate limiting | `go-chi/httprate` | An in-memory token bucket for /login and /register |
 | CORS | `go-chi/cors` | CORS middleware |
-| Тесты: контейнеры | `testcontainers-go` | Реальный Postgres для integration-тестов |
-| Тесты: assertions | `stretchr/testify` | `assert`, `require` |
-| Auto-reload (dev) | `air-verse/air` | Пересборка бинаря на изменения |
+| Tests: containers | `testcontainers-go` | A real Postgres for integration tests |
+| Tests: assertions | `stretchr/testify` | `assert`, `require` |
+| Auto-reload (dev) | `air-verse/air` | Rebuilds the binary on change |
 
-**Намеренно не используем:** GORM/ent (ORM скрывает SQL), Gin/Echo/Fiber (больше магии), viper (env достаточно), Redis/asynq (River покрывает через Postgres).
+**Deliberately not used:** GORM/ent (an ORM hides the SQL), Gin/Echo/Fiber (more
+magic), viper (env is enough), Redis/asynq (River covers it through Postgres).
 
-### Паттерн каждого модуля: `store → service → http`
+### Every module's pattern: `store → service → http`
 
-- **`store`** — знает только про БД. Методы возвращают доменные типы. Никакой HTTP, никакой бизнес-логики.
-- **`service`** — бизнес-логика. Комбинирует store и внешние зависимости (`content.Extractor`, `embeddings.Client`). Не знает про HTTP. Принимает store через интерфейс (для тестов).
-- **`http`** — тонкие handlers. Парсят запрос, вызывают service, сериализуют ответ. Никакой логики.
+- **`store`** knows only about the database. Its methods return domain types. No
+  HTTP, no business logic.
+- **`service`** is the business logic. It combines the store with external
+  dependencies (`content.Extractor`, `embeddings.Client`). It knows nothing about
+  HTTP. It takes the store through an interface (for tests).
+- **`http`** holds thin handlers. They parse the request, call the service, and
+  serialize the response. No logic.
 
-### Общение между модулями
+### Communication between modules
 
-Принцип: **`library` и `radar` никогда не импортят друг друга напрямую.**
+The principle: **`library` and `radar` never import each other directly.**
 
-Единственная точка пересечения на MVP — «переместить находку из Radar в Library». Решение: `radar` объявляет интерфейс того, что ему нужно, `server.go` при сборке передаёт реализацию из `library`:
+The only point of contact in the MVP is "move a finding from Radar into
+Library". The solution: `radar` declares the interface it needs, and `server.go`
+passes in the implementation from `library` at assembly time:
 
 ```go
-// в internal/radar
+// in internal/radar
 type LibrarySaver interface {
     Save(ctx context.Context, userID int64, url string) error
 }
 ```
 
-Стандартный Go-паттерн: интерфейсы объявляются там, где используются.
+The standard Go pattern: interfaces are declared where they are used.
 
-## 3. Модель данных (Postgres + pgvector)
+## 3. Data model (Postgres + pgvector)
 
-Extension `pgvector` создаётся в первой миграции: `CREATE EXTENSION IF NOT EXISTS vector;`
+The `pgvector` extension is created in the first migration:
+`CREATE EXTENSION IF NOT EXISTS vector;`
 
-### Блок core
+### The core block
 
 ```sql
--- Пользователи системы
+-- System users
 CREATE TABLE users (
     id            BIGSERIAL PRIMARY KEY,
     email         TEXT NOT NULL UNIQUE,
@@ -186,11 +207,11 @@ CREATE TABLE users (
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Refresh-токены (access — stateless JWT, refresh — серверный, отзываемый)
+-- Refresh tokens (access is a stateless JWT; refresh is server-side and revocable)
 CREATE TABLE refresh_tokens (
     id         BIGSERIAL PRIMARY KEY,
     user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token_hash TEXT NOT NULL UNIQUE,      -- хэш refresh-токена, оригинал не храним
+    token_hash TEXT NOT NULL UNIQUE,      -- a hash of the refresh token; the original is never stored
     expires_at TIMESTAMPTZ NOT NULL,
     revoked_at TIMESTAMPTZ,
     user_agent TEXT,
@@ -198,8 +219,8 @@ CREATE TABLE refresh_tokens (
 );
 CREATE INDEX ON refresh_tokens (user_id) WHERE revoked_at IS NULL;
 
--- Общий кэш распарсенного контента: один URL парсится максимум раз,
--- потом на него ссылаются и library, и radar без дублирования текста.
+-- A shared cache of parsed content: one URL is parsed at most once, and both
+-- library and radar reference it without duplicating the text.
 CREATE TABLE article_contents (
     id                   BIGSERIAL PRIMARY KEY,
     url                  TEXT NOT NULL UNIQUE,
@@ -208,7 +229,7 @@ CREATE TABLE article_contents (
     byline               TEXT,
     excerpt              TEXT,
     text                 TEXT,            -- plain text
-    html                 TEXT,            -- очищенный HTML для reader view
+    html                 TEXT,            -- cleaned HTML for the reader view
     lang                 TEXT,
     reading_time_seconds INT,
     fetched_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -219,9 +240,10 @@ CREATE INDEX ON article_contents USING GIN (
 );
 ```
 
-**Примечание:** регистрация управляется env-переменной `LINKTHECA_REGISTRATION_ENABLED`, отдельной таблицы настроек нет.
+**Note:** registration is controlled by the `LINKTHECA_REGISTRATION_ENABLED` env
+variable; there is no separate settings table.
 
-### Блок library
+### The library block
 
 ```sql
 CREATE TABLE library_items (
@@ -240,18 +262,18 @@ CREATE INDEX ON library_items (user_id, saved_at DESC);
 CREATE INDEX ON library_items (user_id, state);
 ```
 
-**Тегов в MVP нет.** Добавим позже отдельной миграцией.
+**There are no tags in the MVP.** We add them later in their own migration.
 
-### Блок radar
+### The radar block
 
 ```sql
--- Темы, на которые подписан юзер
+-- The topics a user subscribes to
 CREATE TABLE radar_topics (
     id              BIGSERIAL PRIMARY KEY,
     user_id         BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name            TEXT NOT NULL,
-    description     TEXT NOT NULL,           -- текст для embedding
-    embedding       vector(1024),            -- bge-m3 размерность
+    description     TEXT NOT NULL,           -- the text that gets embedded
+    embedding       vector(1024),            -- the bge-m3 dimensionality
     match_threshold REAL NOT NULL DEFAULT 0.75,
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -259,7 +281,7 @@ CREATE TABLE radar_topics (
 );
 CREATE INDEX ON radar_topics (user_id) WHERE is_active;
 
--- Feeds глобальные: один источник парсится один раз для всех подписанных юзеров
+-- Feeds are global: one source is parsed once for every subscribed user
 CREATE TABLE radar_feeds (
     id                     BIGSERIAL PRIMARY KEY,
     url                    TEXT NOT NULL UNIQUE,
@@ -276,7 +298,7 @@ CREATE TABLE radar_feeds (
 );
 CREATE INDEX ON radar_feeds (is_active, last_fetched_at);
 
--- Подписки: даже если в MVP UI не будет — таблицу заводим сразу
+-- Subscriptions: even without a UI in the MVP, we create the table up front
 CREATE TABLE radar_feed_subscriptions (
     user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     feed_id    BIGINT NOT NULL REFERENCES radar_feeds(id) ON DELETE CASCADE,
@@ -284,12 +306,12 @@ CREATE TABLE radar_feed_subscriptions (
     PRIMARY KEY (user_id, feed_id)
 );
 
--- Сырые находки до семантической фильтрации
+-- Raw findings, before semantic filtering
 CREATE TABLE radar_findings (
     id            BIGSERIAL PRIMARY KEY,
     feed_id       BIGINT NOT NULL REFERENCES radar_feeds(id) ON DELETE CASCADE,
-    content_id    BIGINT REFERENCES article_contents(id),  -- NULL пока не открыли
-    external_id   TEXT,                                    -- id/guid из RSS
+    content_id    BIGINT REFERENCES article_contents(id),  -- NULL until it is opened
+    external_id   TEXT,                                    -- the id/guid from the RSS
     url           TEXT NOT NULL,
     title         TEXT,
     summary       TEXT,
@@ -301,7 +323,7 @@ CREATE TABLE radar_findings (
 CREATE INDEX ON radar_findings (discovered_at DESC);
 CREATE INDEX ON radar_findings USING hnsw (embedding vector_cosine_ops);
 
--- Матчинг: это то, что юзер видит в Radar UI
+-- Matching: this is what the user sees in the Radar UI
 CREATE TABLE radar_topic_matches (
     id         BIGSERIAL PRIMARY KEY,
     topic_id   BIGINT NOT NULL REFERENCES radar_topics(id) ON DELETE CASCADE,
@@ -315,34 +337,44 @@ CREATE TABLE radar_topic_matches (
 CREATE INDEX ON radar_topic_matches (topic_id, state, matched_at DESC);
 ```
 
-**Ключевые свойства схемы:**
+**Key properties of the schema:**
 
-- **`article_contents` лежит в core** и шарится между library и radar. Один URL парсится один раз.
-- **`radar_findings` глобальные**, `radar_topic_matches` per-user. Один feed парсится один раз для всех подписанных юзеров.
-- **«Сохранено в Library»** определяется JOIN'ом `radar_findings` → `article_contents` ← `library_items`, без отдельного state-поля.
-- **vector(1024)** для `bge-m3` модели (выбор обоснован в разделе «Embeddings»).
-- **HNSW index** на `radar_findings.embedding` — быстрый kNN поиск с cosine distance.
-- **Миграции запускаются автоматически при старте backend'а** (embedded через `//go:embed migrations/*.sql`).
+- **`article_contents` lives in core** and is shared between library and radar.
+  One URL is parsed once.
+- **`radar_findings` are global**, `radar_topic_matches` are per-user. One feed
+  is parsed once for every subscribed user.
+- **"Saved to Library"** is derived from a JOIN of `radar_findings` →
+  `article_contents` ← `library_items`, with no separate state field.
+- **vector(1024)** for the `bge-m3` model (justified in the "Embeddings"
+  section).
+- **An HNSW index** on `radar_findings.embedding` — fast kNN search with cosine
+  distance.
+- **Migrations run automatically when the backend starts** (embedded through
+  `//go:embed migrations/*.sql`).
 
 ## 4. Auth flow
 
-### Принцип
+### The principle
 
-Один механизм для web и mobile. Вся авторизация через `Authorization: Bearer <access>` header. Никаких cookies.
+One mechanism for web and mobile. All authorization goes through the
+`Authorization: Bearer <access>` header. No cookies.
 
-### Модель токенов
+### The token model
 
-| Токен | Тип | Время жизни | Где хранится |
+| Token | Type | Lifetime | Where it lives |
 |---|---|---|---|
-| Access | JWT HS256 (stateless) | 15 минут | Клиент: память. Сервер: нигде |
-| Refresh | Случайная строка (32 байта base64) | 30 дней | Клиент: secure storage. Сервер: хэш в `refresh_tokens` |
+| Access | JWT HS256 (stateless) | 15 minutes | Client: memory. Server: nowhere |
+| Refresh | A random string (32 bytes base64) | 30 days | Client: secure storage. Server: a hash in `refresh_tokens` |
 
-**Обоснования:**
-- Access — JWT, чтобы валидировать каждый запрос без удара по БД.
-- Refresh — opaque токен в БД, чтобы можно было отозвать. JWT отозвать нельзя.
-- Короткий access минимизирует ущерб от утечки; refresh rotation обнаруживает повторное использование.
+**Rationale:**
+- Access is a JWT so every request can be validated without hitting the
+  database.
+- Refresh is an opaque token in the database so it can be revoked. A JWT cannot
+  be revoked.
+- A short access token minimizes the damage from a leak; refresh rotation detects
+  reuse.
 
-### Claims access JWT
+### Access JWT claims
 
 ```json
 {
@@ -353,59 +385,66 @@ CREATE INDEX ON radar_topic_matches (topic_id, state, matched_at DESC);
 }
 ```
 
-Claims минимальны — только то, что нужно middleware. Email, display_name и т.п. достаются из `/auth/me`.
+The claims are minimal — only what the middleware needs. Email, display_name and
+the like come from `/auth/me`.
 
 ### Endpoints
 
 ```
 POST /auth/register  { email, password, display_name }
 POST /auth/login     { email, password }
-POST /auth/refresh   { refresh_token }                   (rotation: старый → revoked)
+POST /auth/refresh   { refresh_token }                   (rotation: the old one is revoked)
 POST /auth/logout    + Bearer  { refresh_token }
 GET  /auth/me        + Bearer
 ```
 
-- `/register` возвращает 403, если `LINKTHECA_REGISTRATION_ENABLED=false`.
-- `/register` и `/login` rate-limited через `httprate` (10 попыток на IP / 10 минут).
-- `/refresh` обязательно делает rotation: выдаёт новый refresh, помечает старый `revoked_at`.
+- `/register` returns 403 when `LINKTHECA_REGISTRATION_ENABLED=false`.
+- `/register` and `/login` are rate-limited through `httprate` (10 attempts per
+  IP per 10 minutes).
+- `/refresh` always rotates: it issues a new refresh token and marks the old one
+  `revoked_at`.
 
 ### Middleware
 
-- `auth.RequireUser` — парсит Bearer, валидирует JWT, кладёт `userID` и `is_admin` в context.
-- `auth.RequireAdmin` — обязательно поверх `RequireUser`, 403 если `!is_admin`.
+- `auth.RequireUser` — parses the Bearer token, validates the JWT, and puts
+  `userID` and `is_admin` into the context.
+- `auth.RequireAdmin` — always composed on top of `RequireUser`; 403 when
+  `!is_admin`.
 
-Группы роутов в `server.go`:
-- `/auth/*` — публичные + защищённые внутри
-- `/library/*`, `/radar/*` — все за `RequireUser`
-- `/admin/*` — за `RequireUser + RequireAdmin`
+Route groups in `server.go`:
+- `/auth/*` — public, with protected routes inside
+- `/library/*`, `/radar/*` — everything behind `RequireUser`
+- `/admin/*` — behind `RequireUser + RequireAdmin`
 
-### Первый пользователь = админ
+### The first user is the admin
 
-При регистрации: если в БД ещё нет юзеров, новый юзер создаётся с `is_admin=true`. Никаких seed-скриптов, никакого setup-wizard.
+At registration: if the database has no users yet, the new user is created with
+`is_admin=true`. No seed scripts, no setup wizard.
 
-### Безопасность
+### Security
 
-| Что | Как |
+| What | How |
 |---|---|
-| Хэш паролей | argon2id, параметры: `time=2, memory=64MB, threads=2, keyLen=32, salt=16 байт`. Формат хранения — стандартный PHC string |
-| Минимальная длина пароля | 10 символов |
-| Rate limit | `httprate` in-memory, 10/10min на `/login` и `/register` |
-| HTTPS | Ответственность оператора (Caddy/Traefik снаружи compose) |
-| CORS | `LINKTHECA_CORS_ORIGINS` env, пустой по умолчанию |
+| Password hashing | argon2id, parameters `time=2, memory=64MB, threads=2, keyLen=32, salt=16 bytes`. Stored in the standard PHC string format |
+| Minimum password length | 10 characters |
+| Rate limiting | `httprate` in memory, 10/10min on `/login` and `/register` |
+| HTTPS | The operator's responsibility (Caddy/Traefik outside compose) |
+| CORS | The `LINKTHECA_CORS_ORIGINS` env var, empty by default |
 
-**Не входит в MVP:** email verification, password reset, 2FA, OAuth, audit log, admin UI для управления юзерами.
+**Not in the MVP:** email verification, password reset, 2FA, OAuth, an audit
+log, an admin UI for managing users.
 
-## 5. Radar pipeline
+## 5. The Radar pipeline
 
-Четыре типа работы, каждый — отдельный River job:
+Four kinds of work, each its own River job:
 
 ```
 Scheduler → CrawlFeedJob → EmbedJob → MatchJob
 ```
 
-### Scheduler (periodic River job)
+### Scheduler (a periodic River job)
 
-Каждые 5 минут:
+Every 5 minutes:
 ```sql
 SELECT * FROM radar_feeds
 WHERE is_active
@@ -413,33 +452,39 @@ WHERE is_active
        OR last_fetched_at + fetch_interval_seconds * interval '1 second' < now())
 LIMIT 100
 ```
-Для каждого — `river.Insert(CrawlFeedJob{FeedID: id})`.
+For each one, `river.Insert(CrawlFeedJob{FeedID: id})`.
 
 ### CrawlFeedJob
 
-1. HTTP GET feed с `If-None-Match` (etag) и `If-Modified-Since`. Если 304 — только обновить `last_fetched_at`.
-2. Распарсить через `gofeed`.
-3. Для каждого item: `INSERT INTO radar_findings (content_id=NULL, embedding=NULL) ON CONFLICT (feed_id, external_id) DO NOTHING`.
-4. Для каждой новой вставки: `river.Insert(EmbedJob{FindingID: id})`.
+1. HTTP GET the feed with `If-None-Match` (etag) and `If-Modified-Since`. On a
+   304, only update `last_fetched_at`.
+2. Parse it with `gofeed`.
+3. For each item:
+   `INSERT INTO radar_findings (content_id=NULL, embedding=NULL) ON CONFLICT (feed_id, external_id) DO NOTHING`.
+4. For each new insert, `river.Insert(EmbedJob{FindingID: id})`.
 5. `UPDATE radar_feeds SET last_fetched_at, etag, last_modified, last_error=NULL`.
 
-**Важно:** в этом шаге НЕ парсим полный контент. Только то, что даёт сам feed — title, summary, published_at, url.
+**Important:** this step does NOT parse full content. Only what the feed itself
+supplies — title, summary, published_at, url.
 
-River retry: exponential backoff до 25 попыток за ~24 часа. При failed job — `last_error` сохраняется в `radar_feeds`.
+River retry: exponential backoff, up to 25 attempts over ~24 hours. On a failed
+job, `last_error` is saved into `radar_feeds`.
 
 ### EmbedJob
 
-1. Достать finding. Если `embedding IS NOT NULL` — выйти (идемпотентность).
+1. Load the finding. If `embedding IS NOT NULL`, exit (idempotency).
 2. `text := title + "\n" + summary`.
-3. `vec := ollama.Embed(text)` — HTTP к Ollama, модель `bge-m3`, 1024 dim.
+3. `vec := ollama.Embed(text)` — an HTTP call to Ollama, the `bge-m3` model,
+   1024 dim.
 4. `UPDATE radar_findings SET embedding=$vec`.
 5. `river.Insert(MatchJob{FindingID: id})`.
 
-**Эмбеддим title+summary, не полный текст**. Экономия + для короткой новости достаточно. Fetch полного контента — по требованию (см. шаг 6).
+**We embed title+summary, not the full text.** It is cheaper, and it is enough
+for a short news item. Fetching the full content happens on demand (see step 6).
 
 ### MatchJob
 
-Один SQL на всё:
+One SQL statement for everything:
 ```sql
 INSERT INTO radar_topic_matches (topic_id, finding_id, similarity, state)
 SELECT rt.id, $1, 1 - (rt.embedding <=> $2), 'new'
@@ -451,9 +496,10 @@ WHERE rfs.feed_id = $3
 ON CONFLICT (topic_id, finding_id) DO NOTHING;
 ```
 
-`<=>` — cosine distance от pgvector. `match_threshold` юзер задаёт в UI (диапазон 0..1).
+`<=>` is pgvector's cosine distance. The user sets `match_threshold` in the UI
+(range 0..1).
 
-### Отображение в UI
+### Displaying it in the UI
 
 `GET /radar/feed`:
 ```sql
@@ -469,84 +515,108 @@ ORDER BY m.matched_at DESC
 LIMIT 50;
 ```
 
-### Fetch full content — по требованию
+### Fetching full content on demand
 
 `GET /radar/findings/:id/read`:
-1. Если `finding.content_id IS NULL` — `content.Extract(url)` → INSERT в `article_contents` → UPDATE finding.
-2. Вернуть контент.
+1. If `finding.content_id IS NULL` — `content.Extract(url)` → INSERT into
+   `article_contents` → UPDATE the finding.
+2. Return the content.
 
-Тот же механизм для Library: при сохранении URL `content.Extract` вызывается синхронно в handler'е. Если тот же URL уже есть в `article_contents` — переиспользуем.
+The same mechanism serves Library: when a URL is saved, `content.Extract` is
+called synchronously in the handler. If that URL is already in
+`article_contents`, it is reused.
 
 ### Edge cases
 
-- **Изменение embedding темы** (юзер отредактировал description): перегенерируем `radar_topics.embedding`. Существующие matches не пересчитываем — они «исторические». Новые находки матчатся против нового embedding.
-- **Feed ломается**: River ретраит, `last_error` сохраняется, `last_fetched_at` всё равно обновляется (чтобы не долбиться). Админ видит сломанные feeds в UI (phase 2).
+- **A topic's embedding changes** (the user edited the description): we
+  regenerate `radar_topics.embedding`. Existing matches are not recomputed —
+  they are "historical". New findings match against the new embedding.
+- **A feed breaks**: River retries, `last_error` is saved, and `last_fetched_at`
+  is updated anyway (so we do not hammer it). The admin sees broken feeds in the
+  UI (phase 2).
 
-### Вне MVP
+### Out of MVP
 
-Уведомления (любые), HTML-скрапинг non-RSS источников, авто-обнаружение feeds на сайтах, reranking/cross-encoder, дедупликация похожих находок, fine-tuning threshold по feedback'у юзера.
+Notifications (of any kind), HTML scraping of non-RSS sources, feed
+autodiscovery on sites, reranking/cross-encoders, deduplicating similar
+findings, tuning the threshold from user feedback.
 
 ## 6. Embeddings
 
-> **Обновление 2026-05-06:** актуальное обоснование выбора модели и инференс-сервера — в `2026-05-06-embedding-model-decision.md`. Inference-сервер заменён на TEI (см. `2026-04-22-phase-3a-radar-pipeline-design.md`). Раздел ниже сохранён как исторический снапшот апреля 2026.
+> **Update 2026-05-06:** the current justification of the model and inference
+> server lives in `2026-05-06-embedding-model-decision.md`. The inference server
+> was replaced with TEI (see
+> `2026-04-22-phase-3a-radar-pipeline-design.md`). The section below is kept as a
+> historical snapshot from April 2026.
 
-**Сервер:** Ollama — как отдельный сервис в compose, HTTP API.
+**Server:** Ollama — a separate service in compose, with an HTTP API.
 
-**Обоснование Ollama (не TEI, не in-process):**
-- В будущем точно понадобятся LLM-фичи (автосуммаризация статей, помощь с описанием тем).
-- Ollama покрывает и embeddings, и LLM одним сервисом — добавить новую модель это `ollama pull`.
-- TEI был бы точнее под embeddings-only, но не масштабируется на LLM.
-- fastembed-go экономит контейнер, но тащит C-зависимости в Go-бинарь.
+**Why Ollama (not TEI, not in-process):**
+- We will certainly want LLM features later (auto-summarizing articles, help with
+  topic descriptions).
+- Ollama covers both embeddings and LLMs in one service — adding a new model is
+  an `ollama pull`.
+- TEI would be a better fit for embeddings only, but it does not extend to LLMs.
+- fastembed-go saves a container but drags C dependencies into the Go binary.
 
-**Модель:** `bge-m3`, 1024 dim, 2.3 GB на диске.
+**Model:** `bge-m3`, 1024 dim, 2.3 GB on disk.
 
-**Обоснование bge-m3:** мультиязычная, хорошо работает на русском и английском одновременно. Размер диска в self-hosted не ограничивает.
+**Why bge-m3:** multilingual, and good at Russian and English simultaneously.
+Disk size is not a constraint in a self-hosted setup.
 
-**Критичное ограничение:** размерность embedding'а нельзя поменять без пересчёта всех векторов и пересоздания HNSW индексов. Выбор модели — долгосрочный.
+**A critical constraint:** the embedding dimensionality cannot change without
+recomputing every vector and rebuilding the HNSW indexes. Choosing the model is
+a long-term decision.
 
-**Go-клиент:** простой HTTP-вызов, `POST http://ollama:11434/api/embeddings { model: "bge-m3", prompt: text }`, распарсить массив `float32`, завернуть в `pgvector.Vector`. Интерфейс `embeddings.Client.Embed(ctx, text) ([]float32, error)` — для тестов подменяется детерминированным моком.
+**The Go client:** a simple HTTP call,
+`POST http://ollama:11434/api/embeddings { model: "bge-m3", prompt: text }`,
+parse the `float32` array, wrap it in a `pgvector.Vector`. The
+`embeddings.Client.Embed(ctx, text) ([]float32, error)` interface is swapped for
+a deterministic mock in tests.
 
 ## 7. Frontend
 
-### Стек
+### Stack
 
-| Задача | Выбор |
+| Concern | Choice |
 |---|---|
 | Build | Vite |
-| Язык | TypeScript (strict) |
+| Language | TypeScript (strict) |
 | UI framework | React 19 |
-| Роутинг | React Router v7 (data mode) |
+| Routing | React Router v7 (data mode) |
 | Server state | TanStack Query v5 |
 | Client state | Zustand |
-| Стили | Tailwind CSS v4 |
-| Компоненты | shadcn/ui + Radix primitives (копируются в проект) |
-| Шрифты | Fraunces + Newsreader + JetBrains Mono (из прототипа) через @fontsource |
-| Формы | React Hook Form + Zod |
-| Иконки | lucide-react |
-| Тесты: unit | Vitest + React Testing Library + MSW |
-| Тесты: e2e | Playwright (phase 2, после MVP) |
+| Styling | Tailwind CSS v4 |
+| Components | shadcn/ui + Radix primitives (copied into the project) |
+| Fonts | Fraunces + Newsreader + JetBrains Mono (from the prototype) through @fontsource |
+| Forms | React Hook Form + Zod |
+| Icons | lucide-react |
+| Tests: unit | Vitest + React Testing Library + MSW |
+| Tests: e2e | Playwright (phase 2, after the MVP) |
 
-**Не используем:** Next.js/Remix (нужен SPA), Redux (Zustand достаточно), MUI/Chakra (диктуют дизайн, перебьют editorial-эстетику прототипа), Emotion/styled-components (Tailwind).
+**Not used:** Next.js/Remix (we need an SPA), Redux (Zustand is enough),
+MUI/Chakra (they dictate the design and would override the prototype's editorial
+aesthetic), Emotion/styled-components (Tailwind).
 
-### Структура `web/src/`
+### The `web/src/` structure
 
 ```
 main.tsx, App.tsx
 
-routes/                             # React Router tree
+routes/                             # the React Router tree
     index, login, register
     library/ (index, $id)
     radar/ (index, topics, findings.$id)
     settings/
 
-features/                           # feature-based, зеркалит backend
+features/                           # feature-based, mirroring the backend
     auth/     (api, hooks, store, components)
     library/  (api, hooks, components)
     radar/    (api, hooks, components)
 
 shared/
-    api/      (client, errors, types — типы генерируются из OpenAPI)
-    ui/       (shadcn/ui компоненты)
+    api/      (client, errors, types — the types are generated from OpenAPI)
+    ui/       (shadcn/ui components)
     layout/   (AppShell, ReaderLayout)
     hooks/
     lib/
@@ -554,103 +624,115 @@ shared/
 styles/globals.css
 ```
 
-Принцип — **feature-based, не type-based**. Всё связанное с Library лежит в `features/library`.
+The principle is **feature-based, not type-based**. Everything to do with Library
+lives in `features/library`.
 
-### API клиент
+### The API client
 
-- **OpenAPI-спека поддерживается руками** (`openapi.yaml` в корне или в `web/`).
-- `openapi-typescript` генерирует `web/src/shared/api/types.ts` как dev-скрипт `npm run gen:api`.
-- Тонкий fetch wrapper в `shared/api/client.ts`: добавляет Bearer, обрабатывает 401 (автоматический refresh + retry, при неуспехе — logout).
-- Функции в `features/*/api.ts` — обёртки над `apiFetch` с типами из сгенерированного `types.ts`.
-- TanStack Query хуки в `features/*/hooks.ts` поверх API-функций.
+- **The OpenAPI spec is maintained by hand** (`openapi.yaml` at the root or in
+  `web/`).
+- `openapi-typescript` generates `web/src/shared/api/types.ts` through the
+  `npm run gen:api` dev script.
+- A thin fetch wrapper in `shared/api/client.ts`: it adds the Bearer token and
+  handles 401 (an automatic refresh plus retry, and a logout if that fails).
+- The functions in `features/*/api.ts` wrap `apiFetch` with types from the
+  generated `types.ts`.
+- TanStack Query hooks in `features/*/hooks.ts` sit on top of the API functions.
 
-### Dev сценарий
+### The dev setup
 
-Три терминала:
-1. `docker compose -f docker-compose.dev.yml up` — Postgres + Ollama.
-2. `air` или `make dev-backend` — backend с auto-reload.
-3. `cd web && npm run dev` — Vite dev server с HMR.
+Three terminals:
+1. `docker compose -f docker-compose.dev.yml up` — Postgres plus Ollama.
+2. `air` or `make dev-backend` — the backend with auto-reload.
+3. `cd web && npm run dev` — the Vite dev server with HMR.
 
-Vite проксирует `/api/*` на `localhost:8080`, CORS не нужен.
+Vite proxies `/api/*` to `localhost:8080`, so CORS is not needed.
 
 ### Deployment
 
-Отдельный контейнер `web`:
-- Multi-stage Dockerfile: `node:22` для билда → `nginx:alpine` для раздачи.
-- Nginx раздаёт `dist/` и проксирует `/api/*` на `backend:8080`.
+A separate `web` container:
+- A multi-stage Dockerfile: `node:22` for the build → `nginx:alpine` for serving.
+- Nginx serves `dist/` and proxies `/api/*` to `backend:8080`.
 
-## 8. Тестирование
+## 8. Testing
 
 ### Backend
 
-| Уровень | Инструменты | Покрытие |
+| Level | Tools | Coverage |
 |---|---|---|
-| Unit | `testing` + `testify/assert` | `service.go` с mock-store через интерфейсы |
-| Integration (store) | `testcontainers-go` + `pgx` | SQL против реального Postgres с pgvector |
-| HTTP | `httptest` + testcontainers | Полный путь HTTP → service → store → БД |
+| Unit | `testing` + `testify/assert` | `service.go` with a mock store through interfaces |
+| Integration (store) | `testcontainers-go` + `pgx` | SQL against a real Postgres with pgvector |
+| HTTP | `httptest` + testcontainers | The full path HTTP → service → store → database |
 
-**Принцип: никаких моков БД.** pgvector, HNSW, `<=>`, FTS — Postgres-специфика, мокать нельзя.
+**The principle: no database mocks.** pgvector, HNSW, `<=>`, and FTS are
+Postgres-specific and cannot be mocked.
 
-**Паттерн `testdb.New(t)`:**
-- Один раз на test run — `sync.Once` поднимает Postgres testcontainer.
-- На каждый `t.Run` — `CREATE SCHEMA test_xyz`, мигрирует, возвращает pool с `search_path`.
-- `t.Cleanup` дропает схему.
+**The `testdb.New(t)` pattern:**
+- Once per test run, a `sync.Once` brings up a Postgres testcontainer.
+- Per `t.Run`, `CREATE SCHEMA test_xyz`, migrate it, and return a pool with a
+  `search_path`.
+- `t.Cleanup` drops the schema.
 
-**Ollama в тестах:** не вызываем реальный сервис. `embeddings.Client` — интерфейс, в тестах подменяется детерминированным моком (например, hash → вектор). Smoke test с реальной Ollama — под build tag `-tags=smoke`, вне основного прогона.
+**Ollama in tests:** we never call the real service. `embeddings.Client` is an
+interface, replaced in tests by a deterministic mock (hash → vector, for
+instance). A smoke test against a real Ollama lives behind the `-tags=smoke`
+build tag, outside the main run.
 
 ### Frontend
 
-| Уровень | Инструменты |
+| Level | Tools |
 |---|---|
 | Component | Vitest + React Testing Library + MSW |
 | E2E (phase 2) | Playwright |
 
-Компонентные тесты покрывают: формы (валидация, submit, ошибки), хуки (loading/error/success), сложные компоненты со state.
+Component tests cover forms (validation, submit, errors), hooks
+(loading/error/success), and complex stateful components.
 
-**Не тестируем:** visual regression, storybook, каждую кнопку.
+**Not tested:** visual regression, storybook, every button.
 
-E2E критичных путей откладываем на phase 2 после MVP.
+E2E of the critical paths is deferred to phase 2, after the MVP.
 
 ### CI
 
 GitHub Actions:
-- `backend`: `go vet` + `go test ./... -race`
-- `frontend`: lint + type-check + vitest + build
-- `e2e`: после backend+frontend, только на PR в main (phase 2)
+- `backend`: `go vet` plus `go test ./... -race`
+- `frontend`: lint plus type-check plus vitest plus build
+- `e2e`: after backend and frontend, on PRs into main only (phase 2)
 
-## 9. Dev-опыт
+## 9. Developer experience
 
 ### Makefile
 
 ```
-make dev          # compose dev + air + vite (всё в одном)
+make dev          # compose dev + air + vite (all in one)
 make test         # go test + npm test
 make test-e2e     # playwright
 make migrate      # goose up
 make lint         # go vet + npm lint
-make build        # полный прод-билд
+make build        # the full production build
 ```
 
-### Конфиг
+### Config
 
-Через env vars, парсятся `caarlos0/env` в структуру `Config`. Полный список MVP-настроек:
+Through env vars, parsed by `caarlos0/env` into a `Config` struct. The full list
+of MVP settings:
 
 ```
-# Сервер
+# Server
 LINKTHECA_HTTP_ADDR=:8080
 LINKTHECA_LOG_LEVEL=info              # debug | info | warn | error
 LINKTHECA_LOG_FORMAT=text              # text | json
 
-# База данных
+# Database
 LINKTHECA_DB_DSN=postgres://linktheca:linktheca@postgres:5432/linktheca?sslmode=disable
 
 # Auth
 LINKTHECA_JWT_SECRET=<32+ bytes random>
 LINKTHECA_JWT_ACCESS_TTL=15m
-LINKTHECA_JWT_REFRESH_TTL=720h         # 30 дней
-LINKTHECA_REGISTRATION_ENABLED=true    # управляет POST /auth/register
+LINKTHECA_JWT_REFRESH_TTL=720h         # 30 days
+LINKTHECA_REGISTRATION_ENABLED=true    # controls POST /auth/register
 
-# CORS (для dev — пустой, т.к. Vite проксирует через /api)
+# CORS (empty in dev, since Vite proxies through /api)
 LINKTHECA_CORS_ORIGINS=
 
 # Ollama / embeddings
@@ -658,44 +740,48 @@ LINKTHECA_OLLAMA_URL=http://ollama:11434
 LINKTHECA_EMBEDDING_MODEL=bge-m3
 
 # Radar
-LINKTHECA_RADAR_SCHEDULER_INTERVAL=5m  # как часто сканируем radar_feeds
+LINKTHECA_RADAR_SCHEDULER_INTERVAL=5m  # how often we scan radar_feeds
 ```
 
-Файлы:
+Files:
 ```
-.env                  # shared defaults, коммитим (не секреты)
-.env.local            # gitignore, локальные секреты
+.env                  # shared defaults, committed (no secrets)
+.env.local            # gitignored, local secrets
 docker-compose.yml    # base
 docker-compose.dev.yml
 docker-compose.prod.yml
 ```
 
-### Наблюдаемость в MVP
+### Observability in the MVP
 
-Только **structured logs** через `log/slog`:
-- Формат: JSON в проде, text в dev.
-- Request ID из middleware прокидывается во все log-линии запроса.
+**Structured logs** through `log/slog`, and nothing else:
+- Format: JSON in production, text in dev.
+- The request ID from the middleware is threaded into every log line of the
+  request.
 
-**Не в MVP:** Prometheus metrics, OpenTelemetry tracing, Sentry, dashboards.
+**Not in the MVP:** Prometheus metrics, OpenTelemetry tracing, Sentry,
+dashboards.
 
-## Что явно вне MVP
+## Explicitly out of the MVP
 
-Сведено из всех секций:
+Collected from every section:
 
-- Теги в Library.
-- State `reading` в Library (только `unread`, `read`, `archived`).
-- Состояния `dismissed`, `saved` в Radar matches (только `new`, `seen`).
-- Email verification, password reset, 2FA, OAuth/SSO, audit log, admin UI.
-- Уведомления (email/push/in-UI).
-- HTML-скрапинг non-RSS источников.
-- Авто-обнаружение feeds на URL сайта.
-- Reranking/cross-encoder в Radar.
-- Дедупликация похожих findings.
-- LLM-фичи (суммаризация и т.п.) — Ollama готова к ним, но сами фичи не реализуем.
-- E2E тесты (Playwright).
-- Метрики, tracing, dashboards.
-- Mobile клиент (отдельный репозиторий, отдельный проект).
+- Tags in Library.
+- A `reading` state in Library (only `unread`, `read`, `archived`).
+- `dismissed` and `saved` states on Radar matches (only `new`, `seen`).
+- Email verification, password reset, 2FA, OAuth/SSO, an audit log, an admin UI.
+- Notifications (email/push/in-UI).
+- HTML scraping of non-RSS sources.
+- Feed autodiscovery from a site URL.
+- Reranking/cross-encoders in Radar.
+- Deduplicating similar findings.
+- LLM features (summarization and so on) — Ollama is ready for them, but the
+  features themselves are not built.
+- E2E tests (Playwright).
+- Metrics, tracing, dashboards.
+- The mobile client (a separate repository, a separate project).
 
-## Следующие шаги
+## Next steps
 
-После approval этого документа — переход к `superpowers:writing-plans` skill для создания пошагового implementation plan'а.
+After this document is approved — move to the `superpowers:writing-plans` skill
+to create a step-by-step implementation plan.

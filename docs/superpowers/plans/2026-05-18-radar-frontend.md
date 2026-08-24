@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Превратить Radar из заглушенного пункта меню в полноценный раздел: список топиков с агрегатами, Topic view с лентой матчей, match reader, CRUD топиков (Create / Edit / Pause / Delete), auto mark-seen при открытии reader'а.
+**Goal:** Turn Radar from a stubbed menu item into a full section: a topic list with aggregates, a Topic view with a feed of matches, a match reader, topic CRUD (Create / Edit / Pause / Delete), and automatic mark-seen when the reader opens.
 
-**Architecture:** Frontend-расширение зеркалит `features/library/*` (api/schemas/types/use-hooks/components) + новые routes под существующим `_app.tsx`. Один точечный backend-довесок: `GET /radar/matches/{id}` симметрично `GetTopic`. Без миграций, без новых пакетов на бэке.
+**Architecture:** The frontend extension mirrors `features/library/*` (api/schemas/types/use-hooks/components) plus new routes under the existing `_app.tsx`. One targeted backend addition: `GET /radar/matches/{id}`, symmetrical with `GetTopic`. No migrations, no new backend packages.
 
-**Tech Stack:** Frontend — TypeScript, React Router v7 file-based, TanStack Query v5, Zod, react-hook-form + zodResolver, shadcn-style UI (`@/shared/ui/*`), Tailwind, sonner toasts, Vitest + Testing Library + MSW. Backend (one task) — Go 1.22+, `chi/v5`, `pgx/v5`, `testify`, `testcontainers-go` (через `internal/testing/testdb`).
+**Tech Stack:** Frontend — TypeScript, React Router v7 file-based, TanStack Query v5, Zod, react-hook-form + zodResolver, shadcn-style UI (`@/shared/ui/*`), Tailwind, sonner toasts, Vitest + Testing Library + MSW. Backend (one task) — Go 1.22+, `chi/v5`, `pgx/v5`, `testify`, `testcontainers-go` (through `internal/testing/testdb`).
 
 **Spec:** `docs/superpowers/specs/2026-05-18-radar-frontend-design.md`
 
@@ -14,38 +14,38 @@
 
 ## API contract (locked here)
 
-| Method | Path | Auth | Что нужно от UI |
+| Method | Path | Auth | What the UI needs |
 |---|---|---|---|
-| `GET` | `/radar/topics` | user | существует |
-| `GET` | `/radar/topics/{id}` | user | существует |
-| `POST` | `/radar/topics` | user | существует, `{name, description, match_threshold?}` |
-| `PATCH` | `/radar/topics/{id}` | user | существует, `{name?, description?, match_threshold?, is_active?}` |
-| `DELETE` | `/radar/topics/{id}` | user | существует |
-| `GET` | `/radar/matches` | user | существует, query `topic_id?, state?, limit, offset` |
-| `GET` | `/radar/matches/{id}` | user | **новый** — Task 1-5 |
-| `PATCH` | `/radar/matches/{id}` | user | существует, `{state: "new"\|"seen"}` |
-| `GET` | `/radar/status` | user | существует |
+| `GET` | `/radar/topics` | user | exists |
+| `GET` | `/radar/topics/{id}` | user | exists |
+| `POST` | `/radar/topics` | user | exists, `{name, description, match_threshold?}` |
+| `PATCH` | `/radar/topics/{id}` | user | exists, `{name?, description?, match_threshold?, is_active?}` |
+| `DELETE` | `/radar/topics/{id}` | user | exists |
+| `GET` | `/radar/matches` | user | exists, query `topic_id?, state?, limit, offset` |
+| `GET` | `/radar/matches/{id}` | user | **new** — Tasks 1-5 |
+| `PATCH` | `/radar/matches/{id}` | user | exists, `{state: "new"\|"seen"}` |
+| `GET` | `/radar/status` | user | exists |
 
-Ответы snake_case; UI маппит в camelCase. Detailed shapes см. `internal/radar/types.go` и spec read-API.
+Responses are snake_case; the UI maps them to camelCase. For the detailed shapes see `internal/radar/types.go` and the read-API spec.
 
 ---
 
 ## Files touched
 
 ### Backend (Phase 1)
-| Path | Изменение |
+| Path | Change |
 |---|---|
-| `internal/radar/store.go` | extend — добавить `GetMatch` |
+| `internal/radar/store.go` | extend — add `GetMatch` |
 | `internal/radar/service.go` | extend — `StoreAPI.GetMatch`, `Service.GetMatch` |
 | `internal/radar/http.go` | extend — `GetMatchHandler` |
 | `internal/radar/store_test.go` | extend — 3 test cases |
 | `internal/radar/service_test.go` | extend — mockStore `GetMatch` + 2 tests |
 | `internal/radar/http_test.go` | extend — 3 test cases |
-| `internal/radar/integration_test.go` | extend — добавить шаг в end-to-end |
-| `internal/server/server.go` | extend — wire route |
+| `internal/radar/integration_test.go` | extend — add a step to the end-to-end flow |
+| `internal/server/server.go` | extend — wire the route |
 
 ### Frontend
-| Path | Изменение |
+| Path | Change |
 |---|---|
 | `web/src/features/radar/types.ts` | create |
 | `web/src/features/radar/schemas.ts` | create |
@@ -75,13 +75,13 @@
 | `web/src/features/radar/components/DeleteTopicConfirm.tsx` | create |
 | `web/src/features/radar/components/MatchReader.tsx` | create — body of reader route |
 | `web/src/features/radar/components/MatchReader.test.tsx` | create — auto-mark-seen check |
-| `web/src/features/radar/use-new-topic-store.ts` | create — zustand toggle (как `use-add-link-store`) |
+| `web/src/features/radar/use-new-topic-store.ts` | create — a zustand toggle (like `use-add-link-store`) |
 | `web/src/routes/radar._index.tsx` | create |
 | `web/src/routes/radar.$topicId.tsx` | create |
 | `web/src/routes/radar.matches.$matchId.tsx` | create |
 | `web/src/App.tsx` | extend — register radar routes |
-| `web/src/shared/layout/Sidebar.tsx` | modify — снять `disabled: true` с Radar; mount `NewTopicDialog` |
-| `web/src/routes/__app.tsx` | modify — mount `<NewTopicDialog />` рядом с `<AddLinkDialog />` |
+| `web/src/shared/layout/Sidebar.tsx` | modify — drop `disabled: true` from Radar; mount `NewTopicDialog` |
+| `web/src/routes/__app.tsx` | modify — mount `<NewTopicDialog />` next to `<AddLinkDialog />` |
 
 ---
 

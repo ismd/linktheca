@@ -2,25 +2,25 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Поверх готового foundation+auth собрать Library UI: список с фильтрами (state pills + favorite toggle), пагинация через `useInfiniteQuery`, Add-link modal с трёхстадийным «прогрессом», reader-view (метаданные + prose + drop-cap + reading-progress bar), mark-as-read по скроллу 90%, favorite-toggle (optimistic), delete с AlertDialog. После плана пользователь может сохранить ссылку, посмотреть её в reader'е, отметить как избранное / прочитанное и удалить.
+**Goal:** On top of the finished foundation and auth, build the Library UI: a list with filters (state pills plus a favorite toggle), pagination through `useInfiniteQuery`, an Add-link modal with a three-stage "progress" indicator, a reader view (metadata + prose + drop cap + a reading-progress bar), mark-as-read at 90% scroll, an optimistic favorite toggle, and delete behind an AlertDialog. After this plan a user can save a link, read it in the reader, mark it favorite or read, and delete it.
 
 **Architecture:**
-- API-слой в `features/library/api.ts` — тонкие функции поверх `apiFetch`. Zod-парсинг в dev (через `parseInDev`), сырая структура от backend'а (snake_case) сразу маппится в camelCase в TS-типах.
-- TanStack Query на всё чтение: `useLibraryQuery` (infinite) для списка, `useLibraryItemDetailQuery` для reader'a. Мутации — `useSaveLink`, `useUpdateItem`, `useDeleteItem`. Favorite-toggle оптимистичный (snapshot → rollback). Mark-as-read и delete — без optimistic, just invalidate.
-- Фильтры (`state`, `favorite`) живут в URL через `useSearchParams`, что даёт bookmarkable views.
-- Add-link открывается из двух мест (Topbar `+` и EmptyState CTA) → состояние «открыто» в маленьком Zustand-сторе `useAddLinkStore`. Dialog рендерится на уровне `AppLayout`.
-- Reader-страница параллельно грузит meta-item и `:id/content` (две query'и). Скролл-listener в самой странице ставит `state='read'` один раз при достижении 90%.
-- Sort-опция из спека («oldest first») **отложена** — backend сортирует только `saved_at DESC`. Добавим UI-control когда появится бэкенд-параметр.
+- The API layer lives in `features/library/api.ts` — thin functions over `apiFetch`. Zod parsing in dev (through `parseInDev`); the backend's raw snake_case shape is mapped straight into camelCase TS types.
+- TanStack Query for all reads: `useLibraryQuery` (infinite) for the list, `useLibraryItemDetailQuery` for the reader. The mutations are `useSaveLink`, `useUpdateItem`, `useDeleteItem`. The favorite toggle is optimistic (snapshot → rollback). Mark-as-read and delete are not optimistic; they just invalidate.
+- The filters (`state`, `favorite`) live in the URL through `useSearchParams`, which makes views bookmarkable.
+- Add-link opens from two places (the Topbar `+` and the EmptyState CTA), so the "open" state sits in a small Zustand store, `useAddLinkStore`. The dialog renders at the `AppLayout` level.
+- The reader page loads the meta item and `:id/content` in parallel (two queries). A scroll listener in the page itself sets `state='read'` exactly once when 90% is reached.
+- The sort option from the spec ("oldest first") is **deferred** — the backend only sorts by `saved_at DESC`. We add the UI control when the backend parameter exists.
 
-**Tech Stack:** TanStack Query v5 (infinite), React Hook Form + Zod, sonner toasts, Radix Dialog/AlertDialog, lucide-react, date-fns (новая dep). Уже есть: zod, zustand, react-router v7, MSW для тестов.
+**Tech Stack:** TanStack Query v5 (infinite), React Hook Form + Zod, sonner toasts, Radix Dialog/AlertDialog, lucide-react, date-fns (a new dependency). Already present: zod, zustand, react-router v7, and MSW for tests.
 
-**Spec:** `docs/superpowers/specs/2026-05-08-frontend-foundation-library-design.md` секции 3–4 (Cross-cutting/optimistic/toasts + Library list + Add Link modal + Reader view).
+**Spec:** `docs/superpowers/specs/2026-05-08-frontend-foundation-library-design.md`, sections 3–4 (Cross-cutting/optimistic/toasts + Library list + Add Link modal + Reader view).
 
 ---
 
-## Контракт backend'a (фиксируем здесь, чтобы не путаться)
+## The backend contract (pinned here to avoid confusion)
 
-| Method | Path | Auth | Запрос | Ответ |
+| Method | Path | Auth | Request | Response |
 |---|---|---|---|---|
 | `POST` | `/library` | Bearer | `{ "url": string }` | `201` + `Item` |
 | `GET` | `/library` | Bearer | query: `state=unread|read|archived`, `favorite=true|false`, `limit` (1–100, default 50), `offset` (default 0) | `200` + `{ items: Item[], total: number }` |
@@ -29,10 +29,10 @@
 | `PATCH` | `/library/{id}` | Bearer | `{ state?, is_favorite?, note? }` | `200` + `Item` |
 | `DELETE` | `/library/{id}` | Bearer | — | `204` |
 
-Ошибки:
+Errors:
 - `400 bad_request`
 - `404 not_found`
-- `409 already_saved` (только на POST `/library` при попытке сохранить уже сохранённое)
+- `409 already_saved` (only on POST `/library`, when saving something already saved)
 - `500 internal`
 
 `Item` (snake_case JSON):
@@ -51,13 +51,13 @@
 }
 ```
 
-`ArticleContent` добавляет: `canonical_url`, `byline`, `text`, `html`, `lang`, `fetched_at`, `fetch_error`.
+`ArticleContent` adds: `canonical_url`, `byline`, `text`, `html`, `lang`, `fetched_at`, `fetch_error`.
 
-В TS используем camelCase + Date-объекты после маппинга — см. Task 3.
+In TS we use camelCase plus Date objects after mapping — see Task 3.
 
 ---
 
-## Файловая структура (создаётся/меняется этим планом)
+## File structure (created or changed by this plan)
 
 ```
 web/
@@ -109,9 +109,9 @@ web/
 
 ---
 
-## Группа 1 — Зависимости и API-слой
+## Group 1 — Dependencies and the API layer
 
-### Task 1: Установить date-fns
+### Task 1: Install date-fns
 
 **Files:**
 - Modify: `web/package.json`
@@ -124,7 +124,7 @@ Run from `/home/ismd/coding/linktheca/web`:
 npm install date-fns
 ```
 
-Expected: latest stable, на момент написания `^3.6` или `^4.x`. Caret-пин как у других зависимостей.
+Expected: the latest stable — `^3.6` or `^4.x` at the time of writing. Caret-pinned like the other dependencies.
 
 - [x] **Step 2: Verify**
 
@@ -132,7 +132,7 @@ Expected: latest stable, на момент написания `^3.6` или `^4.
 npm run typecheck
 npm run test
 ```
-Expected: PASS, изменений в коде ещё нет.
+Expected: PASS; no code has changed yet.
 
 - [x] **Step 3: Commit**
 
@@ -143,7 +143,7 @@ git commit -m "deps(web): add date-fns for relative time"
 
 ---
 
-### Task 2: Типы Library (camelCase frontend-side)
+### Task 2: Library types (camelCase, frontend-side)
 
 **Files:**
 - Create: `web/src/features/library/types.ts`
@@ -205,7 +205,7 @@ export const PAGE_SIZE = 20;
 ```bash
 npm run typecheck
 ```
-Expected: PASS — никто ещё не импортирует, изменений нет.
+Expected: PASS — nothing imports it yet, nothing has changed.
 
 - [x] **Step 3: Commit**
 
@@ -221,7 +221,7 @@ git commit -m "feat(web/library): add camelCase types for items/detail/page"
 **Files:**
 - Create: `web/src/features/library/schemas.ts`
 
-Backend returns snake_case. Парсим raw shape Zod'ом, маппим в `LibraryItem`/`LibraryItemDetail` функциями `mapItem`/`mapDetail`.
+The backend returns snake_case. We parse the raw shape with Zod and map it into `LibraryItem`/`LibraryItemDetail` through `mapItem`/`mapDetail`.
 
 - [x] **Step 1: Write the file**
 
@@ -792,7 +792,7 @@ git commit -m "feat(web/library): add deterministic gradient class picker"
 
 ---
 
-## Группа 2 — TanStack Query hooks
+## Group 2 — TanStack Query hooks
 
 ### Task 7: List query (useInfiniteQuery)
 
@@ -1381,7 +1381,7 @@ git commit -m "feat(web/library): add Zustand store for AddLink dialog state"
 
 ---
 
-## Группа 3 — Список (карточки, фильтры, grid)
+## Group 3 — The list (cards, filters, grid)
 
 ### Task 10: SkeletonCard
 
@@ -2166,7 +2166,7 @@ git commit -m "feat(web/library): wire library list route with URL-driven filter
 
 ---
 
-## Группа 4 — Add-link modal
+## Group 4 — The Add-link modal
 
 ### Task 17: AddLinkDialog component
 
@@ -2595,7 +2595,7 @@ git commit -m "feat(web): wire Topbar add-link button to AddLink dialog"
 
 ---
 
-## Группа 5 — Reader
+## Group 5 — The reader
 
 ### Task 20: ReadingProgress bar
 
@@ -3380,7 +3380,7 @@ git commit -m "feat(web/library): wire reader route with detail query, mark-as-r
 
 ---
 
-## Группа 6 — Целостная проверка
+## Group 6 — End-to-end verification
 
 ### Task 26: Full test suite + lint + build
 
@@ -3501,17 +3501,17 @@ EOF
 
 ---
 
-## Что вне scope этого плана (фиксируем)
+## Out of this plan's scope (pinned here)
 
-| Тема | Куда |
+| Topic | Where it goes |
 |---|---|
-| Sort options (oldest first) | Отложено до появления backend-параметра `order` |
-| Note editor под reader'ом | Спек упоминает, но cost > value на текущей итерации; включим, если backend подтвердит `note`-flow (он уже есть в `PATCH`) — отдельная фича |
-| Search в Library | Нет backend-endpoint'а — отдельный план |
-| Tags | Backend не поддерживает — отдельный план |
-| Bulk select / bulk actions | Не в спеке |
-| Keyboard shortcuts (j/k, m, f) | Не в спеке |
-| Reading-time из текста (если backend null) | Сейчас показываем «— read», достаточно |
-| og:image / real hero images | Backend пока не извлекает; gradient deterministic placeholder |
-| Undo-toast 5s для favorite/mark-read | Спек упоминает, но усложняет; начнём без undo — добавим если будут жалобы |
-| Multi-tab refresh sync (BroadcastChannel) | Не в спеке |
+| Sort options (oldest first) | Deferred until the backend gains an `order` parameter |
+| A note editor under the reader | The spec mentions it, but cost > value this iteration; we add it if the backend confirms the `note` flow (already in `PATCH`) — its own feature |
+| Search in Library | No backend endpoint — its own plan |
+| Tags | The backend does not support them — its own plan |
+| Bulk select / bulk actions | Not in the spec |
+| Keyboard shortcuts (j/k, m, f) | Not in the spec |
+| Reading time derived from the text (when the backend returns null) | We show "— read" for now, which is enough |
+| og:image / real hero images | The backend does not extract them yet; a deterministic gradient placeholder stands in |
+| A 5s undo toast for favorite/mark-read | The spec mentions it, but it adds complexity; we start without undo and add it if anyone complains |
+| Multi-tab refresh sync (BroadcastChannel) | Not in the spec |

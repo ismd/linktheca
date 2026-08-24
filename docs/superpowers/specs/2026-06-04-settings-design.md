@@ -1,92 +1,111 @@
 # Settings Screen — Design (read-only, frontend-only)
 
-**Дата:** 2026-06-04
-**Статус:** утверждён, готов к написанию плана
-**Связано с:** прототип `prototype/index.html` (секция Settings), `2026-05-18-radar-frontend-design.md` (паттерн feature-модуля, `useRadarStatusQuery`)
+**Date:** 2026-06-04
+**Status:** approved, ready for an implementation plan
+**Related to:** the `prototype/index.html` prototype (Settings section), `2026-05-18-radar-frontend-design.md` (the feature-module pattern, `useRadarStatusQuery`)
 
 ---
 
-## Цель
+## Goal
 
-Заменить заглушку `web/src/routes/settings.tsx` («Coming soon») на реальный экран **только для чтения**. Это закрывает последний оставшийся stub в сайдбаре (`/settings`, пункт «03») и завершает поверхность MVP-UI.
+Replace the `web/src/routes/settings.tsx` stub ("Coming soon") with a real
+**read-only** screen. That closes the last remaining stub in the sidebar
+(`/settings`, item "03") and completes the MVP UI surface.
 
-**Никаких изменений на бэкенде.** Экран потребляет только то, что API уже отдаёт сегодня: `useAuthStore` (заполнен из `GET /auth/me`) и `GET /radar/status`.
+**No backend changes.** The screen consumes only what the API already serves
+today: `useAuthStore` (populated from `GET /auth/me`) and `GET /radar/status`.
 
-## Не-цели (явно вне объёма)
+## Non-goals (explicitly out of scope)
 
-Эти пункты прототипа сознательно **не** реализуются в этой итерации:
+These items from the prototype are deliberately **not** built in this iteration:
 
-- Редактирование display name / email / пароля (нет backend-endpoint'ов; отдельная фича «Editable Account»).
-- API-токены.
-- Appearance-настройки (theme, drop caps, paper grain, progress bar) — нет персистентности и нет влияния на reader.
-- Notifications (browser / email digest / ntfy) — вне MVP-scope по архитектуре.
-- Monitoring / Parsing config (refresh interval, embedding model, threshold, max sources, user-agent) — env-уровень и/или отложенные фичи (per-topic threshold — отдельная отложенная фича).
-- Instance-метрики: hostname, uptime, database size, storage, export archive, view logs — нет источника данных.
+- Editing display name / email / password (no backend endpoints; a separate
+  "Editable Account" feature).
+- API tokens.
+- Appearance settings (theme, drop caps, paper grain, progress bar) — no
+  persistence and no effect on the reader.
+- Notifications (browser / email digest / ntfy) — architecturally out of MVP
+  scope.
+- Monitoring / Parsing config (refresh interval, embedding model, threshold, max
+  sources, user-agent) — env-level and/or deferred features (per-topic threshold
+  is its own deferred feature).
+- Instance metrics: hostname, uptime, database size, storage, export archive,
+  view logs — no data source.
 
-Если позже понадобится редактируемый Account — это новая брейншторм-сессия со своим spec и backend-задачами.
+If an editable Account is wanted later, that is a new brainstorming session with
+its own spec and backend work.
 
-## Решения, зафиксированные при брейншторме
+## Decisions taken during brainstorming
 
-| Вопрос | Решение |
+| Question | Decision |
 |---|---|
-| Объём итерации | Read-only, frontend-only. Ноль нового backend. |
-| Набор секций | Две: **Account** и **About**. |
-| Структура | Одна колонка, секции-карточки стопкой. Без левого section-nav (избыточен для 2 секций). Зеркалит паттерн Library/Radar. |
-| Logout | Не дублируем — уже есть в `UserMenu` (header). Account read-only, без действий. |
-| Источник версии | Статическая константа (package.json `version` не поддерживается). Выносим в `shared/version.ts`. |
+| Iteration scope | Read-only, frontend-only. Zero new backend. |
+| Set of sections | Two: **Account** and **About**. |
+| Structure | One column, section cards stacked. No left section-nav (redundant for two sections). Mirrors the Library/Radar pattern. |
+| Logout | Not duplicated — it already lives in `UserMenu` (header). Account is read-only, with no actions. |
+| Source of the version | A static constant (package.json `version` is not supported). Extracted into `shared/version.ts`. |
 
 ---
 
-## Архитектура
+## Architecture
 
-### Размещение
+### Placement
 
-Лёгкий feature-модуль `web/src/features/settings/` — **без** `api.ts`/`schemas.ts`/собственных хуков, потому что данных своих нет: Account берётся из `useAuthStore` (`features/auth`), Radar-статус — из `useRadarStatusQuery` (`features/radar`). Это допустимый cross-feature consume (Settings — сквозной потребитель, а не нарушение границы Library/Radar).
+A light feature module at `web/src/features/settings/` — **without**
+`api.ts`/`schemas.ts`/hooks of its own, because it has no data of its own:
+Account comes from `useAuthStore` (`features/auth`), and Radar status from
+`useRadarStatusQuery` (`features/radar`). That is an acceptable cross-feature
+consume (Settings is a cross-cutting consumer, not a breach of the
+Library/Radar boundary).
 
-### Файлы
+### Files
 
-| Path | Изменение |
+| Path | Change |
 |---|---|
 | `web/src/shared/version.ts` | create — `export const APP_VERSION = "0.1.0";` |
-| `web/src/features/settings/components/SettingRow.tsx` | create — презентационная строка `label · value` |
+| `web/src/features/settings/components/SettingRow.tsx` | create — a presentational `label · value` row |
 | `web/src/features/settings/components/AccountSection.tsx` | create |
 | `web/src/features/settings/components/AccountSection.test.tsx` | create |
 | `web/src/features/settings/components/AboutSection.tsx` | create |
 | `web/src/features/settings/components/AboutSection.test.tsx` | create |
 | `web/src/routes/settings.tsx` | rewrite — header + `<AccountSection />` + `<AboutSection />` |
-| `web/src/routes/settings.test.tsx` | create — рендерит оба заголовка секций |
-| `web/src/shared/layout/Sidebar.tsx` | modify — заменить хардкод `v0.1.0` на `APP_VERSION` |
+| `web/src/routes/settings.test.tsx` | create — renders both section headings |
+| `web/src/shared/layout/Sidebar.tsx` | modify — replace the hardcoded `v0.1.0` with `APP_VERSION` |
 
 ---
 
-## Компоненты
+## Components
 
 ### `SettingRow`
 
-Презентационный, без состояния. Рисует строку: маленький uppercase-label слева/сверху и значение `text-ink`. Зеркалит `settingRow` из прототипа, но без editable-кнопок (всё read-only).
+Presentational, stateless. Draws a row: a small uppercase label on the left or
+above, and a `text-ink` value. Mirrors `settingRow` from the prototype, minus
+the editable buttons (everything is read-only).
 
 ```
 Props: { label: string; value: ReactNode }
 ```
 
-Используется и в Account (Email, Role), и в About (Version, Mode, Radar).
+Used in both Account (Email, Role) and About (Version, Mode, Radar).
 
 ### `AccountSection`
 
 ```tsx
 const user = useAuthStore((s) => s.user);
-if (!user) return null; // ProtectedRoute гарантирует authed, но защищаемся
+if (!user) return null; // ProtectedRoute guarantees authed, but be defensive
 const initial = user.displayName.charAt(0).toUpperCase() || "·";
 const role = user.isAdmin ? "Administrator" : "Member";
 ```
 
-Рендер:
-- Аватар-инициал: квадрат `w-16 h-16 bg-ink text-paper font-mono` (тот же паттерн, что в `UserMenu`).
-- `display-tight` имя (`user.displayName`).
+Renders:
+- The initial avatar: a `w-16 h-16 bg-ink text-paper font-mono` square (the same
+  pattern as in `UserMenu`).
+- The `display-tight` name (`user.displayName`).
 - `SettingRow` Email = `user.email`.
 - `SettingRow` Role = `role`.
 
-Без кнопок Edit/Change (редактирование вне объёма — не показываем нерабочие контролы).
+No Edit/Change buttons (editing is out of scope — we do not show controls that
+do nothing).
 
 ### `AboutSection`
 
@@ -94,25 +113,27 @@ const role = user.isAdmin ? "Administrator" : "Member";
 const status = useRadarStatusQuery();
 ```
 
-Рендер трёх `SettingRow`:
+Renders three `SettingRow`s:
 - **Version** = `v{APP_VERSION}` (→ `v0.1.0`).
-- **Mode** = `self-hosted` (статика).
-- **Radar** = строка по состоянию query (см. ниже).
+- **Mode** = `self-hosted` (static).
+- **Radar** = a string derived from the query state (below).
 
-#### Маппинг состояния Radar (единственная динамика на экране)
+#### Radar state mapping (the only dynamic thing on the screen)
 
-| Состояние query | Значение строки Radar |
+| Query state | Radar row value |
 |---|---|
 | `isLoading` | `Checking…` |
-| `isSuccess` | `fmtSweep(data.lastSweepAt)` → `Last sweep · 2h ago` или `Awaiting first sweep` |
+| `isSuccess` | `fmtSweep(data.lastSweepAt)` → `Last sweep · 2h ago` or `Awaiting first sweep` |
 | `isError` && `error instanceof ApiError` && `error.code === "radar_disabled"` | `Disabled` |
-| любой другой error | `Unavailable` |
+| any other error | `Unavailable` |
 
-`fmtSweep` импортируется из `@/features/radar/time`. Проверка `radar_disabled` зеркалит `routes/radar._index.tsx` (`error.code === "radar_disabled"`). `ApiError` имеет поля `status`, `code`.
+`fmtSweep` is imported from `@/features/radar/time`. The `radar_disabled` check
+mirrors `routes/radar._index.tsx` (`error.code === "radar_disabled"`). `ApiError`
+carries `status` and `code` fields.
 
 ### `routes/settings.tsx`
 
-Переписывается со stub на:
+Rewritten from the stub into:
 
 ```tsx
 <div>
@@ -122,56 +143,73 @@ const status = useRadarStatusQuery();
 </div>
 ```
 
-Подзаголовок `This instance and your account.` — конкретное значение по умолчанию; допустима замена на эквивалент в том же editorial-тоне.
+The subtitle `This instance and your account.` is a concrete default; an
+equivalent in the same editorial tone is acceptable.
 
-Каждая секция — карточка `bg-paper-2 border border-rule p-6 md:p-8` с `display-tight` заголовком и italic-подзаголовком (идиома прототипа `settingsSection` и существующих экранов Library/Radar). Точная вёрстка заголовка (`PageHeader` vs кастомный wonky-header как в прототипе) — на усмотрение реализации, в рамках существующего layout-паттерна.
+Each section is a `bg-paper-2 border border-rule p-6 md:p-8` card with a
+`display-tight` heading and an italic subheading (the prototype's
+`settingsSection` idiom, and the one already used on the Library/Radar screens).
+The exact heading markup (`PageHeader` vs a custom wonky header like the
+prototype's) is left to the implementation, within the existing layout pattern.
 
 ---
 
-## Поток данных
+## Data flow
 
 ```
-AccountSection ── useAuthStore (заполнен auth bootstrap/login) ── displayName, email, isAdmin
+AccountSection ── useAuthStore (filled by auth bootstrap/login) ── displayName, email, isAdmin
 AboutSection ──┬─ APP_VERSION (shared/version.ts) ─────────────── Version, Mode
                └─ useRadarStatusQuery → GET /radar/status ──────── Radar row
-Sidebar ─────── APP_VERSION (shared/version.ts) ───────────────── footer-строка
+Sidebar ─────── APP_VERSION (shared/version.ts) ───────────────── footer line
 ```
 
-## Обработка ошибок
+## Error handling
 
-- **Account:** guard `!user → null`. На защищённом маршруте user всегда есть; guard на случай гонки при разлогине.
-- **About / Radar:** строка никогда не бросает — каждое состояние query (loading / success / disabled / other-error) маппится в строку. Экран рендерится полностью даже при выключенном Radar (консистентно с тем, что сайдбар оставляет Radar видимым при `radar_disabled`).
+- **Account:** the `!user → null` guard. On a protected route there is always a
+  user; the guard covers the race during sign-out.
+- **About / Radar:** the row never throws — every query state (loading / success
+  / disabled / other-error) maps to a string. The screen renders fully even with
+  Radar switched off (consistent with the sidebar keeping Radar visible under
+  `radar_disabled`).
 
-## Тестирование
+## Testing
 
-Vitest + Testing Library + MSW, по образцу radar-тестов: `QueryClient`-wrapper с `retry: false`, `useAuthStore.getState().setSession(...)` в `beforeEach`, `server.use(http.get(...))` для `/api/radar/status`.
+Vitest + Testing Library + MSW, modelled on the radar tests: a `QueryClient`
+wrapper with `retry: false`, `useAuthStore.getState().setSession(...)` in
+`beforeEach`, `server.use(http.get(...))` for `/api/radar/status`.
 
 - **`AccountSection.test.tsx`**
-  - authed session (`isAdmin: false`) → видны `displayName`, `email`, `Member`.
-  - authed session (`isAdmin: true`) → видно `Administrator`.
+  - an authed session (`isAdmin: false`) → `displayName`, `email`, `Member` are
+    visible.
+  - an authed session (`isAdmin: true`) → `Administrator` is visible.
 - **`AboutSection.test.tsx`**
-  - `/radar/status` → `{ last_sweep_at: "<iso>" }` → видны `v0.1.0`, `self-hosted`, и текст sweep (`Last sweep · …`).
-  - `/radar/status` → ошибка с `code: "radar_disabled"` → видно `Disabled`.
+  - `/radar/status` → `{ last_sweep_at: "<iso>" }` → `v0.1.0`, `self-hosted`, and
+    the sweep text (`Last sweep · …`) are visible.
+  - `/radar/status` → an error with `code: "radar_disabled"` → `Disabled` is
+    visible.
 - **`settings.test.tsx`**
-  - маршрут рендерит заголовки обеих секций: `Account` и `About`.
+  - the route renders both section headings: `Account` and `About`.
 
-## Стиль
+## Style
 
-Editorial-идиома проекта: карточки `bg-paper-2 border border-rule`, `display-tight` заголовки секций, italic-подзаголовки, `label-sc`/`font-mono` для меток и значений — как в прототипе (`settingsSection`, `settingRow`) и на готовых экранах Library/Radar. Никаких новых дизайн-примитивов.
+The project's editorial idiom: `bg-paper-2 border border-rule` cards,
+`display-tight` section headings, italic subheadings, `label-sc`/`font-mono` for
+labels and values — as in the prototype (`settingsSection`, `settingRow`) and on
+the finished Library/Radar screens. No new design primitives.
 
 ---
 
 ## Spec coverage
 
-| Что | Где покрыто |
+| What | Where it is covered |
 |---|---|
-| `shared/version.ts` + рефактор Sidebar | Архитектура → Файлы |
-| `SettingRow` | Компоненты |
-| Account (identity, role, read-only) | Компоненты → AccountSection |
-| About (version, mode, radar) | Компоненты → AboutSection |
-| Состояния Radar (loading/success/disabled/error) | Маппинг состояния Radar |
-| Route-композиция | routes/settings.tsx |
-| Тесты | Тестирование |
-| Явные не-цели | Не-цели |
+| `shared/version.ts` plus the Sidebar refactor | Architecture → Files |
+| `SettingRow` | Components |
+| Account (identity, role, read-only) | Components → AccountSection |
+| About (version, mode, radar) | Components → AboutSection |
+| Radar states (loading/success/disabled/error) | Radar state mapping |
+| Route composition | routes/settings.tsx |
+| Tests | Testing |
+| Explicit non-goals | Non-goals |
 
-Backend не затрагивается. Все источники данных существуют сегодня.
+The backend is untouched. Every data source exists today.

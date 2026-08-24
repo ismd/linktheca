@@ -5,84 +5,84 @@
 
 ## Context
 
-В фазе 3a-2 `POST /radar/feeds` стоит под `RequireAdmin`. Это сознательный
-выбор на время становления пайплайна: feeds — инстанс-уровневый ресурс,
-открытое добавление без квот = DoS-вектор для краулера и TEI.
+In phase 3a-2, `POST /radar/feeds` sits behind `RequireAdmin`. That is a
+deliberate choice while the pipeline settles: feeds are an instance-level
+resource, and open submission without quotas is a DoS vector against the crawler
+and TEI.
 
-## Целевой UX
+## Target UX
 
-Согласовано следующее видение:
+The following vision is agreed:
 
-- Существует **общий курируемый каталог feeds**, который ведёт админ
-  (`POST /radar/feeds` под `RequireAdmin` — текущее поведение).
-- Каждый пользователь имеет **свой набор подписок**: галочками
-  включает/отключает любые ленты из каталога
-  (`POST/DELETE /radar/subscriptions` — текущее поведение).
-- Каждый пользователь дополнительно может **добавить свою личную ленту**
-  в каталог. Дедупликация по URL: если такой URL уже есть, юзер просто
-  получает на него подписку. Это новая функциональность.
+- A **shared, curated feed catalog** exists, maintained by an admin
+  (`POST /radar/feeds` behind `RequireAdmin` — today's behaviour).
+- Every user has **their own set of subscriptions**, ticking any of the
+  catalog's feeds on or off (`POST/DELETE /radar/subscriptions` — today's
+  behaviour).
+- Every user may additionally **add a personal feed of their own** to the
+  catalog. Deduplication is by URL: if the URL is already there, the user simply
+  gets a subscription to it. This part is new.
 
-## Что нужно сделать, когда будем реализовывать
+## What to do when we implement it
 
-### 1. Endpoint для пользовательского добавления
+### 1. An endpoint for user submissions
 
-Варианты:
-- Снять `RequireAdmin` с `POST /radar/feeds` и различать поведение по
-  роли (admin → curated, обычный юзер → personal + auto-subscribe).
-- Или отдельный `POST /radar/feeds/personal` (чище семантически).
+Options:
+- Drop `RequireAdmin` from `POST /radar/feeds` and branch on role (admin →
+  curated, ordinary user → personal plus auto-subscribe).
+- Or a separate `POST /radar/feeds/personal` (semantically cleaner).
 
-При добавлении: если URL уже существует в `radar_feeds` — не создаём
-новую запись, просто оформляем subscription. Если нет — создаём запись
-+ subscription одной транзакцией.
+On submission: if the URL already exists in `radar_feeds`, do not create a new
+row, just record the subscription. If it does not, create the row and the
+subscription in one transaction.
 
-### 2. Колонка `created_by`
+### 2. A `created_by` column
 
-Добавить в `radar_feeds`:
+Add to `radar_feeds`:
 
 ```sql
 ALTER TABLE radar_feeds
   ADD COLUMN created_by BIGINT NULL REFERENCES users(id) ON DELETE SET NULL;
 ```
 
-Семантика:
-- `NULL` — curated (добавлено админом / системный seed). Все
-  существующие записи на момент миграции = curated, backfill не нужен.
-- `not NULL` — добавлено конкретным пользователем (personal feed).
+Semantics:
+- `NULL` — curated (added by an admin or by a system seed). Every existing row at
+  migration time is curated, so no backfill is needed.
+- not NULL — added by a specific user (a personal feed).
 
-Используется в UI для разделения «каталог» vs «мои ленты», и для
-квот (см. ниже).
+Used in the UI to separate "the catalog" from "my feeds", and for quotas (below).
 
-### 3. Квоты (admin-configurable)
+### 3. Quotas (admin-configurable)
 
-Без квот открытый endpoint = DoS. Минимально:
+Without quotas, an open endpoint is a DoS vector. At minimum:
 
-- **Per-user limit на personal feeds**: количество записей в
-  `radar_feeds` с `created_by = $user_id`. Дефолт, например, 20.
-- **Per-feed minimum interval**: нижняя граница `fetch_interval_seconds`,
-  чтобы юзер не выставил 60s на десяток лент. Дефолт, например, 1800s.
-- **Global rate-limit**: общее количество ленты в инстансе.
+- **A per-user limit on personal feeds**: the number of `radar_feeds` rows with
+  `created_by = $user_id`. Default of 20, say.
+- **A per-feed minimum interval**: a lower bound on `fetch_interval_seconds`, so
+  a user cannot set 60s across a dozen feeds. Default of 1800s, say.
+- **A global rate limit**: the total number of feeds on the instance.
 
-Все три значения — это конфиг инстанса, который выставляет админ.
-Хранение: либо `instance_config` таблица (key/value), либо env-vars.
-Обсуждаемо в момент реализации.
+All three are instance config an admin sets. Storage: either an
+`instance_config` table (key/value) or env vars. To be settled at implementation
+time.
 
-### 4. Админский UI
+### 4. Admin UI
 
-- Promote: пометить personal feed как curated (`created_by → NULL`).
-- Demote: обратное действие.
-- Список с фильтром curated / personal.
-- Изменение квот.
+- Promote: mark a personal feed as curated (`created_by → NULL`).
+- Demote: the reverse.
+- A list with a curated / personal filter.
+- Editing the quotas.
 
-### 5. Удаление
+### 5. Deletion
 
-Когда юзер «удаляет свою ленту»:
-- Если на неё подписан только он — удалить feed целиком (cascade удалит
-  findings и matches).
-- Если есть другие подписчики (например, после promote-to-curated и
-  затем demote) — только отписать юзера, feed оставить.
+When a user "deletes their feed":
+- If they are the only subscriber, delete the feed outright (the cascade takes
+  the findings and matches with it).
+- If there are other subscribers (after a promote-to-curated and then a demote,
+  for instance), only unsubscribe the user and leave the feed in place.
 
-## Когда возвращаться
+## When to come back
 
-К этому документу — на этапе проектирования Radar Settings UI
-(предположительно фаза 3b или позже). До тех пор текущей admin-only
-модели достаточно для всех smoke-тестов и dogfood-сценариев.
+Come back to this document while designing the Radar Settings UI (phase 3b or
+later, presumably). Until then the current admin-only model is enough for every
+smoke test and dogfood scenario.

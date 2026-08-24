@@ -1,61 +1,69 @@
 # Frontend: Foundation + Auth + Library — design
 
-**Дата:** 2026-05-08
-**Статус:** approved, готов к writing-plans
-**Scope:** SPA на React, покрывающая auth (login/register) и Library (list, reader, add-link, edit, delete). Radar UI и Settings — отдельными планами после.
+**Date:** 2026-05-08
+**Status:** approved, ready for writing-plans
+**Scope:** a React SPA covering auth (login/register) and Library (list, reader, add-link, edit, delete). The Radar UI and Settings get their own plans afterwards.
 
-## Контекст
+## Context
 
-Backend для auth и Library уже готов и стабилен. Прототип `prototype/index.html` фиксирует визуальную систему (editorial/литературная эстетика, warm paper + vermillion accent, серif typography). Архитектурный спек `2026-04-10-architecture-design.md` (секция 7) задаёт стек на верхнем уровне; этот документ конкретизирует foundation, auth и Library до уровня implementation plan.
+The backend for auth and Library is finished and stable. The
+`prototype/index.html` prototype fixes the visual system (an editorial, literary
+aesthetic, warm paper plus a vermillion accent, serif typography). The
+architecture spec `2026-04-10-architecture-design.md` (section 7) sets the stack
+at a high level; this document takes the foundation, auth, and Library down to
+implementation-plan detail.
 
-CLI-фаза 3a-3 намеренно пропущена — взаимодействие с Radar/Library будет через web-UI, а сейчас нужен сам web-UI.
+The 3a-3 CLI phase is skipped deliberately — interaction with Radar and Library
+will go through the web UI, and what we need now is the web UI itself.
 
-## Решения, зафиксированные в brainstorming
+## Decisions taken during brainstorming
 
-| # | Вопрос | Решение |
+| # | Question | Decision |
 |---|---|---|
-| 1 | Scope | Foundation + Auth + Library. Radar и Settings — отдельные планы. |
-| 2 | Локализация | English only, без i18n-библиотек. Копирайт хардкодим. |
-| 3 | Типы API | Handwritten TS-типы + Zod-схемы. Никакого OpenAPI codegen на этом этапе. |
-| 4 | Фазирование | Подход A: Foundation → Auth → Library как три последовательных мерджабельных куска. |
-| 5 | Display font | Cormorant Garamond (вместо Fraunces). |
-| 6 | Body font | Newsreader (без изменений). |
-| 7 | Mono font | IBM Plex Mono (вместо JetBrains Mono — идеологические причины). |
+| 1 | Scope | Foundation + Auth + Library. Radar and Settings get their own plans. |
+| 2 | Localization | English only, no i18n libraries. Copy is hardcoded. |
+| 3 | API types | Handwritten TS types plus Zod schemas. No OpenAPI codegen at this stage. |
+| 4 | Phasing | Approach A: Foundation → Auth → Library as three sequential, independently mergeable chunks. |
+| 5 | Display font | Cormorant Garamond (instead of Fraunces). |
+| 6 | Body font | Newsreader (unchanged). |
+| 7 | Mono font | IBM Plex Mono (instead of JetBrains Mono — for ideological reasons). |
 
-## 1. Foundation: setup, структура, токены
+## 1. Foundation: setup, structure, tokens
 
-### Стек
+### Stack
 
-| Задача | Пакет |
+| Concern | Package |
 |---|---|
 | Build | Vite 5 |
-| Язык | TypeScript strict |
-| Стили | Tailwind CSS v4 (CSS-first config через `@theme`) |
-| Компоненты | shadcn/ui (копии в `src/shared/ui/`) + Radix primitives |
+| Language | TypeScript strict |
+| Styling | Tailwind CSS v4 (CSS-first config through `@theme`) |
+| Components | shadcn/ui (copies in `src/shared/ui/`) plus Radix primitives |
 | Icons | lucide-react |
-| Шрифты | `@fontsource/cormorant-garamond` (400/500/600/700), `@fontsource-variable/newsreader`, `@fontsource/ibm-plex-mono` (400/500/600) |
-| Роутер | React Router v7 (data mode, `BrowserRouter`) |
+| Fonts | `@fontsource/cormorant-garamond` (400/500/600/700), `@fontsource-variable/newsreader`, `@fontsource/ibm-plex-mono` (400/500/600) |
+| Router | React Router v7 (data mode, `BrowserRouter`) |
 | Server state | TanStack Query v5 |
-| Client state | Zustand (только для auth) |
-| Формы | React Hook Form + Zod |
-| Тесты | Vitest + RTL + MSW |
-| Утилиты | clsx + tailwind-merge (`cn`), date-fns (relative time) |
-| Toasts | sonner (через shadcn) |
+| Client state | Zustand (auth only) |
+| Forms | React Hook Form + Zod |
+| Tests | Vitest + RTL + MSW |
+| Utilities | clsx + tailwind-merge (`cn`), date-fns (relative time) |
+| Toasts | sonner (through shadcn) |
 
-**Намеренно не используем:** Next.js/Remix (нужен SPA), Redux (Zustand достаточно), MUI/Chakra (диктуют дизайн), styled-components/Emotion (Tailwind), Storybook, Playwright (E2E — отдельный этап).
+**Deliberately not used:** Next.js/Remix (we need an SPA), Redux (Zustand is
+enough), MUI/Chakra (they dictate the design), styled-components/Emotion
+(Tailwind), Storybook, Playwright (E2E is a separate stage).
 
-### Структура `web/src/`
+### The `web/src/` structure
 
 ```
 main.tsx, App.tsx
 routes/
   __root.tsx          # AppShell layout route
-  _public.tsx         # layout для login/register (no shell)
+  _public.tsx         # layout for login/register (no shell)
   login.tsx, register.tsx
   index.tsx           # → redirect /library
   library._index.tsx  # list
   library.$id.tsx     # reader
-  settings.tsx        # заглушка с TODO
+  settings.tsx        # a stub with a TODO
 features/
   auth/      api.ts schemas.ts store.ts use-auth.ts components/
   library/   api.ts schemas.ts use-library.ts components/
@@ -67,10 +75,11 @@ shared/
   hooks/     use-media-query.ts use-debounce.ts
   lib/       cn.ts time.ts
 styles/
-  globals.css   # Tailwind v4 + @theme tokens + utilities из прототипа
+  globals.css   # Tailwind v4 + @theme tokens + utilities from the prototype
 ```
 
-Принцип: всё, что относится к одной фиче — в одной директории. `shared/` — только то, что переиспользуется ≥2 фичами.
+The principle: everything belonging to one feature lives in one directory.
+`shared/` holds only what is reused by two or more features.
 
 ### Design tokens (`globals.css`)
 
@@ -99,114 +108,153 @@ styles/
 }
 ```
 
-Утилиты из прототипа (`.label-sc`, `.display-tight`, `.rule-dotted`, `.rule-double`, `.stamp`, `.paper-surface`, `.grain-overlay`, `.drop-cap`, `.prose-reader`, `.feed-card`, `.nav-item`, `.checkbox-custom`, `.toggle`, `.icon-btn`, `.tag-pill`, `.skeleton`, `.modal-backdrop`, `img-1..img-10` градиенты) переносим в `globals.css` как `@layer components`. Заменяем `font-family: 'Fraunces'` на `'Cormorant Garamond'`, `'JetBrains Mono'` на `'IBM Plex Mono'`. Drop-cap рисуем Cormorant SemiBold/Bold без variation-settings (Cormorant — статический шрифт).
+The prototype's utilities (`.label-sc`, `.display-tight`, `.rule-dotted`,
+`.rule-double`, `.stamp`, `.paper-surface`, `.grain-overlay`, `.drop-cap`,
+`.prose-reader`, `.feed-card`, `.nav-item`, `.checkbox-custom`, `.toggle`,
+`.icon-btn`, `.tag-pill`, `.skeleton`, `.modal-backdrop`, and the `img-1..img-10`
+gradients) move into `globals.css` as `@layer components`. We replace
+`font-family: 'Fraunces'` with `'Cormorant Garamond'` and `'JetBrains Mono'` with
+`'IBM Plex Mono'`. The drop cap is drawn in Cormorant SemiBold/Bold without
+variation settings (Cormorant is a static font).
 
 ### Dev workflow
 
-- `cd web && npm run dev` → Vite на `:5173`.
-- Vite proxy: `/api/*` → `http://localhost:8080`, rewrite `^/api → ""`. Backend остаётся неизменным, его роуты на `/auth`, `/library`.
-- Frontend всегда зовёт `/api/auth/login`, `/api/library`, и т.д. Префикс `/api` фиксированный, `apiFetch` подставляет.
+- `cd web && npm run dev` → Vite on `:5173`.
+- Vite proxy: `/api/*` → `http://localhost:8080`, rewriting `^/api → ""`. The
+  backend is untouched; its routes stay at `/auth` and `/library`.
+- The frontend always calls `/api/auth/login`, `/api/library`, and so on. The
+  `/api` prefix is fixed and `apiFetch` supplies it.
 
-## 2. AppShell и responsive layout
+## 2. AppShell and responsive layout
 
 ### Breakpoints (Tailwind defaults)
 
-| Имя | Ширина | Что меняется |
+| Name | Width | What changes |
 |---|---|---|
-| `< md` (< 768) | phone | Single column. Hamburger открывает overlay-drawer. Topbar в одну строку. |
-| `md` (≥ 768) | tablet | Library cards 2-up. Drawer всё ещё overlay. |
-| `lg` (≥ 1024) | desktop | Sidebar pinned 280px. Drawer-режим выключен. Library cards 3-up. |
-| `2xl` (≥ 1536) | wide | Reader column фиксирован 720px. Контент max-w-1280. |
+| `< md` (< 768) | phone | Single column. The hamburger opens an overlay drawer. Topbar on one line. |
+| `md` (≥ 768) | tablet | Library cards 2-up. The drawer is still an overlay. |
+| `lg` (≥ 1024) | desktop | Sidebar pinned at 280px. Drawer mode off. Library cards 3-up. |
+| `2xl` (≥ 1536) | wide | The reader column is fixed at 720px. Content max-w-1280. |
 
-### Layout-дерево
+### The layout tree
 
 ```
 <RootRoute>                     # routes/__root.tsx
   <PaperGrainOverlay />         # fixed inset-0, pointer-events:none
   <AppShell>
-    <Sidebar />                 # lg:fixed lg:w-[280px], <lg рендерится в drawer
+    <Sidebar />                 # lg:fixed lg:w-[280px]; below lg it renders inside the drawer
     <Topbar />                  # sticky top-0 z-10, h-16
     <main>
-      <Outlet />                # страница
+      <Outlet />                # the page
     </main>
-    <MobileDrawer />            # портал, открывается на <lg
+    <MobileDrawer />            # a portal, opens below lg
   </AppShell>
 </RootRoute>
 ```
 
 ### Sidebar
 
-- На `lg+`: `position: fixed; left: 0; width: 280px; height: 100vh`. Содержит masthead (logo «Linktheca», Cormorant Italic), nav (Library / Radar disabled-stub / Settings), status footer.
-- На `< lg`: тот же компонент, но рендерится внутри `MobileDrawer` (slide-in слева, backdrop с blur).
-- `<NavLink>` из React Router — даёт active-state для красной полоски слева (`.nav-item.active::after`).
+- At `lg+`: `position: fixed; left: 0; width: 280px; height: 100vh`. It holds the
+  masthead (the "Linktheca" logo, Cormorant Italic), the nav (Library / a
+  disabled Radar stub / Settings), and a status footer.
+- Below `lg`: the same component, rendered inside `MobileDrawer` (sliding in from
+  the left, with a blurred backdrop).
+- `<NavLink>` from React Router supplies the active state for the red bar on the
+  left (`.nav-item.active::after`).
 
 ### MobileDrawer
 
-- Реализован через `<Dialog>` из Radix (через shadcn) — focus-trap, ESC, click-backdrop-to-close, scroll-lock из коробки.
-- Trigger — hamburger-кнопка в Topbar, видна только `< lg`.
-- Закрывается на nav-click (через обработчик `useNavigate`).
+- Built on Radix's `<Dialog>` (through shadcn) — focus trap, ESC,
+  click-backdrop-to-close, and scroll lock out of the box.
+- The trigger is the hamburger button in the Topbar, visible only below `lg`.
+- It closes on a nav click (through a `useNavigate` handler).
 
 ### Topbar
 
-- Sticky `top-0 z-10`, высота 64px, paper-2 фон с `border-b border-rule`.
-- Слева: на `< lg` — hamburger; на `lg+` — пусто (logo уже в sidebar).
-- Центр: расширяемый search input. **Search не реализован на бэкенде на этом этапе → элемент не рендерим**, помечаем TODO в коде.
-- Справа: «+ Add Link» кнопка (открывает modal), user-menu (Cormorant initial → dropdown с logout).
+- Sticky `top-0 z-10`, 64px tall, a paper-2 background with
+  `border-b border-rule`.
+- On the left: below `lg`, the hamburger; at `lg+`, nothing (the logo is already
+  in the sidebar).
+- In the centre: an expanding search input. **Search is not implemented on the
+  backend at this stage, so we do not render the element**; a TODO marks it in
+  the code.
+- On the right: the "+ Add Link" button (which opens the modal) and the user menu
+  (a Cormorant initial opening a dropdown with logout).
 
-### PageHeader pattern
+### The PageHeader pattern
 
-Каждая страница импортирует `<PageHeader title="…" subtitle="…" actions={…} />`, который рендерит большой Cormorant-заголовок + small-caps подзаголовок + inline-actions. Это даёт единообразие без AppShell-привязки к конкретной странице.
+Every page imports `<PageHeader title="…" subtitle="…" actions={…} />`, which
+renders a large Cormorant heading plus a small-caps subtitle plus inline
+actions. That gives uniformity without tying the AppShell to any particular
+page.
 
 ### Public layout (`routes/_public.tsx`)
 
-Без AppShell. Centered card на `paper-surface`, max-w-md, vertical-centered. Используется для `/login` и `/register`.
+No AppShell. A centred card on `paper-surface`, max-w-md, vertically centred.
+Used for `/login` and `/register`.
 
-### Reader layout (внутри `library.$id.tsx`)
+### Reader layout (inside `library.$id.tsx`)
 
-- Узкая колонка `max-w-[720px] mx-auto` для текста.
-- `<ReadingProgress />` — fixed top, 2px vermillion bar, скейлится по `window.scrollY`.
-- Drop-cap на первом параграфе через `.drop-cap` utility.
+- A narrow `max-w-[720px] mx-auto` column for the text.
+- `<ReadingProgress />` — fixed at the top, a 2px vermillion bar, scaled by
+  `window.scrollY`.
+- A drop cap on the first paragraph through the `.drop-cap` utility.
 
-### Принципы
+### Principles
 
-- Один `<Sidebar />` — рендерится и в drawer, и в pinned-режиме. Никакого условного рендеринга по media query для structural-выбора.
-- `<MobileDrawer>` рендерится всегда, но открывается только когда state=open. Trigger (hamburger) невидим на `lg+` через Tailwind.
-- Mobile-first CSS не делаем намеренно — прототип desktop-first, его подход сохраняем.
+- One `<Sidebar />` — it renders both in the drawer and in pinned mode. No
+  conditional rendering by media query for structural choices.
+- `<MobileDrawer>` always renders but only opens when state is open. The trigger
+  (the hamburger) is invisible at `lg+` through Tailwind.
+- We deliberately do not write mobile-first CSS — the prototype is
+  desktop-first, and we keep its approach.
 
-## 3. API client и auth state
+## 3. The API client and auth state
 
-### Хранение токенов
+### Token storage
 
-| Токен | Где |
+| Token | Where |
 |---|---|
-| Access JWT (15 мин) | Zustand store, **только в памяти** |
-| Refresh token (30 дней) | `localStorage` под ключом `linktheca.refresh` |
+| Access JWT (15 min) | The Zustand store, **in memory only** |
+| Refresh token (30 days) | `localStorage` under the key `linktheca.refresh` |
 
-`localStorage` — compromise зафиксированный архспеком (Bearer-only, no cookies). Mitigation: строгий CSP, отсутствие сторонних скриптов, refresh-rotation на бэкенде отзывает украденный токен при первом легитимном использовании.
+`localStorage` is the compromise recorded in the architecture spec (Bearer-only,
+no cookies). Mitigation: a strict CSP, no third-party scripts, and refresh
+rotation on the backend which revokes a stolen token at the first legitimate
+use.
 
-### Zustand store (`features/auth/store.ts`)
+### The Zustand store (`features/auth/store.ts`)
 
 ```ts
 type AuthState = {
   accessToken: string | null;
   user: User | null;            // { id, email, displayName, isAdmin }
-  status: 'bootstrapping' | 'authed' | 'anonymous';   // начинается с bootstrapping
+  status: 'bootstrapping' | 'authed' | 'anonymous';   // starts at bootstrapping
   setSession: (access: string, user: User) => void;
   clearSession: () => void;
 };
 ```
 
-`status='bootstrapping'` — состояние при загрузке приложения, пока `apiFetch` не пытается обменять refresh из localStorage на access. До этого момента `<ProtectedRoute>` показывает full-page loading-state, а не редиректит на login (избегаем флэшей).
+`status='bootstrapping'` is the state while the app loads and before `apiFetch`
+has tried to exchange the refresh token from localStorage for an access token.
+Until then `<ProtectedRoute>` shows a full-page loading state rather than
+redirecting to login (this avoids flashes).
 
-### API client (`shared/api/client.ts`)
+### The API client (`shared/api/client.ts`)
 
-Один экспорт — `apiFetch<T>(path, init?): Promise<T>`. Поведение:
+One export — `apiFetch<T>(path, init?): Promise<T>`. Its behaviour:
 
-1. Подставляет `/api` префикс и `Authorization: Bearer ${accessToken}` если токен есть.
-2. Если ответ 401 и refresh-токен в localStorage — кладёт оригинальный запрос в очередь, дёргает `POST /auth/refresh`. **Один in-flight refresh** (Promise singleton): остальные 401-запросы ждут тот же Promise.
-3. После успешного refresh — обновляет store, ретраит оригинальный запрос ровно один раз.
-4. Если refresh упал → `clearSession()` + редирект на `/login`. Сохраняем `from`-location в state для возврата после login.
-5. Не-401 ошибки нормализуем в `ApiError { status, code, message, details }` и пробрасываем.
+1. Prepends the `/api` prefix and adds `Authorization: Bearer ${accessToken}` if
+   there is a token.
+2. If the response is 401 and there is a refresh token in localStorage, it queues
+   the original request and calls `POST /auth/refresh`. **One in-flight refresh**
+   (a Promise singleton): every other 401 request waits on that same Promise.
+3. After a successful refresh it updates the store and retries the original
+   request exactly once.
+4. If the refresh fails → `clearSession()` plus a redirect to `/login`. We keep
+   the `from` location in state so we can return there after login.
+5. Non-401 errors are normalized into `ApiError { status, code, message, details }`
+   and rethrown.
 
 ```ts
 class ApiError extends Error {
@@ -215,18 +263,19 @@ class ApiError extends Error {
 }
 ```
 
-### Zod-парсинг ответов
+### Zod parsing of responses
 
-Применяем точечно:
+Applied selectively:
 
-- `/auth/me`, `/auth/login`, `/auth/refresh` — всегда (рано ловим drift).
-- Library list/item/content — Zod-парсинг только в dev/test через `import.meta.env.DEV`. В проде пропускаем (cost > benefit).
+- `/auth/me`, `/auth/login`, `/auth/refresh` — always (catching drift early).
+- Library list/item/content — Zod parsing only in dev and test, through
+  `import.meta.env.DEV`. Skipped in production (cost > benefit).
 
-Утилита `parseInDev<T>(schema: ZodSchema<T>, data: unknown): T`.
+The `parseInDev<T>(schema: ZodSchema<T>, data: unknown): T` utility.
 
-### Bootstrap при загрузке
+### Bootstrap on load
 
-В `App.tsx` при mount:
+In `App.tsx` on mount:
 
 ```
 status = 'bootstrapping'
@@ -237,7 +286,8 @@ if (localStorage.refresh)
 else → status = 'anonymous'
 ```
 
-`<ProtectedRoute>` рендерит `<FullPageSpinner>` пока `status === 'bootstrapping'`, иначе redirect на `/login` если `anonymous`, иначе `<Outlet />`.
+`<ProtectedRoute>` renders `<FullPageSpinner>` while `status === 'bootstrapping'`,
+otherwise redirects to `/login` if `anonymous`, otherwise renders `<Outlet />`.
 
 ### TanStack Query config
 
@@ -255,138 +305,180 @@ new QueryClient({
 });
 ```
 
-`401` не ретраим Query'ем — refresh+retry уже сделан внутри `apiFetch`.
+We do not retry `401` at the Query level — the refresh-and-retry already happened
+inside `apiFetch`.
 
 ### Logout
 
-`POST /auth/logout` с refresh-токеном в body → `clearSession()` → `localStorage.removeItem` → `queryClient.clear()` → redirect на `/login`. При сетевом fail всё равно clearSession локально — не блокируем юзера.
+`POST /auth/logout` with the refresh token in the body → `clearSession()` →
+`localStorage.removeItem` → `queryClient.clear()` → redirect to `/login`. On a
+network failure we clear the session locally anyway — we do not block the user.
 
-### Не входит в этот scope
+### Not in this scope
 
-«Stay logged in» чекбокс, multi-tab refresh sync через BroadcastChannel, idle-timeout, device list, password reset.
+A "Stay logged in" checkbox, multi-tab refresh sync through BroadcastChannel, an
+idle timeout, a device list, password reset.
 
-## 4. Routing, Auth screens, Library screens
+## 4. Routing, auth screens, Library screens
 
-### Route tree
+### The route tree
 
 ```
 /                         → redirect /library
 /login                    public, _public layout
-/register                 public, _public layout (если бэкенд вернёт 403 — показываем «Registration disabled»)
+/register                 public, _public layout (if the backend returns 403 we show "Registration disabled")
 /library                  protected, AppShell, list
 /library/:id              protected, AppShell + reader layout
-/settings                 protected, заглушка
+/settings                 protected, a stub
 *                         404 page
 ```
 
-`<ProtectedRoute>` оборачивает branch для `/library*` и `/settings`. На `/login` после успеха возвращаемся на `location.state.from ?? "/library"`.
+`<ProtectedRoute>` wraps the branch for `/library*` and `/settings`. On `/login`,
+after success we return to `location.state.from ?? "/library"`.
 
 ### Login
 
-- React Hook Form + Zod: email (валидный), password (≥1 char — длина проверяется бэкендом).
-- Submit с inline-loading, disabled пока pending.
-- Inline-error поля с `aria-describedby`.
-- Top-of-form error: «Invalid email or password» при 401, «Service unavailable» при 5xx.
-- Под формой `<Link to="/register">Create account →</Link>` — рендерим всегда, `/register` сам выдаёт 403/404 если регистрация выключена.
+- React Hook Form + Zod: email (valid), password (≥1 char — the length is checked
+  by the backend).
+- Submit with inline loading, disabled while pending.
+- Inline field errors with `aria-describedby`.
+- A top-of-form error: "Invalid email or password" on a 401, "Service
+  unavailable" on a 5xx.
+- Below the form, `<Link to="/register">Create account →</Link>` — always
+  rendered; `/register` itself returns 403/404 when registration is off.
 
 ### Register
 
-- Поля: email, display_name, password (≥10).
-- Inline-validation password length с подсказкой.
-- Submit → бэкенд возвращает access+refresh → setSession → redirect `/library`.
-- 403 «Registration disabled» — full-page сообщение «New accounts are disabled on this instance».
+- Fields: email, display_name, password (≥10).
+- Inline validation of password length with a hint.
+- Submit → the backend returns access plus refresh → setSession → redirect to
+  `/library`.
+- A 403 "Registration disabled" → a full-page message, "New accounts are disabled
+  on this instance".
 
-### Visual для public layout
+### Visuals for the public layout
 
-Centered card 400px на `paper-surface`, masthead «Linktheca» Cormorant Italic сверху, decorative `.rule-double` между masthead и формой.
+A centred 400px card on `paper-surface`, the "Linktheca" masthead in Cormorant
+Italic at the top, and a decorative `.rule-double` between the masthead and the
+form.
 
 ### Library list
 
-**Что грузим:** `useLibraryQuery({ state, favorite, page })`. Параметры — query string в URL (`useSearchParams`) для bookmarkable фильтра.
+**What we load:** `useLibraryQuery({ state, favorite, page })`. The parameters
+live in the URL query string (`useSearchParams`) so filters are bookmarkable.
 
 **Filters:**
-- State pills: All / Unread / Read / Archived (single-select, default All).
-- Favorite toggle: «Favorites only» on/off.
-- Sort: «Recent first» / «Oldest first» (по `saved_at`).
+- State pills: All / Unread / Read / Archived (single-select, All by default).
+- A favorite toggle: "Favorites only" on/off.
+- Sort: "Recent first" / "Oldest first" (by `saved_at`).
 
 **Card grid:**
-- `< md` — 1 колонка.
-- `md` — 2 колонки.
-- `lg` — 3 колонки.
-- Каждая карточка кликабельная (`<Link to=":id">`), показывает: hero strip (gradient `img-N` по `id % 10` пока нет real images), title (Cormorant), byline + reading-time, excerpt (3 lines clamp), state/favorite stamps, saved-at (relative, date-fns).
+- `< md` — 1 column.
+- `md` — 2 columns.
+- `lg` — 3 columns.
+- Every card is clickable (`<Link to=":id">`) and shows: a hero strip (an
+  `img-N` gradient by `id % 10` while there are no real images), the title
+  (Cormorant), a byline plus reading time, an excerpt (clamped to 3 lines),
+  state/favorite stamps, and saved-at (relative, date-fns).
 
-**Pagination:** `useInfiniteQuery` offset-based, страницы по 20, «Load more» button. Если бэкенд-контракт не offset/limit — адаптируем в `features/library/api.ts`, не везде.
+**Pagination:** an offset-based `useInfiniteQuery`, 20 per page, with a "Load
+more" button. If the backend contract is not offset/limit, we adapt inside
+`features/library/api.ts` and nowhere else.
 
-**Empty state:** большой Cormorant «Nothing here yet» + small-caps «Save your first link →» + CTA-button открывает Add Link modal.
+**Empty state:** a large Cormorant "Nothing here yet" plus a small-caps "Save
+your first link →" plus a CTA button that opens the Add Link modal.
 
-**Loading:** `.skeleton` карточки 6 штук на текущий breakpoint.
+**Loading:** six `.skeleton` cards at the current breakpoint.
 
-**Error:** `<ErrorPanel>` с retry, текст из `error.message`.
+**Error:** an `<ErrorPanel>` with retry and the text from `error.message`.
 
-### Add Link modal
+### The Add Link modal
 
-Trigger — кнопка в Topbar **и** empty-state CTA.
+Triggered from the Topbar button **and** from the empty-state CTA.
 
 **Flow:**
-1. Modal открывается, focus на URL input. Validation `z.string().url()`.
-2. Submit → `POST /library { url }`. Бэкенд парсит контент **синхронно**, может занять 3–10 сек.
-3. Pending UI: animated three-stage progress (декоративный, по таймеру — мы не получаем real progress events): «Fetching page…» → «Extracting content…» → «Saving to library…».
-4. Success: invalidate `library-list` query, закрываем modal, toast «Saved to Library» с link на запись.
-5. Error: показываем error в modal, не закрываем. 409 → «Already in library» с link на existing item; 422 → «Couldn't extract content from this URL».
+1. The modal opens with focus on the URL input. Validation is
+   `z.string().url()`.
+2. Submit → `POST /library { url }`. The backend parses the content
+   **synchronously**, which can take 3–10 seconds.
+3. Pending UI: an animated three-stage progress indicator (decorative, on a
+   timer — we get no real progress events): "Fetching page…" → "Extracting
+   content…" → "Saving to library…".
+4. Success: invalidate the `library-list` query, close the modal, and show a
+   "Saved to Library" toast linking to the entry.
+5. Error: show it inside the modal and keep the modal open. A 409 → "Already in
+   library" with a link to the existing item; a 422 → "Couldn't extract content
+   from this URL".
 
-**Реализация:** Radix Dialog → shadcn `<Dialog>`. Backdrop с blur, карточка с `.paper-surface`, max-w-lg.
+**Implementation:** Radix Dialog through shadcn's `<Dialog>`. A blurred backdrop,
+a `.paper-surface` card, max-w-lg.
 
 ### Reader view
 
-**Что грузим параллельно:**
-- `useLibraryItemQuery(id)` — meta (state, favorite, note, saved_at).
-- `useLibraryContentQuery(id)` — text/html для prose.
+**What we load in parallel:**
+- `useLibraryItemQuery(id)` — the metadata (state, favorite, note, saved_at).
+- `useLibraryContentQuery(id)` — the text/html for the prose.
 
-Chrome рендерим как только meta готов, prose показывает skeleton пока content грузится.
+The chrome renders as soon as the metadata is ready; the prose shows a skeleton
+while the content loads.
 
 **Layout:**
-- `<ReadingProgress />` fixed top.
-- Back-link «← Library» (Cormorant italic small).
-- Article header: title (Cormorant Bold, display-size), byline + reading-time + saved-date (small-caps row), original-URL link.
-- Hero figure: gradient placeholder или `<img>` если есть og:image.
-- Body: `.prose-reader` с drop-cap на первом параграфе.
-- Actions footer: row of icon-buttons — Mark read/unread, Favorite, Add note, Open original (external), Delete.
+- `<ReadingProgress />` fixed at the top.
+- A "← Library" back link (Cormorant italic, small).
+- The article header: the title (Cormorant Bold, display size), a byline plus
+  reading time plus the saved date (a small-caps row), and a link to the original
+  URL.
+- A hero figure: a gradient placeholder, or an `<img>` when there is an og:image.
+- The body: `.prose-reader` with a drop cap on the first paragraph.
+- An actions footer: a row of icon buttons — Mark read/unread, Favorite, Add
+  note, Open original (external), Delete.
 
-**Mark-as-read:** автоматически при scroll до 90% содержимого *И* `state==='unread'` → `PATCH /library/:id { state: 'read' }`. Один раз на загрузку страницы (флаг в local component state).
+**Mark as read:** automatic when the user scrolls to 90% of the content *and*
+`state==='unread'` → `PATCH /library/:id { state: 'read' }`. Once per page load
+(tracked by a flag in local component state).
 
-**Note:** клик «Add note» разворачивает textarea ниже content, autosave debounce 1s через `PATCH`.
+**Note:** clicking "Add note" expands a textarea below the content, autosaved on
+a 1s debounce through `PATCH`.
 
-**Delete:** Radix AlertDialog confirm → `DELETE /library/:id` → invalidate list → redirect `/library` с toast.
+**Delete:** a Radix AlertDialog confirmation → `DELETE /library/:id` →
+invalidate the list → redirect to `/library` with a toast.
 
-### Cross-cutting
+### Cross-cutting concerns
 
-- **Toasts:** sonner, top-right, paper-styled, 4s default. Save/delete confirmations и не-modal errors.
-- **Confirmations:** только destructive (delete). Favorite/mark-read — без confirm, но с undo-toast 5s.
-- **Optimistic updates:** для favorite-toggle и mark-as-read (`onMutate` snapshot → patch → rollback on error). Для delete — нет.
-- **Form errors:** server-side `details: { field: message }` маппим в `setError(field, …)` React Hook Form.
+- **Toasts:** sonner, top right, paper-styled, 4s by default. For save and delete
+  confirmations and for non-modal errors.
+- **Confirmations:** destructive actions only (delete). Favorite and mark-read
+  have no confirmation but do get a 5s undo toast.
+- **Optimistic updates:** for the favorite toggle and mark-as-read (`onMutate`
+  snapshot → patch → rollback on error). Not for delete.
+- **Form errors:** the server's `details: { field: message }` maps to React Hook
+  Form's `setError(field, …)`.
 
-## 5. Тестирование
+## 5. Testing
 
-### Что тестируем (по убыванию приоритета)
+### What we test (in descending priority)
 
-| Уровень | Что | Инструмент |
+| Level | What | Tool |
 |---|---|---|
-| Unit | API client (refresh-singleton, retry, error mapping); auth store transitions; relative-time helper | Vitest |
-| Component | Формы (LoginForm, RegisterForm, AddLinkForm) — валидация/submit/errors; FilterPanel — change handlers; ProtectedRoute — redirect/spinner branches | Vitest + RTL |
-| Integration | Library list → Add Link → Reader → Mark-as-read happy path с MSW | Vitest + RTL + MSW |
+| Unit | The API client (the refresh singleton, retry, error mapping); auth store transitions; the relative-time helper | Vitest |
+| Component | Forms (LoginForm, RegisterForm, AddLinkForm) — validation/submit/errors; FilterPanel — change handlers; ProtectedRoute — the redirect and spinner branches | Vitest + RTL |
+| Integration | The Library list → Add Link → Reader → Mark-as-read happy path with MSW | Vitest + RTL + MSW |
 
-### Что не тестируем
+### What we do not test
 
-- Презентационные компоненты (Card, Stamp, NavItem) — регрессии ловятся глазами.
-- Visual regression / Storybook — overkill для одного разработчика.
-- Real API integration — обязанность backend-тестов.
-- E2E через Playwright — отдельный этап после MVP.
+- Presentational components (Card, Stamp, NavItem) — regressions are caught by
+  eye.
+- Visual regression / Storybook — overkill for one developer.
+- Real API integration — that is the backend tests' job.
+- E2E through Playwright — a separate stage after the MVP.
 
-### MSW pattern
+### The MSW pattern
 
 - Handlers: `features/<feature>/__mocks__/handlers.ts`.
-- Общий `setupServer` в `src/test/setup.ts`, поднимается через `vitest.config.ts → setupFiles`.
-- Handlers возвращают shapes из тех же Zod-схем, что парсит продовый код — один источник правды.
+- A shared `setupServer` in `src/test/setup.ts`, wired through
+  `vitest.config.ts → setupFiles`.
+- Handlers return shapes from the same Zod schemas the production code parses —
+  one source of truth.
 
 ### npm scripts
 
@@ -400,7 +492,7 @@ npm run test        # vitest run
 npm run test:watch  # vitest
 ```
 
-## 6. Сборка и deploy
+## 6. Build and deploy
 
 ### `web/Dockerfile` (multi-stage)
 
@@ -449,13 +541,16 @@ server {
 }
 ```
 
-`proxy_pass http://backend:8080/` со слэшем в конце — nginx стрипает `/api/` префикс. Совпадает с поведением Vite-прокси в dev.
+`proxy_pass http://backend:8080/` with the trailing slash makes nginx strip the
+`/api/` prefix. That matches the Vite proxy's behaviour in dev.
 
 ### Compose
 
-В **dev** web-сервис не поднимаем — Vite dev server живёт у разработчика на хосте, проксирует `/api` напрямую на `localhost:8080`. `compose.dev.yaml` остаётся как есть.
+In **dev** we do not bring up a web service — the Vite dev server runs on the
+developer's host and proxies `/api` straight to `localhost:8080`.
+`compose.dev.yaml` stays as it is.
 
-В **prod** добавляется отдельный файл `compose.prod.yaml` с web-сервисом:
+In **prod** a separate `compose.prod.yaml` adds the web service:
 
 ```yaml
 services:
@@ -467,7 +562,7 @@ services:
 
 ### CI (GitHub Actions)
 
-Добавляем job в существующий workflow:
+We add a job to the existing workflow:
 
 ```yaml
 frontend:
@@ -485,35 +580,43 @@ frontend:
       working-directory: web
 ```
 
-Запускается параллельно с backend-job.
+It runs in parallel with the backend job.
 
 ### ESLint + Prettier
 
-- ESLint: `@typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-jsx-a11y`.
-- Prettier: дефолты + `printWidth: 100`. Конфиг в корне `web/`.
-- Pre-commit hook не делаем — CI ловит, лишний trip wire.
+- ESLint: `@typescript-eslint`, `eslint-plugin-react-hooks`,
+  `eslint-plugin-jsx-a11y`.
+- Prettier: the defaults plus `printWidth: 100`. The config lives at the root of
+  `web/`.
+- No pre-commit hook — CI catches it, and one less trip wire.
 
-### Не входит в scope
+### Not in scope
 
-Sentry / error monitoring, web vitals / analytics, bundle-size budget enforcement, PWA / Service Worker.
+Sentry / error monitoring, web vitals / analytics, bundle-size budget
+enforcement, PWA / Service Worker.
 
-## 7. Что явно вне scope этого спека
+## 7. Explicitly out of this spec's scope
 
-- Radar UI (feed, topics, topic editor, threshold slider).
-- Settings UI (профиль, изменение пароля, токены).
-- Search в Library (нужен бэкенд-endpoint).
-- Tags в Library.
-- Mobile нативное приложение (другой репозиторий).
-- E2E-тесты (Playwright) — после MVP.
+- The Radar UI (feed, topics, topic editor, threshold slider).
+- The Settings UI (profile, password change, tokens).
+- Search in Library (it needs a backend endpoint).
+- Tags in Library.
+- The native mobile app (a different repository).
+- E2E tests (Playwright) — after the MVP.
 - Visual regression, Storybook.
 - i18n.
 
-## Следующие шаги
+## Next steps
 
-После approval этого документа — переход к `superpowers:writing-plans` для трёх последовательных планов:
+After this document is approved — move to `superpowers:writing-plans` for three
+sequential plans:
 
-1. `2026-05-08-frontend-foundation.md` — setup, design tokens, AppShell, responsive layout, API client skeleton, route shell.
-2. `2026-05-XX-frontend-auth.md` — login/register, refresh flow, ProtectedRoute, bootstrap.
-3. `2026-05-XX-frontend-library.md` — list, filters, add-link, reader, edit, delete, optimistic updates, tests.
+1. `2026-05-08-frontend-foundation.md` — setup, design tokens, AppShell,
+   responsive layout, the API client skeleton, the route shell.
+2. `2026-05-XX-frontend-auth.md` — login/register, the refresh flow,
+   ProtectedRoute, bootstrap.
+3. `2026-05-XX-frontend-library.md` — list, filters, add-link, reader, edit,
+   delete, optimistic updates, tests.
 
-Каждая фаза мерджится самостоятельно. После всех трёх — приложение полностью покрывает Foundation+Auth+Library scope.
+Each phase merges on its own. After all three, the application fully covers the
+Foundation + Auth + Library scope.

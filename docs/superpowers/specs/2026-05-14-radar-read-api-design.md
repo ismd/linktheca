@@ -1,51 +1,62 @@
-# Radar read-API — design
+# Radar read API — design
 
-**Дата:** 2026-05-14
-**Статус:** approved, готов к writing-plans
-**Scope:** backend Radar — read-эндпоинты под предстоящий Radar UI. Без фронтенда.
+**Date:** 2026-05-14
+**Status:** approved, ready for writing-plans
+**Scope:** the Radar backend — read endpoints for the upcoming Radar UI. No frontend.
 
-## Контекст
+## Context
 
-Crawler, embedding-сервис и matching-worker уже работают (фаза 3a). Backend сейчас умеет создавать темы, подписки и фиды, но `GET`-операций нет. Фронтенд-foundation+auth+library готов; следующий шаг — собрать страницы `/radar` и `/radar/:id`, но для этого UI нужны read-эндпоинты, агрегаты по темам и денормализованные matches.
+The crawler, the embedding service, and the matching worker already run (phase
+3a). The backend can create topics, subscriptions, and feeds, but there are no
+`GET` operations. The frontend foundation, auth, and library are done; the next
+step is to build the `/radar` and `/radar/:id` pages, and that UI needs read
+endpoints, per-topic aggregates, and denormalized matches.
 
-Этот спек определяет ровно тот минимум backend'a, который нужен SPA для трёх экранов: список тем с метриками, view одной темы с лентой совпадений, admin-список feeds. После него фронтенд-план «Radar UI» будет тонким слоем поверх API.
+This spec defines exactly the minimum backend the SPA needs for three screens: a
+topic list with metrics, a single-topic view with a feed of matches, and an admin
+feed list. After it, the "Radar UI" frontend plan will be a thin layer over the
+API.
 
-## Решения, зафиксированные в brainstorming
+## Decisions taken during brainstorming
 
-| # | Вопрос | Решение |
+| # | Question | Decision |
 |---|---|---|
-| 1 | Что берём в следующий план | Radar backend read-API, без фронта |
-| 2 | Основная сущность Radar-ленты | Matches (`radar_topic_matches`), не findings |
-| 3 | Pagination style | offset+limit + `total` (как в Library) |
-| 4 | Topics list pagination | Не пагинируем — у юзера десятки тем |
-| 5 | Topic list форма | Обогащённая `TopicWithStats` с агрегатами (`new_count`, `total_count`, `source_count`, `last_match_at`) |
-| 6 | Matches денормализация | Включаем `topic_name`, `feed_title` в `MatchView` |
-| 7 | Feeds list (admin) | Включаем в этот план — `GET /radar/feeds` под admin |
-| 8 | Owned-by-other-user 404 vs 403 | 404 — не утекаем существование id |
-| 9 | Cursor pagination | Откладываем; offset+limit достаточно для MVP |
+| 1 | What goes into the next plan | The Radar backend read API, no frontend |
+| 2 | The primary entity of the Radar feed | Matches (`radar_topic_matches`), not findings |
+| 3 | Pagination style | offset+limit plus `total` (as in Library) |
+| 4 | Topics list pagination | Not paginated — a user has dozens of topics |
+| 5 | Topic list shape | An enriched `TopicWithStats` with aggregates (`new_count`, `total_count`, `source_count`, `last_match_at`) |
+| 6 | Match denormalization | Include `topic_name` and `feed_title` in `MatchView` |
+| 7 | Feeds list (admin) | Included in this plan — `GET /radar/feeds` behind admin |
+| 8 | Owned-by-another-user: 404 or 403 | 404 — do not leak the existence of an id |
+| 9 | Cursor pagination | Deferred; offset+limit is enough for the MVP |
 
-## 1. Эндпоинты
+## 1. Endpoints
 
-Все mount под `/radar`, все требуют `RequireUser` (admin-guard где явно отмечено). Ветка `LINKTHECA_RADAR_ENABLED=false` уже отдаёт 501 для всего `/radar/*` через wildcard в `server.go` — новые routes автоматически попадают под него.
+Everything mounts under `/radar` and requires `RequireUser` (with an admin guard
+where noted). The `LINKTHECA_RADAR_ENABLED=false` branch already returns 501 for
+all of `/radar/*` through a wildcard in `server.go` — new routes fall under it
+automatically.
 
-| Method | Path | Auth | Назначение |
+| Method | Path | Auth | Purpose |
 |---|---|---|---|
-| `GET` | `/radar/topics` | user | List тем пользователя с агрегатами. Не пагинируется. |
-| `GET` | `/radar/topics/{id}` | user | Одна тема + те же агрегаты. |
-| `PATCH` | `/radar/topics/{id}` | user | Обновление полей; `description` пересчитывает embedding. |
-| `DELETE` | `/radar/topics/{id}` | user | 204; CASCADE по matches. |
+| `GET` | `/radar/topics` | user | The user's topics with aggregates. Not paginated. |
+| `GET` | `/radar/topics/{id}` | user | One topic plus the same aggregates. |
+| `PATCH` | `/radar/topics/{id}` | user | Field updates; `description` triggers an embedding recompute. |
+| `DELETE` | `/radar/topics/{id}` | user | 204; CASCADE over matches. |
 | `GET` | `/radar/matches` | user | `{ items, total }`, query: `topic_id?`, `state?`, `limit`, `offset`. |
 | `PATCH` | `/radar/matches/{id}` | user | `{ state }`. |
-| `GET` | `/radar/status` | user | `{ last_sweep_at }` — последний `last_fetched_at` по подписанным feeds. |
+| `GET` | `/radar/status` | user | `{ last_sweep_at }` — the latest `last_fetched_at` across subscribed feeds. |
 | `GET` | `/radar/feeds` | **admin** | `{ items, total }`, query: `limit`, `offset`. |
 
-## 2. Формы ответов
+## 2. Response shapes
 
-Все JSON — snake_case. TS-сторона маппит в camelCase.
+All JSON is snake_case. The TS side maps it to camelCase.
 
 ### `TopicWithStats`
 
-Возвращается из `GET /radar/topics` (как массив в `{ items }`) и `GET /radar/topics/{id}` (как одиночный объект).
+Returned from `GET /radar/topics` (as an array inside `{ items }`) and from
+`GET /radar/topics/{id}` (as a single object).
 
 ```json
 {
@@ -68,13 +79,13 @@ Crawler, embedding-сервис и matching-worker уже работают (фа
 ```
 
 - `stats.new_count` — `COUNT(*) WHERE state='new'`
-- `stats.total_count` — `COUNT(*)` без фильтра
+- `stats.total_count` — `COUNT(*)` with no filter
 - `stats.source_count` — `COUNT(DISTINCT findings.feed_id)`
 - `stats.last_match_at` — `MAX(matched_at)`, nullable
 
 ### `MatchView`
 
-Возвращается из `GET /radar/matches` как `items[]`.
+Returned from `GET /radar/matches` as `items[]`.
 
 ```json
 {
@@ -97,11 +108,14 @@ Crawler, embedding-сервис и matching-worker уже работают (фа
 }
 ```
 
-`topic_name` и `feed_title` денормализованы намеренно — UI карточки нуждаются в них без extra round-trip. JOIN на topics+feeds дешевле, чем второй query из браузера.
+`topic_name` and `feed_title` are denormalized on purpose — the UI cards need
+them without an extra round trip. A JOIN over topics and feeds is cheaper than a
+second query from the browser.
 
 ### `Feed`
 
-Уже определён в `internal/radar/types.go`. Форма не меняется. List: `{ items: Feed[], total }`.
+Already defined in `internal/radar/types.go`. The shape does not change. List:
+`{ items: Feed[], total }`.
 
 ### `RadarStatus`
 
@@ -109,22 +123,23 @@ Crawler, embedding-сервис и matching-worker уже работают (фа
 { "last_sweep_at": "2026-05-14T11:55:00Z" }
 ```
 
-`last_sweep_at` — `null`, если у юзера нет активных подписок.
+`last_sweep_at` is `null` when the user has no active subscriptions.
 
-### Update DTO
+### Update DTOs
 
-**`UpdateTopicRequest`** (для `PATCH /radar/topics/{id}`):
+**`UpdateTopicRequest`** (for `PATCH /radar/topics/{id}`):
 
 ```json
 {
   "name": "…",            // optional
-  "description": "…",     // optional, изменение → пересчёт embedding
-  "match_threshold": 0.6, // optional, валидация [0, 1]
+  "description": "…",     // optional, a change triggers an embedding recompute
+  "match_threshold": 0.6, // optional, validated to [0, 1]
   "is_active": false      // optional
 }
 ```
 
-Все поля nullable; обновляются только переданные. Минимум одно поле обязательно (иначе `bad_request`).
+Every field is nullable; only the ones passed are updated. At least one field is
+required (otherwise `bad_request`).
 
 **`UpdateMatchRequest`**:
 
@@ -132,22 +147,24 @@ Crawler, embedding-сервис и matching-worker уже работают (фа
 { "state": "seen" }
 ```
 
-`state` ∈ `{"new", "seen"}`, иначе `bad_request`.
+`state` ∈ `{"new", "seen"}`, otherwise `bad_request`.
 
-## 3. Ошибки
+## 3. Errors
 
-Используем существующий `writeRadarError`. Дополнений не нужно:
+We use the existing `writeRadarError`. No additions needed:
 
-- `400 bad_request` — невалидный JSON, отсутствующее поле в PATCH, плохой enum, threshold вне `[0,1]`, `limit` вне `[1,100]`.
-- `404 not_found` — topic/match не найдена или принадлежит другому юзеру.
-- `503 embedder_unavailable` — описание темы изменилось, но embedder упал.
-- `500 internal` — fallback.
+- `400 bad_request` — invalid JSON, a missing field in a PATCH, a bad enum, a
+  threshold outside `[0,1]`, a `limit` outside `[1,100]`.
+- `404 not_found` — the topic or match was not found, or belongs to another user.
+- `503 embedder_unavailable` — the topic description changed but the embedder is
+  down.
+- `500 internal` — the fallback.
 
-`PATCH` без полей → `bad_request "no fields to update"`.
+A `PATCH` with no fields → `bad_request "no fields to update"`.
 
-## 4. Слой store
+## 4. The store layer
 
-Расширяем `internal/radar/store.go` следующими методами:
+We extend `internal/radar/store.go` with these methods:
 
 ```go
 // Topics
@@ -167,9 +184,12 @@ ListFeeds(ctx, p ListFeedsParams) ([]Feed, int, error)
 LastSweepAt(ctx, userID int64) (*time.Time, error)
 ```
 
-`UpdateTopicParams { Name, Description *string; MatchThreshold *float32; IsActive *bool }` — все nullable. Store обновляет только переданные поля; embedding store-методом не трогается. Re-embedding выполняет service отдельным вызовом `UpdateTopicEmbedding` (уже существует), см. §5.
+`UpdateTopicParams { Name, Description *string; MatchThreshold *float32; IsActive *bool }` —
+all nullable. The store updates only the fields passed; it never touches the
+embedding. Re-embedding is done by the service through a separate
+`UpdateTopicEmbedding` call (which already exists), see §5.
 
-### Ключевые SQL-запросы
+### Key SQL queries
 
 **`ListTopicsWithStats`**:
 
@@ -198,9 +218,11 @@ WHERE t.user_id = $1
 ORDER BY t.is_active DESC, t.created_at DESC;
 ```
 
-Существующий индекс `radar_topic_matches_topic_state_idx (topic_id, state, matched_at DESC)` покрывает агрегаты. Дополнительных индексов не добавляем.
+The existing `radar_topic_matches_topic_state_idx (topic_id, state, matched_at DESC)`
+index covers the aggregates. No additional indexes are added.
 
-**`ListMatches`** — JOIN на topics+feeds, ownership через `t.user_id`:
+**`ListMatches`** — a JOIN over topics and feeds, with ownership through
+`t.user_id`:
 
 ```sql
 SELECT
@@ -220,7 +242,8 @@ ORDER BY m.matched_at DESC
 LIMIT $4 OFFSET $5;
 ```
 
-`total` считаем отдельным `COUNT(*)`-запросом с тем же WHERE (паттерн Library).
+`total` comes from a separate `COUNT(*)` query with the same WHERE (the Library
+pattern).
 
 **`LastSweepAt`**:
 
@@ -231,7 +254,7 @@ JOIN radar_feed_subscriptions s ON s.feed_id = f.id
 WHERE s.user_id = $1 AND f.is_active;
 ```
 
-**`UpdateMatchState`** — UPDATE с ownership-фильтром:
+**`UpdateMatchState`** — an UPDATE with an ownership filter:
 
 ```sql
 UPDATE radar_topic_matches
@@ -241,7 +264,7 @@ WHERE id = $2
 RETURNING id;
 ```
 
-Нет затронутых строк → `ErrNotFound`.
+No rows affected → `ErrNotFound`.
 
 **`DeleteTopic`**:
 
@@ -251,13 +274,15 @@ WHERE id = $1 AND user_id = $2
 RETURNING id;
 ```
 
-CASCADE снимет matches.
+The CASCADE takes the matches with it.
 
-**`UpdateTopic`** — собирается динамически из переданных не-nil полей (паттерн `library.UpdateItem`). Возвращает `(*Topic, embeddingDirty, error)`; service решает, что делать с `embeddingDirty`.
+**`UpdateTopic`** — assembled dynamically from the non-nil fields passed (the
+`library.UpdateItem` pattern). Returns `(*Topic, embeddingDirty, error)`; the
+service decides what to do with `embeddingDirty`.
 
-## 5. Слой service
+## 5. The service layer
 
-Расширяем `internal/radar/service.go`:
+We extend `internal/radar/service.go`:
 
 ```go
 ListTopics(ctx, userID int64) ([]TopicWithStats, error)
@@ -272,32 +297,51 @@ ListFeeds(ctx, p ListFeedsParams) (*FeedList, error)
 LastSweep(ctx, userID int64) (*time.Time, error)
 ```
 
-### Семантика
+### Semantics
 
 **`UpdateTopic`:**
-- Валидация: те же правила, что в `CreateTopic` для каждого переданного поля — `name` 1..200, `description` 10..2000, `match_threshold` `[0,1]`. Хотя бы одно поле должно быть в patch, иначе `ErrInvalidInput "no fields to update"`.
-- Поток (не атомарный, зеркало `CreateTopic`):
-  1. `store.UpdateTopic` — пишет переданные поля.
-  2. Если `description` присутствовал в patch → `embedder.Embed(name + ": " + description)` → `store.UpdateTopicEmbedding`.
-  3. Если embedder упал — возвращаем `ErrEmbedderUnavailable`. Поля уже обновлены, embedding старый. Это согласуется с поведением `CreateTopic` (там тоже остаётся topic без актуального embedding при сбое); фронт может ретраить PATCH с теми же полями. Идемпотентно.
-- Решение «embed нужен» принимается по факту присутствия `description` в patch — не сравниваем со старым значением. Лишний пересчёт при `description = "тот же текст"` — редкий случай, не стоит дополнительного round-trip к БД.
-- `is_active=false` — matches не удаляем; matching-worker уже фильтрует `WHERE rt.is_active` в `store.MatchFindingToTopics`, поэтому новые findings перестают матчиться к этой теме.
+- Validation: the same rules as in `CreateTopic` for each field passed — `name`
+  1..200, `description` 10..2000, `match_threshold` in `[0,1]`. At least one
+  field must be in the patch, otherwise `ErrInvalidInput "no fields to update"`.
+- The flow (not atomic, mirroring `CreateTopic`):
+  1. `store.UpdateTopic` — writes the fields passed.
+  2. If `description` was in the patch →
+     `embedder.Embed(name + ": " + description)` → `store.UpdateTopicEmbedding`.
+  3. If the embedder is down, return `ErrEmbedderUnavailable`. The fields are
+     already updated and the embedding is stale. That matches `CreateTopic`'s
+     behaviour (a topic is left without a current embedding on failure there
+     too); the frontend can retry the PATCH with the same fields. Idempotent.
+- The "an embed is needed" decision is made from the presence of `description` in
+  the patch — we do not compare against the old value. A wasted recompute when
+  `description = "the same text"` is a rare case and not worth an extra round
+  trip to the database.
+- `is_active=false` — matches are not deleted; the matching worker already
+  filters `WHERE rt.is_active` in `store.MatchFindingToTopics`, so new findings
+  stop matching this topic.
 
-**`SetMatchState`:** валидация enum, прозрачный вызов store.
+**`SetMatchState`:** enum validation, then a transparent store call.
 
-**`ListMatches`:** валидируем `limit` (1–100, default 50 — паттерн Library), `offset` (≥0, default 0), `state` (enum или nil), `topic_id` (int64 или nil). Чужая тема → пустой результат через `t.user_id` фильтр в WHERE, без отдельной проверки.
+**`ListMatches`:** validate `limit` (1–100, default 50 — the Library pattern),
+`offset` (≥0, default 0), `state` (an enum or nil), `topic_id` (an int64 or nil).
+Another user's topic gives an empty result through the `t.user_id` filter in the
+WHERE, with no separate check.
 
-**`ListTopics` / `GetTopic`:** тонкие враппинги над store.
+**`ListTopics` / `GetTopic`:** thin wrappers over the store.
 
-**`ListFeeds`:** валидация `limit`/`offset`, прозрачный вызов store. Admin-проверка в middleware на уровне router.
+**`ListFeeds`:** validate `limit`/`offset`, then a transparent store call. The
+admin check is middleware at the router level.
 
-**`LastSweep`:** прозрачный вызов store.
+**`LastSweep`:** a transparent store call.
 
-## 6. HTTP-слой
+## 6. The HTTP layer
 
-Расширяем `internal/radar/http.go` восемью хендлерами по тому же паттерну, что есть (`XxxHandler() http.HandlerFunc` getter + private handler). Query-params парсим через `r.URL.Query()` (как `library.ListHandler`). Path-params через `chi.URLParam`.
+We extend `internal/radar/http.go` with eight handlers in the existing pattern
+(an `XxxHandler() http.HandlerFunc` getter plus a private handler). Query params
+are parsed through `r.URL.Query()` (as in `library.ListHandler`). Path params go
+through `chi.URLParam`.
 
-Wiring в `internal/server/server.go` внутри существующего `r.Route("/radar", …)`:
+Wiring in `internal/server/server.go`, inside the existing
+`r.Route("/radar", …)`:
 
 ```go
 r.Get("/topics", radarHTTP.ListTopicsHandler())
@@ -316,92 +360,115 @@ r.Group(func(r chi.Router) {
 })
 ```
 
-Существующий `DisabledHandler` под wildcard `/radar/*` автоматически покрывает новые routes когда `LINKTHECA_RADAR_ENABLED=false`.
+The existing `DisabledHandler` under the `/radar/*` wildcard automatically
+covers the new routes when `LINKTHECA_RADAR_ENABLED=false`.
 
-## 7. Тестирование
+## 7. Testing
 
-Следуем существующему паттерну (`store_test.go`, `service_test.go`, `http_test.go`, `integration_test.go`). Никаких новых фреймворков. Тесты пишем рядом с существующими.
+We follow the existing pattern (`store_test.go`, `service_test.go`,
+`http_test.go`, `integration_test.go`). No new frameworks. Tests go next to the
+existing ones.
 
-### Store-тесты (testcontainers + реальный pg+pgvector)
+### Store tests (testcontainers plus a real pg+pgvector)
 
-| Тест | Что проверяет |
+| Test | What it checks |
 |---|---|
-| `ListTopicsWithStats_empty` | юзер без тем → `[]` |
-| `ListTopicsWithStats_aggregates` | две темы с разными counts/sources/state → корректные агрегаты |
-| `ListTopicsWithStats_isolation` | темы другого юзера не утекают |
-| `GetTopicWithStats_notFound` | чужая тема → `ErrNotFound` |
-| `UpdateTopic_partial` | только `name` — `description`/embedding в БД не меняются |
-| `UpdateTopic_allFields` | все поля передаются — все обновляются |
-| `DeleteTopic_cascades` | удаление снимает связанные matches |
-| `ListMatches_filters` | `topic_id`, `state` фильтруют (матрица 4 кейсов) |
-| `ListMatches_isolation` | matches чужих тем не возвращаются даже с явным `topic_id` |
-| `ListMatches_pagination` | offset/limit + total |
+| `ListTopicsWithStats_empty` | a user with no topics → `[]` |
+| `ListTopicsWithStats_aggregates` | two topics with different counts/sources/states → correct aggregates |
+| `ListTopicsWithStats_isolation` | another user's topics do not leak |
+| `GetTopicWithStats_notFound` | someone else's topic → `ErrNotFound` |
+| `UpdateTopic_partial` | `name` only — `description` and the embedding are unchanged in the database |
+| `UpdateTopic_allFields` | every field passed — every field updated |
+| `DeleteTopic_cascades` | deletion takes the related matches with it |
+| `ListMatches_filters` | `topic_id` and `state` filter (a matrix of four cases) |
+| `ListMatches_isolation` | matches of other people's topics are not returned even with an explicit `topic_id` |
+| `ListMatches_pagination` | offset/limit plus total |
 | `ListMatches_ordering` | `matched_at DESC` |
-| `UpdateMatchState_ownership` | match чужой темы → `ErrNotFound` |
-| `UpdateMatchState_idempotent` | `seen → seen` ок |
-| `LastSweepAt_noSubs` | без подписок → `nil` |
-| `LastSweepAt_picksMax` | две подписки → max |
-| `ListFeeds_pagination` | offset/limit + total |
+| `UpdateMatchState_ownership` | a match on someone else's topic → `ErrNotFound` |
+| `UpdateMatchState_idempotent` | `seen → seen` is fine |
+| `LastSweepAt_noSubs` | no subscriptions → `nil` |
+| `LastSweepAt_picksMax` | two subscriptions → the max |
+| `ListFeeds_pagination` | offset/limit plus total |
 
-### Service-тесты (mock store + mock embedder)
+### Service tests (a mock store plus a mock embedder)
 
-| Тест | Что проверяет |
+| Test | What it checks |
 |---|---|
-| `UpdateTopic_descriptionTriggersEmbed` | description в patch → store.UpdateTopic вызван, затем embedder, затем store.UpdateTopicEmbedding |
-| `UpdateTopic_embedderUnavailable` | embedder упал → `ErrEmbedderUnavailable`; store.UpdateTopic уже вызван (поля обновлены, embedding нет) |
-| `UpdateTopic_nameOnly_noEmbed` | только `name` → store.UpdateTopic вызван, embedder НЕ вызван |
+| `UpdateTopic_descriptionTriggersEmbed` | description in the patch → store.UpdateTopic is called, then the embedder, then store.UpdateTopicEmbedding |
+| `UpdateTopic_embedderUnavailable` | the embedder is down → `ErrEmbedderUnavailable`; store.UpdateTopic has already been called (fields updated, embedding not) |
+| `UpdateTopic_nameOnly_noEmbed` | `name` only → store.UpdateTopic is called, the embedder is NOT |
 | `UpdateTopic_thresholdValidation` | `-0.1`, `1.5` → `ErrInvalidInput` |
-| `UpdateTopic_noFields` | пустой patch → `ErrInvalidInput "no fields to update"` |
+| `UpdateTopic_noFields` | an empty patch → `ErrInvalidInput "no fields to update"` |
 | `SetMatchState_validation` | `"foo"` → `ErrInvalidInput` |
-| `ListMatches_clampLimit` | `limit=200` → 100; `limit=0` → 50 (default) |
+| `ListMatches_clampLimit` | `limit=200` → 100; `limit=0` → 50 (the default) |
 
-### HTTP-тесты (httptest + mock service)
+### HTTP tests (httptest plus a mock service)
 
-Для каждого нового handler: happy path, `not_found`, `bad_request`, авторизация. Отдельный тест на admin-guard для `/feeds` (non-admin user → 403). Декодинг query-params (`limit`, `offset`, `state`, `topic_id`) проверяем явно.
+For every new handler: the happy path, `not_found`, `bad_request`, and
+authorization. A separate test for the admin guard on `/feeds` (a non-admin user
+→ 403). Query-param decoding (`limit`, `offset`, `state`, `topic_id`) is checked
+explicitly.
 
-### Integration-тест (один сценарий, расширяет `integration_test.go`)
+### Integration test (one scenario, extending `integration_test.go`)
 
-1. Регистрация юзера, создание темы, подписка на feed.
-2. Прямой `INSERT` finding + match (минуя crawler).
-3. `GET /radar/topics` → проверяем `stats` агрегаты.
-4. `GET /radar/matches?state=new` → один item с денормализованными `topic_name`/`feed_title`.
-5. `PATCH /radar/matches/{id}` `{state:"seen"}`.
-6. `GET /radar/topics` → `new_count` уменьшился.
+1. Register a user, create a topic, subscribe to a feed.
+2. Directly `INSERT` a finding and a match (bypassing the crawler).
+3. `GET /radar/topics` → check the `stats` aggregates.
+4. `GET /radar/matches?state=new` → one item with denormalized `topic_name` and
+   `feed_title`.
+5. `PATCH /radar/matches/{id}` with `{state:"seen"}`.
+6. `GET /radar/topics` → `new_count` has dropped.
 7. `DELETE /radar/topics/{id}` → 204.
-8. `GET /radar/matches` → пустой (CASCADE сработал).
+8. `GET /radar/matches` → empty (the CASCADE fired).
 
-### Что НЕ тестируем
+### What we do NOT test
 
-- Performance/load.
-- HNSW recall (покрыто в pipeline-плане).
-- Сам embedder (мокаем).
-- Wiring `LINKTHECA_RADAR_ENABLED=false` — уже покрыто существующими тестами через wildcard.
+- Performance and load.
+- HNSW recall (covered in the pipeline plan).
+- The embedder itself (mocked).
+- The `LINKTHECA_RADAR_ENABLED=false` wiring — already covered by existing tests
+  through the wildcard.
 
 ## 8. Edge cases
 
-- **Topic без embedding** (embedder упал при `CreateTopic` или предыдущем `UpdateTopic`) — `has_embedding=false` в ответе. Фронт может повторить PATCH с `description`, чтобы инициировать пересчёт. Embed синхронный, не через job-queue.
-- **Match чужой темы** — 404, не 403. Аналогично для DELETE/PATCH topic.
-- **Конкурентный PATCH** — last-writer-wins, оптимистичная блокировка не нужна.
-- **DELETE темы во время PATCH с re-embed** — теоретически возможен race: одновременный DELETE и PATCH-description. Если PATCH успел перед DELETE → DELETE снимает всё через CASCADE. Если PATCH между UPDATE-полей и `UpdateTopicEmbedding` → `UpdateTopicEmbedding` вернёт `ErrNotFound`, service вернёт 404. Приемлемо.
-- **`limit=0`** — service подставляет default 50 (паттерн Library).
-- **Match-worker уже фильтрует `is_active`** — проверено в `store.MatchFindingToTopics` (line 243 `AND rt.is_active`). Bug-fix не нужен.
+- **A topic with no embedding** (the embedder failed during `CreateTopic` or an
+  earlier `UpdateTopic`) — `has_embedding=false` in the response. The frontend can
+  repeat the PATCH with `description` to trigger a recompute. The embed is
+  synchronous, not through the job queue.
+- **A match on someone else's topic** — 404, not 403. Likewise for DELETE/PATCH
+  on a topic.
+- **Concurrent PATCHes** — last writer wins; optimistic locking is not needed.
+- **DELETE of a topic during a PATCH with a re-embed** — a race is theoretically
+  possible: a simultaneous DELETE and a description PATCH. If the PATCH lands
+  first, the DELETE clears everything through the CASCADE. If it lands between
+  the field UPDATE and `UpdateTopicEmbedding`, then `UpdateTopicEmbedding`
+  returns `ErrNotFound` and the service answers 404. Acceptable.
+- **`limit=0`** — the service substitutes the default of 50 (the Library
+  pattern).
+- **The match worker already filters `is_active`** — verified in
+  `store.MatchFindingToTopics` (line 243, `AND rt.is_active`). No bug fix needed.
 
-## 9. Что явно вне scope
+## 9. Explicitly out of scope
 
-- Frontend (Radar UI) — следующий план.
-- Cursor-pagination.
-- `GET /radar/findings` — UI не показывает сырые findings.
-- Per-topic threshold slider live preview — отложено (`project_radar_threshold_slider_deferred.md`).
-- User-added feeds, отписка от feed — отложено (`project_user_added_feeds_deferred.md`).
-- Удаление/деактивация feeds (admin).
-- Поиск по matches/findings.
-- Search по темам.
-- Уведомления о новых matches.
+- The frontend (Radar UI) — the next plan.
+- Cursor pagination.
+- `GET /radar/findings` — the UI does not show raw findings.
+- A per-topic threshold slider with live preview — deferred
+  (`project_radar_threshold_slider_deferred.md`).
+- User-added feeds and unsubscribing from a feed — deferred
+  (`project_user_added_feeds_deferred.md`).
+- Deleting or deactivating feeds (admin).
+- Search across matches and findings.
+- Search across topics.
+- Notifications about new matches.
 
-## Следующие шаги
+## Next steps
 
-После approval этого документа — переход к `superpowers:writing-plans` для одного плана:
+After this document is approved — move to `superpowers:writing-plans` for a
+single plan:
 
-- `2026-05-XX-radar-read-api.md` — store/service/http методы, миграций не нужно, тесты, расширение `server.go`.
+- `2026-05-XX-radar-read-api.md` — the store/service/http methods, no migrations
+  needed, tests, and the `server.go` extension.
 
-После него отдельным планом пойдёт фронтенд `radar-ui.md` (страницы `/radar` и `/radar/:id`, AddTopicDialog, edit/delete, отметка matches как seen).
+After that comes a separate frontend plan, `radar-ui.md` (the `/radar` and
+`/radar/:id` pages, AddTopicDialog, edit/delete, and marking matches as seen).

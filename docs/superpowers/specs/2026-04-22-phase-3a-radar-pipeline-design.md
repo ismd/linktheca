@@ -1,53 +1,85 @@
-# Phase 3a: Radar Pipeline Backend — дизайн
+# Phase 3a: Radar Pipeline Backend — design
 
-**Дата:** 2026-04-22
-**Статус:** approved, готов к writing-plans
-**Предшественники:** phase 1 (auth, завершена), phase 2 (library backend, завершена)
+**Date:** 2026-04-22
+**Status:** approved, ready for writing-plans
+**Predecessors:** phase 1 (auth, done), phase 2 (library backend, done)
 
-## Контекст
+## Context
 
-После phase 2 Linktheca имеет рабочий backend read-it-later: auth flow + Library CRUD. Phase 3a добавляет **backend модуля Radar** — мониторинг новостей по подписанным темам через локальные embeddings.
+After phase 2, Linktheca has a working read-it-later backend: the auth flow plus
+Library CRUD. Phase 3a adds the **Radar module's backend** — news monitoring for
+subscribed topics through local embeddings.
 
-Scope phase 3a намеренно урезан до «pipeline живой end-to-end» без полного HTTP CRUD. Это выделяет самый рискованный технический кусок (TEI + pgvector + River job queue) в отдельную итерацию. Полный HTTP API (List/Update/Delete topics и feeds, user-facing `/radar/feed`, reader view для findings) переезжает в phase 3b.
+Phase 3a's scope is deliberately cut down to "the pipeline is alive end to end"
+without the full HTTP CRUD. That isolates the riskiest technical piece (TEI +
+pgvector + the River job queue) into its own iteration. The full HTTP API
+(List/Update/Delete for topics and feeds, a user-facing `/radar/feed`, a reader
+view for findings) moves to phase 3b.
 
-Основные архитектурные решения, закреплённые в ходе brainstorming:
-1. **TEI вместо Ollama** — embedding-сервер HuggingFace Text Embeddings Inference, модель bge-m3 (1024 dim). Ollama отклонена: для embeddings-only задачи TEI быстрее и проще в эксплуатации. Будущие LLM-фичи пойдут через cloud API, не self-hosted, с отдельными opt-in флагами.
-2. **CLI всегда работает через HTTP** — никакого прямого доступа к БД из CLI. В phase 3a CLI получает минимум POST endpoints для bootstrap'а (topics/feeds/subscriptions), остальные endpoints появятся в phase 3b.
-3. **Два бинаря:** существующий `cmd/linktheca` переименовывается в `cmd/linktheca-server`; новый `cmd/linktheca` — CLI-инструмент с cobra для remote production use.
-4. **Radar опционален** — `LINKTHECA_RADAR_ENABLED` (default true) контролирует backend-часть фичи. Когда false, сервис работает как обычный read-it-later без TEI.
+The main architectural decisions settled during brainstorming:
+1. **TEI instead of Ollama** — the HuggingFace Text Embeddings Inference server
+   with the bge-m3 model (1024 dim). Ollama was rejected: for an embeddings-only
+   job, TEI is faster and simpler to run. Future LLM features will go through a
+   cloud API rather than self-hosting, behind their own opt-in flags.
+2. **The CLI always works over HTTP** — no direct database access from the CLI.
+   In phase 3a the CLI gets the minimum POST endpoints for bootstrapping (topics,
+   feeds, subscriptions); the rest arrive in phase 3b.
+3. **Two binaries:** the existing `cmd/linktheca` is renamed to
+   `cmd/linktheca-server`; the new `cmd/linktheca` is a cobra-based CLI tool for
+   remote production use.
+4. **Radar is optional** — `LINKTHECA_RADAR_ENABLED` (default true) controls the
+   backend side of the feature. When false, the service runs as a plain
+   read-it-later with no TEI.
 
-## 1. Цель и scope
+## 1. Goal and scope
 
-**Цель phase 3a:** backend pipeline Radar работает end-to-end на реальных RSS-данных. Админ через CLI заводит feed, юзер через CLI создаёт topic и подписку. Дальше River-воркеры периодически тянут RSS, эмбеддят находки через TEI, матчат их с темами по cosine similarity. Результаты лежат в `radar_topic_matches`, доступны через прямой SQL (HTTP-endpoint для чтения — phase 3b).
+**The goal of phase 3a:** the Radar backend pipeline runs end to end on real RSS
+data. An admin registers a feed through the CLI, and a user creates a topic and a
+subscription through the CLI. From there River workers periodically pull the RSS,
+embed the findings through TEI, and match them against topics by cosine
+similarity. The results sit in `radar_topic_matches` and are reachable through
+direct SQL (an HTTP read endpoint is phase 3b).
 
-**В scope:**
-- 5 миграций: `radar_topics`, `radar_feeds`, `radar_feed_subscriptions`, `radar_findings`, `radar_topic_matches` (номера 006–010; pgvector extension уже есть в миграции 001)
-- Пакет `internal/core/embeddings/` — HTTP-клиент к TEI + `FakeEmbedder` для тестов
-- Пакет `internal/radar/` с `types.go`, `store.go`, `service.go`, минимальным `http.go` (3 POST handler'а)
-- Под-пакеты `internal/radar/crawler/` (gofeed-обёртка) и `internal/radar/jobs/` (River-воркеры: Scheduler, CrawlFeed, EmbedFinding, MatchFinding)
-- Новый бинарь `cmd/linktheca/` (CLI) с подкомандами `auth *` и `radar *`
-- Переименование `cmd/linktheca/` → `cmd/linktheca-server/`
-- Env-конфиг: `LINKTHECA_TEI_URL`, `LINKTHECA_TEI_TIMEOUT`, `LINKTHECA_EMBEDDING_DIM`, `LINKTHECA_RADAR_ENABLED`, `LINKTHECA_RADAR_SCHEDULER_INTERVAL`, `LINKTHECA_RADAR_MAX_WORKERS`, `LINKTHECA_URL`
-- `compose.dev.yaml` пополняется сервисом `tei`
-- Smoke-тест под `-tags=smoke` с реальным TEI-контейнером
+**In scope:**
+- Five migrations: `radar_topics`, `radar_feeds`, `radar_feed_subscriptions`,
+  `radar_findings`, `radar_topic_matches` (numbers 006–010; the pgvector
+  extension already exists in migration 001)
+- The `internal/core/embeddings/` package — an HTTP client for TEI plus a
+  `FakeEmbedder` for tests
+- The `internal/radar/` package with `types.go`, `store.go`, `service.go`, and a
+  minimal `http.go` (three POST handlers)
+- The `internal/radar/crawler/` (a gofeed wrapper) and `internal/radar/jobs/`
+  (the River workers: Scheduler, CrawlFeed, EmbedFinding, MatchFinding)
+  subpackages
+- A new `cmd/linktheca/` binary (the CLI) with the `auth *` and `radar *`
+  subcommands
+- Renaming `cmd/linktheca/` → `cmd/linktheca-server/`
+- Env config: `LINKTHECA_TEI_URL`, `LINKTHECA_TEI_TIMEOUT`,
+  `LINKTHECA_EMBEDDING_DIM`, `LINKTHECA_RADAR_ENABLED`,
+  `LINKTHECA_RADAR_SCHEDULER_INTERVAL`, `LINKTHECA_RADAR_MAX_WORKERS`,
+  `LINKTHECA_URL`
+- `compose.dev.yaml` gains a `tei` service
+- A smoke test behind `-tags=smoke` against a real TEI container
 
-**Вне scope (phase 3b или позже):**
-- HTTP endpoints `GET /radar/topics`, `GET /radar/feeds`, `GET /radar/feed`, `GET /radar/findings/:id/read`, Update/Delete на topics/feeds/subscriptions
-- CSV/OPML-импорт в CLI
-- Fetch полного контента статей по требованию, reader view
-- Уведомления любого типа
-- Feed auto-discovery
-- Admin UI, prod docker-compose, production deployment story
+**Out of scope (phase 3b or later):**
+- The `GET /radar/topics`, `GET /radar/feeds`, `GET /radar/feed`,
+  `GET /radar/findings/:id/read` endpoints, and Update/Delete on
+  topics/feeds/subscriptions
+- CSV/OPML import in the CLI
+- Fetching full article content on demand, and the reader view
+- Notifications of any kind
+- Feed autodiscovery
+- The admin UI, the production docker-compose, the production deployment story
 
-## 2. Layout файлов
+## 2. File layout
 
 ```
 linktheca/
 ├── cmd/
-│   ├── linktheca-server/         # переименование из cmd/linktheca/
+│   ├── linktheca-server/         # renamed from cmd/linktheca/
 │   │   └── main.go
-│   └── linktheca/                # новый: CLI
-│       ├── main.go               # регистрация cobra root
+│   └── linktheca/                # new: the CLI
+│       ├── main.go               # registers the cobra root
 │       └── internal/
 │           └── cli/
 │               ├── root.go
@@ -55,7 +87,7 @@ linktheca/
 │               │   ├── session.go          # ~/.config/linktheca/session.json
 │               │   └── session_test.go
 │               ├── apiclient/
-│               │   ├── client.go           # HTTP с auto-refresh
+│               │   ├── client.go           # HTTP with auto-refresh
 │               │   ├── client_test.go
 │               │   ├── auth.go             # auth endpoints
 │               │   └── radar.go            # radar endpoints
@@ -81,49 +113,56 @@ linktheca/
 ├── internal/
 │   ├── core/
 │   │   └── embeddings/
-│   │       ├── client.go                   # Client интерфейс + TEIClient
+│   │       ├── client.go                   # the Client interface + TEIClient
 │   │       ├── client_test.go              # unit
 │   │       ├── fake.go                     # FakeEmbedder
 │   │       ├── fake_test.go
 │   │       └── client_smoke_test.go        # //go:build smoke
 │   ├── radar/
 │   │   ├── types.go                        # Topic, Feed, Subscription, Finding, Match, DTOs
-│   │   ├── store.go                        # SQL для 5 таблиц
-│   │   ├── store_test.go                   # integration с testdb + pgvector
+│   │   ├── store.go                        # SQL for the five tables
+│   │   ├── store_test.go                   # integration with testdb + pgvector
 │   │   ├── service.go                      # CreateTopic, AddFeed, Subscribe
-│   │   ├── service_test.go                 # unit с mock store + FakeEmbedder
-│   │   ├── http.go                         # 3 POST handlers
+│   │   ├── service_test.go                 # unit with a mock store + FakeEmbedder
+│   │   ├── http.go                         # three POST handlers
 │   │   ├── http_test.go                    # unit (validation)
-│   │   ├── integration_test.go             # HTTP → service → store end-to-end
+│   │   ├── integration_test.go             # HTTP → service → store end to end
 │   │   ├── crawler/
-│   │   │   ├── crawler.go                  # Fetcher интерфейс + gofeed
+│   │   │   ├── crawler.go                  # the Fetcher interface + gofeed
 │   │   │   └── crawler_test.go             # synthetic RSS, etag
 │   │   └── jobs/
-│   │       ├── jobs.go                     # River setup, args-типы
+│   │       ├── jobs.go                     # River setup, args types
 │   │       ├── crawl_feed.go
 │   │       ├── embed_finding.go
 │   │       ├── match_finding.go
 │   │       ├── scheduler.go
-│   │       ├── jobs_test.go                # integration с реальной БД
+│   │       ├── jobs_test.go                # integration against a real database
 │   │       └── smoke_test.go               # //go:build smoke
 │   └── server/
-│       └── server.go                       # MODIFIED: TEI client, River client, radar wiring
+│       └── server.go                       # MODIFIED: the TEI client, the River client, radar wiring
 │
-├── compose.dev.yaml                         # MODIFIED: + сервис tei
+├── compose.dev.yaml                         # MODIFIED: + the tei service
 ├── Makefile                                 # MODIFIED: smoke-radar, server-build, cli-build
-└── embeds.go                                # MODIFIED: embed новые миграции
+└── embeds.go                                # MODIFIED: embed the new migrations
 ```
 
-**Ключевые решения layout'а:**
+**Key layout decisions:**
 
-- **CLI-специфичные пакеты под `cmd/linktheca/internal/cli/`** (не в верхнеуровневом `internal/`). Backend-код не должен транзитивно тянуть cobra/viper. Go-конвенция: CLI-tool-specific код рядом с cmd'ом.
-- **`jobs/` как отдельный под-пакет `internal/radar/`** — чтобы `service.go` не втаскивал зависимость от River. Service — чистая бизнес-логика, jobs — оркестрация.
-- **`http.go` в phase 3a присутствует**, но содержит только 3 POST handler'а (~100-150 строк). Полный CRUD — phase 3b.
-- **Миграции нумеруются с 006**, продолжая последовательность. Миграция pgvector extension уже выполнена в `001_init.sql`, дублировать не нужно.
+- **CLI-specific packages live under `cmd/linktheca/internal/cli/`** (not in the
+  top-level `internal/`). Backend code must not transitively pull in
+  cobra/viper. Go convention: CLI-tool-specific code sits next to its cmd.
+- **`jobs/` is a separate subpackage of `internal/radar/`** so `service.go` does
+  not drag in a dependency on River. The service is pure business logic; jobs are
+  orchestration.
+- **`http.go` exists in phase 3a**, but holds only three POST handlers
+  (~100–150 lines). The full CRUD is phase 3b.
+- **Migrations are numbered from 006**, continuing the sequence. The pgvector
+  extension migration already ran in `001_init.sql` and does not need repeating.
 
-## 3. Миграции 006–010
+## 3. Migrations 006–010
 
-Conventions: `BIGINT GENERATED ALWAYS AS IDENTITY` (users.id — `INT`), `user_id INT REFERENCES users(id) ON DELETE CASCADE`, именованные индексы.
+Conventions: `BIGINT GENERATED ALWAYS AS IDENTITY` (users.id is `INT`),
+`user_id INT REFERENCES users(id) ON DELETE CASCADE`, named indexes.
 
 ### 006_radar_topics.sql
 
@@ -146,7 +185,8 @@ CREATE INDEX radar_topics_user_active_idx ON radar_topics (user_id) WHERE is_act
 DROP TABLE radar_topics;
 ```
 
-`embedding` — nullable: строка создаётся в два шага (INSERT → TEI-вызов → UPDATE), чтобы не держать транзакцию на время HTTP-запроса.
+`embedding` is nullable: the row is created in two steps (INSERT → TEI call →
+UPDATE) so no transaction is held open across an HTTP request.
 
 ### 007_radar_feeds.sql
 
@@ -172,7 +212,8 @@ CREATE INDEX radar_feeds_active_fetched_idx ON radar_feeds (is_active, last_fetc
 DROP TABLE radar_feeds;
 ```
 
-Feeds глобальные (без `user_id`) — один RSS парсится один раз для всех подписчиков.
+Feeds are global (no `user_id`) — one RSS source is parsed once for all its
+subscribers.
 
 ### 008_radar_feed_subscriptions.sql
 
@@ -213,9 +254,13 @@ CREATE INDEX radar_findings_embedding_hnsw ON radar_findings USING hnsw (embeddi
 DROP TABLE radar_findings;
 ```
 
-`content_id` nullable: при обнаружении в feed'е не парсим полный контент, только метаданные. Полный `article_contents` появится только когда юзер откроет находку (phase 3b).
+`content_id` is nullable: when something is discovered in a feed we do not parse
+the full content, only the metadata. A full `article_contents` row appears only
+when a user opens the finding (phase 3b).
 
-HNSW-индекс для kNN-поиска в обратную сторону (phase 3b: «дай похожие findings к теме»). Для MatchJob (phase 3a: «дай все темы, близкие к одной finding»), индекс не используется, но лежит заранее.
+The HNSW index serves kNN search in the other direction (phase 3b: "give me the
+findings similar to this topic"). MatchJob (phase 3a: "give me every topic close
+to this one finding") does not use it, but it is in place ahead of time.
 
 ### 010_radar_topic_matches.sql
 
@@ -237,36 +282,40 @@ CREATE INDEX radar_topic_matches_topic_state_idx ON radar_topic_matches (topic_i
 DROP TABLE radar_topic_matches;
 ```
 
-### River-миграции
+### River migrations
 
-Отдельным шагом при старте `linktheca-server` вызывается `rivermigrate.New(pool, nil).Migrate(ctx, rivermigrate.DirectionUp, nil)` — это создаёт таблицы `river_job`, `river_leader`, `river_queue`, `river_migration`. Версионирование River не пересекается с goose.
+As a separate step at `linktheca-server` startup we call
+`rivermigrate.New(pool, nil).Migrate(ctx, rivermigrate.DirectionUp, nil)`, which
+creates the `river_job`, `river_leader`, `river_queue`, and `river_migration`
+tables. River's versioning does not intersect with goose's.
 
-Порядок старта: goose → River migrator → запуск River client → HTTP сервер.
+Startup order: goose → the River migrator → starting the River client → the HTTP
+server.
 
-## 4. TEI интеграция
+## 4. TEI integration
 
 ### Docker Compose — `compose.dev.yaml`
 
-Добавляется сервис `tei`:
+A `tei` service is added:
 
 ```yaml
 services:
   postgres:
-    # существующий сервис, не меняется
+    # the existing service, unchanged
 
   tei:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
     command: --model-id BAAI/bge-m3 --port 8080
     ports:
-      - "8081:8080"                # хост-порт 8081 во избежание конфликта с backend
+      - "8081:8080"                # host port 8081 to avoid colliding with the backend
     volumes:
-      - tei-data:/data             # кеш модели (~2.3 GB)
+      - tei-data:/data             # the model cache (~2.3 GB)
     healthcheck:
       test: ["CMD", "curl", "-fs", "http://localhost:8080/health"]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 120s           # первый старт тянет модель из HF
+      start_period: 120s           # the first start pulls the model from HF
     restart: unless-stopped
 
 volumes:
@@ -274,13 +323,14 @@ volumes:
   tei-data:
 ```
 
-Backend в dev-режиме запускается вне compose (как сейчас phase 1/2): `make dev-server` с `LINKTHECA_TEI_URL=http://localhost:8081`.
+In dev the backend runs outside compose (as in phases 1 and 2):
+`make dev-server` with `LINKTHECA_TEI_URL=http://localhost:8081`.
 
-Production-compose — будущая фаза, не в phase 3a.
+The production compose is a future phase, not phase 3a.
 
-### Пакет `internal/core/embeddings/`
+### The `internal/core/embeddings/` package
 
-**Интерфейс и реализация TEI:**
+**The interface and the TEI implementation:**
 
 ```go
 package embeddings
@@ -302,34 +352,34 @@ func NewTEIClient(baseURL string, timeout time.Duration) *TEIClient {
 }
 
 // POST {baseURL}/embed {"inputs":"text"} → [[f32, ...]]
-// Возвращает первый массив.
+// Returns the first array.
 func (c *TEIClient) Embed(ctx context.Context, text string) ([]float32, error) { /* ... */ }
 ```
 
-**FakeEmbedder для тестов:**
+**FakeEmbedder for tests:**
 
 ```go
 type FakeEmbedder struct {
     Dim int
 }
 
-// Детерминированно: SHA-256(text) раскатывается в Dim элементов, нормализуется по L2.
-// Одинаковый текст → одинаковый вектор. Разные тексты далеки по cosine.
+// Deterministic: SHA-256(text) is stretched to Dim elements and L2-normalized.
+// The same text yields the same vector. Different texts are far apart by cosine.
 func (f *FakeEmbedder) Embed(ctx context.Context, text string) ([]float32, error) { /* ... */ }
 ```
 
-**Smoke-тест:**
+**The smoke test:**
 
 ```go
 //go:build smoke
 
-// Поднимает TEI testcontainer с bge-m3, делает Embed, проверяет len == 1024
-// и что разные тексты дают разные векторы.
+// Brings up a TEI testcontainer with bge-m3, calls Embed, checks len == 1024
+// and that different texts produce different vectors.
 ```
 
-### Интеграция с pgvector
+### Integration with pgvector
 
-Используем `github.com/pgvector/pgvector-go`:
+We use `github.com/pgvector/pgvector-go`:
 
 ```go
 import "github.com/pgvector/pgvector-go"
@@ -340,39 +390,50 @@ _, err := pool.Exec(ctx,
     pgvector.NewVector(vec), topicID)
 ```
 
-`pgx` сериализует `pgvector.Vector` в колонку `vector(1024)`.
+`pgx` serializes a `pgvector.Vector` into a `vector(1024)` column.
 
-### Валидация при старте
+### Validation at startup
 
-`EMBEDDING_DIM = 1024` фигурирует в конфиге. При старте сервера (если `RADAR_ENABLED=true`) делаем `embedder.Embed(ctx, "ping")`, проверяем `len(vec) == EMBEDDING_DIM`. При несоответствии — warning в лог, но не fail-fast (TEI может быть временно недоступен; сервер стартует, `/radar/*` endpoints потом вернут 503 на create-topic).
+`EMBEDDING_DIM = 1024` appears in the config. At server startup (when
+`RADAR_ENABLED=true`) we call `embedder.Embed(ctx, "ping")` and check
+`len(vec) == EMBEDDING_DIM`. On a mismatch we log a warning but do not fail fast
+(TEI may be temporarily unavailable; the server starts, and the `/radar/*`
+endpoints will later answer 503 on create-topic).
 
-### Ограничение размерности
+### The dimensionality constraint
 
-Размерность `vector(1024)` зашита в миграциях 006 и 009. Смена модели требует:
-1. Новая миграция, меняющая размерность колонок.
-2. Пересчёт **всех** `radar_topics.embedding` и `radar_findings.embedding`.
-3. Пересоздание HNSW-индекса.
+`vector(1024)` is baked into migrations 006 and 009. Changing the model would
+require:
+1. A new migration altering the column dimensionality.
+2. Recomputing **every** `radar_topics.embedding` and
+   `radar_findings.embedding`.
+3. Rebuilding the HNSW index.
 
-Это долгосрочное архитектурное решение, не в scope phase 3a.
+That is a long-term architectural decision, not in phase 3a's scope.
 
-## 5. Pipeline: River + jobs
+## 5. The pipeline: River plus jobs
 
-Четыре типа job'ов:
+Four kinds of job:
 
 ```
-SchedulerJob (periodic, каждые 5 минут)
-    └─► CrawlFeedJob (один на feed)
-            └─► EmbedFindingJob (один на новую finding)
-                    └─► MatchFindingJob (один на finding с embedding'ом)
+SchedulerJob (periodic, every 5 minutes)
+    └─► CrawlFeedJob (one per feed)
+            └─► EmbedFindingJob (one per new finding)
+                    └─► MatchFindingJob (one per finding that has an embedding)
 ```
 
-Все workers запускаются в том же процессе, что и HTTP-сервер (один бинарь).
+All the workers run in the same process as the HTTP server (one binary).
 
-**Wiring:** River client создаётся в `server.go` (DI-слой, владеет pool'ом). Набор workers и periodic jobs формируется в пакете `internal/radar/jobs` (функция вроде `jobs.RegisterWorkers(workers *river.Workers, service *radar.Service, embedder embeddings.Client)`), и `server.go` передаёт получившийся `*river.Workers` в `river.Config`.
+**Wiring:** the River client is created in `server.go` (the DI layer, which owns
+the pool). The set of workers and periodic jobs is assembled in the
+`internal/radar/jobs` package (through something like
+`jobs.RegisterWorkers(workers *river.Workers, service *radar.Service, embedder embeddings.Client)`),
+and `server.go` passes the resulting `*river.Workers` into `river.Config`.
 
 ### SchedulerJob
 
-River поддерживает periodic jobs нативно (`river.PeriodicJob`). Регистрация при старте в `server.go`:
+River supports periodic jobs natively (`river.PeriodicJob`). Registered at
+startup in `server.go`:
 
 ```go
 riverClient, _ := river.NewClient(riverpgxv5.New(pool), &river.Config{
@@ -390,7 +451,7 @@ riverClient, _ := river.NewClient(riverpgxv5.New(pool), &river.Config{
 })
 ```
 
-Worker `ScheduleCrawlsWorker` внутри:
+Inside the `ScheduleCrawlsWorker`:
 
 ```sql
 SELECT id FROM radar_feeds
@@ -400,45 +461,56 @@ WHERE is_active
 LIMIT 100;
 ```
 
-Для каждого id — `client.Insert(ctx, CrawlFeedArgs{FeedID: id}, nil)`.
+For each id, `client.Insert(ctx, CrawlFeedArgs{FeedID: id}, nil)`.
 
 ### CrawlFeedJob
 
-Аргумент: `FeedID int64`. Flow:
+Argument: `FeedID int64`. The flow:
 
-1. `SELECT * FROM radar_feeds WHERE id = $1` — достаёт url, etag, last_modified.
-2. HTTP GET с `If-None-Match` и `If-Modified-Since`. 304 → `UPDATE last_fetched_at = now(), last_error = NULL`, выход.
-3. Парсинг через `mmcdole/gofeed.Parser{}.Parse(reader)`.
-4. Для каждого item:
+1. `SELECT * FROM radar_feeds WHERE id = $1` — fetches the url, etag, and
+   last_modified.
+2. HTTP GET with `If-None-Match` and `If-Modified-Since`. On a 304 →
+   `UPDATE last_fetched_at = now(), last_error = NULL` and exit.
+3. Parse through `mmcdole/gofeed.Parser{}.Parse(reader)`.
+4. For each item:
    ```sql
    INSERT INTO radar_findings (feed_id, external_id, url, title, summary, published_at)
    VALUES ($1, $2, $3, $4, $5, $6)
    ON CONFLICT (feed_id, external_id) DO NOTHING
    RETURNING id;
    ```
-   Для каждой возвращённой id — `client.Insert(ctx, EmbedFindingArgs{FindingID: id}, nil)`.
+   For each id returned, `client.Insert(ctx, EmbedFindingArgs{FindingID: id}, nil)`.
 5. `UPDATE radar_feeds SET last_fetched_at = now(), etag = $1, last_modified = $2, last_error = NULL`.
 
-Ошибки сети/парсинга: `UPDATE radar_feeds SET last_error = $1, last_fetched_at = now()`, возврат `error` → River ретраит с exponential backoff (дефолт 25 попыток за ~24 часа).
+Network and parse errors:
+`UPDATE radar_feeds SET last_error = $1, last_fetched_at = now()`, then return an
+`error` → River retries with exponential backoff (25 attempts over ~24 hours by
+default).
 
-В этом шаге **НЕ парсим полный контент статьи** — только метаданные из RSS. Полный `article_contents` создаётся в phase 3b при открытии находки.
+This step does **NOT parse the full article content** — only the metadata from
+the RSS. A full `article_contents` row is created in phase 3b when the finding is
+opened.
 
 ### EmbedFindingJob
 
-Аргумент: `FindingID int64`. Flow:
+Argument: `FindingID int64`. The flow:
 
 1. `SELECT embedding, title, summary FROM radar_findings WHERE id = $1`.
-2. Если `embedding IS NOT NULL` — выход (идемпотентность при повторах).
-3. `text := strings.TrimSpace(title + "\n" + summary)`. Если пусто — завершить без ошибки.
-4. `vec, err := embedder.Embed(ctx, text)`. Ошибка TEI → возврат error → River ретраит.
-5. `UPDATE radar_findings SET embedding = $1 WHERE id = $2` с `pgvector.NewVector(vec)`.
+2. If `embedding IS NOT NULL`, exit (idempotency on repeats).
+3. `text := strings.TrimSpace(title + "\n" + summary)`. If it is empty, finish
+   without an error.
+4. `vec, err := embedder.Embed(ctx, text)`. A TEI error → return the error →
+   River retries.
+5. `UPDATE radar_findings SET embedding = $1 WHERE id = $2` with
+   `pgvector.NewVector(vec)`.
 6. `client.Insert(ctx, MatchFindingArgs{FindingID: id}, nil)`.
 
-Эмбеддим **title + summary, не полный текст**. Экономия + для короткой новости достаточно.
+We embed **title + summary, not the full text**. It is cheaper, and it is enough
+for a short news item.
 
 ### MatchFindingJob
 
-Аргумент: `FindingID int64`. Один SQL:
+Argument: `FindingID int64`. One SQL statement:
 
 ```sql
 INSERT INTO radar_topic_matches (topic_id, finding_id, similarity, state)
@@ -456,15 +528,19 @@ WHERE rfs.feed_id = f.feed_id
 ON CONFLICT (topic_id, finding_id) DO NOTHING;
 ```
 
-`<=>` — cosine distance от pgvector. Similarity = `1 - distance`. Матчинг против **всех подписанных тем всех подписанных юзеров** за один запрос.
+`<=>` is pgvector's cosine distance. Similarity = `1 - distance`. Matching runs
+against **every subscribed topic of every subscribed user** in a single query.
 
-### Idempotency и recovery
+### Idempotency and recovery
 
-- **Перезапуск backend'а во время работы:** River persist'ит job'ы в Postgres, после рестарта подхватываются.
-- **Повторное выполнение job'а:** `ON CONFLICT DO NOTHING` на INSERT'ах, `embedding IS NOT NULL` проверка перед embed'ингом.
-- **Rate limiting для TEI:** `RadarMaxWorkers = 5` по умолчанию — максимум 5 параллельных embedding-запросов.
+- **Restarting the backend mid-flight:** River persists jobs in Postgres, and
+  they are picked up again after the restart.
+- **Re-running a job:** `ON CONFLICT DO NOTHING` on the INSERTs, and the
+  `embedding IS NOT NULL` check before embedding.
+- **Rate limiting for TEI:** `RadarMaxWorkers = 5` by default — at most five
+  concurrent embedding requests.
 
-### Интерфейсы для тестирования
+### Interfaces for testing
 
 ```go
 // internal/radar/crawler/crawler.go
@@ -480,54 +556,64 @@ type FetchResult struct {
 }
 ```
 
-В тестах `CrawlFeedJob`: fake `Fetcher` отдаёт подготовленный RSS XML, `FakeEmbedder`, реальная БД через testdb.
+In the `CrawlFeedJob` tests: a fake `Fetcher` returns prepared RSS XML, a
+`FakeEmbedder`, and a real database through testdb.
 
-### Принятые компромиссы
+### Accepted trade-offs
 
-- Нет дедупликации похожих findings между feeds (одна новость из 5 RSS появится 5 раз).
-- Нет rate limiting на TEI за пределами `MaxWorkers`.
-- SchedulerJob берёт 100 feeds за цикл — достаточно для self-host.
-- Нет smart-backoff для битых feeds (ретраит до упора, оператор сам чинит).
+- No deduplication of similar findings across feeds (one news item from five RSS
+  feeds appears five times).
+- No rate limiting on TEI beyond `MaxWorkers`.
+- SchedulerJob takes 100 feeds per cycle — enough for self-hosting.
+- No smart backoff for broken feeds (it retries indefinitely; the operator fixes
+  it).
 
 ## 6. HTTP endpoints
 
-### Маршруты
+### Routes
 
 ```
-POST /radar/topics           RequireUser         создаёт тему, считает embedding
-POST /radar/feeds            RequireAdmin        регистрирует глобальный feed
-POST /radar/subscriptions    RequireUser         подписывает authed user
+POST /radar/topics           RequireUser         creates a topic and computes its embedding
+POST /radar/feeds            RequireAdmin        registers a global feed
+POST /radar/subscriptions    RequireUser         subscribes the authed user
 ```
 
-Все остальные endpoints Radar (List/Update/Delete, `GET /radar/feed`, `GET /radar/findings/:id/read`) — phase 3b.
+Every other Radar endpoint (List/Update/Delete, `GET /radar/feed`,
+`GET /radar/findings/:id/read`) is phase 3b.
 
 ### `POST /radar/topics`
 
 Request:
 ```json
 {
-  "name": "ИИ и стартапы",
-  "description": "Привлечение инвестиций, запуск продуктов и бенчмарки фундаментальных моделей.",
+  "name": "AI and startups",
+  "description": "Fundraising, product launches, and foundation-model benchmarks.",
   "match_threshold": 0.75
 }
 ```
 
 Validation:
-- `name` — 1..200 символов, required.
-- `description` — 10..2000 символов, required.
+- `name` — 1..200 characters, required.
+- `description` — 10..2000 characters, required.
 - `match_threshold` — optional, [0.0, 1.0], default 0.75.
 
-Handler flow:
-1. Валидация через `go-playground/validator`.
+The handler flow:
+1. Validate through `go-playground/validator`.
 2. `radarService.CreateTopic(ctx, userID, dto)`.
-3. Service: INSERT → `embedder.Embed(ctx, description)` синхронно → UPDATE embedding.
-4. Возврат `201 Created` + JSON topic object (без raw embedding — только `has_embedding: true`).
+3. Service: INSERT → `embedder.Embed(ctx, description)` synchronously → UPDATE
+   the embedding.
+4. Return `201 Created` plus the topic object as JSON (without the raw embedding
+   — only `has_embedding: true`).
 
-Почему embedding синхронно в handler'е: юзер ожидает ready-to-match тему. TEI-вызов ~200-800ms приемлем. Если TEI unavailable → handler `503`, topic в БД с `embedding = NULL`, следующий MatchJob её пропустит (`rt.embedding IS NOT NULL`).
+Why the embedding is computed synchronously in the handler: the user expects a
+ready-to-match topic. A TEI call of ~200–800ms is acceptable. If TEI is
+unavailable the handler returns `503`, the topic sits in the database with
+`embedding = NULL`, and the next MatchJob skips it
+(`rt.embedding IS NOT NULL`).
 
 Error cases:
 - Validation → `400 Bad Request`.
-- TEI timeout/5xx → `503 Service Unavailable`.
+- A TEI timeout or 5xx → `503 Service Unavailable`.
 
 ### `POST /radar/feeds`
 
@@ -541,19 +627,20 @@ Request:
 ```
 
 Validation:
-- `url` — required, http(s), ≤ 2000 символов.
+- `url` — required, http(s), ≤ 2000 characters.
 - `kind` — optional, `rss|atom`, default `rss`.
 - `fetch_interval_seconds` — optional, 300..86400, default 3600.
 
-Handler flow:
-1. Валидация.
-2. INSERT feed, без синхронного fetch.
-3. `201 Created` + feed object.
+The handler flow:
+1. Validate.
+2. INSERT the feed, with no synchronous fetch.
+3. `201 Created` plus the feed object.
 
-Первый crawl через ≤ 5 минут (SchedulerJob tick) или сразу при `RunOnStart: true`.
+The first crawl happens within 5 minutes (the SchedulerJob tick), or immediately
+under `RunOnStart: true`.
 
 Error cases:
-- Duplicate URL → `409 Conflict`.
+- A duplicate URL → `409 Conflict`.
 - Validation → `400`.
 
 ### `POST /radar/subscriptions`
@@ -563,15 +650,15 @@ Request:
 { "feed_id": 42 }
 ```
 
-Handler flow:
-1. Валидация.
+The handler flow:
+1. Validate.
 2. `INSERT ... ON CONFLICT DO NOTHING`.
-3. `201 Created` + subscription object. Идемпотентно.
+3. `201 Created` plus the subscription object. Idempotent.
 
 Error cases:
-- `feed_id` не существует → FK violation → `404 Not Found`.
+- A `feed_id` that does not exist → an FK violation → `404 Not Found`.
 
-### Роутинг в server.go
+### Routing in server.go
 
 ```go
 if cfg.RadarEnabled {
@@ -586,24 +673,27 @@ if cfg.RadarEnabled {
     })
 } else {
     r.Route("/radar", func(r chi.Router) {
-        r.HandleFunc("/*", radarHTTP.DisabledHandler)  // 501 с {"error":"radar_disabled"}
+        r.HandleFunc("/*", radarHTTP.DisabledHandler)  // 501 with {"error":"radar_disabled"}
     })
 }
 ```
 
 ### OpenAPI
 
-В phase 3a OpenAPI-спеку не пишем. CLI общается с HTTP напрямую. Когда появится frontend — отдельная фаза с `openapi.yaml` и `openapi-typescript` pipeline.
+Phase 3a does not write an OpenAPI spec. The CLI talks to HTTP directly. When a
+frontend appears, that is its own phase with an `openapi.yaml` and an
+`openapi-typescript` pipeline.
 
-## 7. CLI `linktheca`
+## 7. The `linktheca` CLI
 
-### Framework и структура
+### Framework and structure
 
-- `github.com/spf13/cobra` — subcommand routing.
-- Путь: `cmd/linktheca/main.go` + `cmd/linktheca/internal/cli/...`.
-- Существующий `cmd/linktheca/` переименовывается в `cmd/linktheca-server/` **до** добавления CLI-кода (одним коммитом в начале phase 3a).
+- `github.com/spf13/cobra` for subcommand routing.
+- The path: `cmd/linktheca/main.go` plus `cmd/linktheca/internal/cli/...`.
+- The existing `cmd/linktheca/` is renamed to `cmd/linktheca-server/` **before**
+  any CLI code is added (in one commit at the start of phase 3a).
 
-### Сессия
+### The session
 
 ```
 ~/.config/linktheca/session.json       # XDG_CONFIG_HOME/linktheca, permissions 0600
@@ -617,17 +707,17 @@ if cfg.RadarEnabled {
 }
 ```
 
-Путь переопределяется через `LINKTHECA_CONFIG_DIR` (для тестов).
+The path is overridable through `LINKTHECA_CONFIG_DIR` (for tests).
 
-### Глобальные флаги
+### Global flags
 
 ```
---server URL          # переопределяет server_url из session.json; env LINKTHECA_URL
---config PATH         # явный путь к session.json
+--server URL          # overrides server_url from session.json; env LINKTHECA_URL
+--config PATH         # an explicit path to session.json
 --output FORMAT       # table | json, default table
 ```
 
-### Subcommands phase 3a
+### Phase 3a subcommands
 
 **Auth:**
 ```
@@ -637,20 +727,21 @@ linktheca auth logout
 linktheca auth whoami
 ```
 
-`register` и `login` сохраняют токены в session.json. `whoami` → `GET /auth/me` с auto-refresh.
+`register` and `login` save the tokens into session.json. `whoami` calls
+`GET /auth/me` with auto-refresh.
 
 **Radar:**
 ```
-linktheca radar topic add --name="ИИ" --description="..." [--threshold=0.75]
+linktheca radar topic add --name="AI" --description="..." [--threshold=0.75]
 linktheca radar feed add --url="..." [--kind=rss] [--interval=3600]    # admin only
 linktheca radar subscribe --feed-id=N
 ```
 
-Exit code 0 при 2xx, 1 при 4xx/5xx.
+Exit code 0 on 2xx, 1 on 4xx/5xx.
 
-### Auto-refresh access token
+### Auto-refreshing the access token
 
-В HTTP-клиенте CLI:
+In the CLI's HTTP client:
 
 ```go
 func (c *APIClient) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
@@ -666,109 +757,114 @@ func (c *APIClient) Do(ctx context.Context, req *http.Request) (*http.Response, 
 }
 ```
 
-### Обработка `RADAR_ENABLED=false` на сервере
+### Handling `RADAR_ENABLED=false` on the server
 
-`linktheca radar *` получая 501 с `{"error":"radar_disabled"}` печатает:
+On receiving a 501 with `{"error":"radar_disabled"}`, `linktheca radar *` prints:
 
 ```
 Error: Radar is disabled on this server.
 Set LINKTHECA_RADAR_ENABLED=true on the backend to enable.
 ```
 
-### Вне scope phase 3a
+### Out of phase 3a's scope
 
-- Команды `linktheca library *` (save/list/...) — отдельная фаза.
-- CSV/OPML bulk import — отдельная фаза.
-- Shell completions (`linktheca completion bash`) — позже.
-- TUI/interactive mode — не планируется.
+- The `linktheca library *` commands (save/list/...) — a separate phase.
+- CSV/OPML bulk import — a separate phase.
+- Shell completions (`linktheca completion bash`) — later.
+- A TUI or interactive mode — not planned.
 
-## 8. Тестирование
+## 8. Testing
 
-Четыре уровня + опциональный smoke.
+Four levels plus an optional smoke level.
 
 ### Level 1: Unit
 
-| Компонент | Файл | Зависимости |
+| Component | File | Dependencies |
 |---|---|---|
-| `embeddings.TEIClient` парсинг | `embeddings/client_test.go` | `httptest.Server` |
+| `embeddings.TEIClient` parsing | `embeddings/client_test.go` | `httptest.Server` |
 | `embeddings.FakeEmbedder` | `embeddings/fake_test.go` | stdlib |
-| `radar.Service` | `radar/service_test.go` | mock `radar.Store`, `FakeEmbedder` |
-| `radar.http` валидация | `radar/http_test.go` | `httptest`, mock Service |
-| CLI session | `cmd/linktheca/internal/cli/session/session_test.go` | tmp dir |
+| `radar.Service` | `radar/service_test.go` | a mock `radar.Store`, `FakeEmbedder` |
+| `radar.http` validation | `radar/http_test.go` | `httptest`, a mock Service |
+| CLI session | `cmd/linktheca/internal/cli/session/session_test.go` | a tmp dir |
 | CLI output | `cmd/linktheca/internal/cli/output/format_test.go` | stdlib |
 | CLI API client auto-refresh | `cmd/linktheca/internal/cli/apiclient/client_test.go` | `httptest.Server` |
 
-Принцип: `radar.Store` — интерфейс в `service.go`, реализуется реальным `store.go`. Mock'и пишем вручную без gomock/mockery.
+The principle: `radar.Store` is an interface in `service.go`, implemented by the
+real `store.go`. Mocks are written by hand, without gomock or mockery.
 
-### Level 2: Store (реальный Postgres)
+### Level 2: Store (a real Postgres)
 
-Через `internal/testing/testdb`:
+Through `internal/testing/testdb`:
 
-| Что | Файл |
+| What | File |
 |---|---|
-| `radar.Store` все методы | `radar/store_test.go` |
-| pgvector roundtrip | `radar/store_test.go::TestEmbeddingRoundtrip` |
+| Every `radar.Store` method | `radar/store_test.go` |
+| A pgvector roundtrip | `radar/store_test.go::TestEmbeddingRoundtrip` |
 | HNSW cosine queries | `radar/store_test.go::TestMatchQuery` |
-| Crawler с synthetic RSS | `radar/crawler/crawler_test.go` |
+| The crawler with synthetic RSS | `radar/crawler/crawler_test.go` |
 
-Перед phase 3a: проверяю, что `testdb` schema-per-test корректно работает с `vector` типом (extension глобальный, schema его видит).
+Before phase 3a: verify that `testdb`'s schema-per-test works correctly with the
+`vector` type (the extension is global and the schema sees it).
 
 ### Level 3: HTTP integration
 
-| Что | Файл |
+| What | File |
 |---|---|
 | `POST /radar/topics`, `POST /radar/feeds`, `POST /radar/subscriptions` | `radar/integration_test.go` |
-| Полный цикл (Crawl → Embed → Match) через реальные jobs | `radar/jobs/jobs_test.go` |
+| The full cycle (Crawl → Embed → Match) through the real jobs | `radar/jobs/jobs_test.go` |
 
-River в тестах: используем либо `river.NewTestClient` / синхронное выполнение workers'ов, либо прямые вызовы `worker.Work(ctx, job)`. Конкретный паттерн — в ходе implementation'а.
+River in tests: we use either `river.NewTestClient` / synchronous execution of
+the workers, or direct `worker.Work(ctx, job)` calls. The exact pattern is
+settled during implementation.
 
-### Level 4: Smoke (`-tags=smoke`, не в обычном CI)
+### Level 4: Smoke (`-tags=smoke`, not in normal CI)
 
-| Что | Файл |
+| What | File |
 |---|---|
-| TEI возвращает 1024-dim | `embeddings/client_smoke_test.go` |
-| Pipeline с реальным TEI и HN RSS | `radar/jobs/smoke_test.go` |
+| TEI returns 1024 dimensions | `embeddings/client_smoke_test.go` |
+| The pipeline against a real TEI and the HN RSS | `radar/jobs/smoke_test.go` |
 
-Запуск:
+Run with:
 ```
 make smoke-radar
 ```
 
-### Level 5: CLI end-to-end
+### Level 5: CLI end to end
 
 `cmd/linktheca/integration_test.go`:
 1. `go build -o /tmp/linktheca-test ./cmd/linktheca`.
-2. Postgres testcontainer + `linktheca-server` в goroutine с `FakeEmbedder`.
-3. Последовательный вызов CLI-команд через `exec.Command`.
-4. Проверка session.json, SQL-записей, exit codes.
+2. A Postgres testcontainer plus `linktheca-server` in a goroutine with a
+   `FakeEmbedder`.
+3. CLI commands called in sequence through `exec.Command`.
+4. Checking session.json, the SQL rows, and the exit codes.
 
-### Тест `RADAR_ENABLED=false`
+### The `RADAR_ENABLED=false` test
 
 `server/server_test.go::TestRadarDisabled`:
-- Сервер стартует с `RadarEnabled: false`.
-- `POST /radar/topics` → 501 с `{"error":"radar_disabled"}`.
-- River не содержит radar workers.
-- TEI client в DI остался nil.
+- The server starts with `RadarEnabled: false`.
+- `POST /radar/topics` → 501 with `{"error":"radar_disabled"}`.
+- River holds no radar workers.
+- The TEI client in DI stayed nil.
 
-### Что не тестируем
+### What we do not test
 
-- Реальный RSS в обычном CI (только synthetic XML).
-- Precise whitespace в CLI output (только поля).
-- Производительность / benchmarks.
+- Real RSS in normal CI (synthetic XML only).
+- Precise whitespace in the CLI output (only the fields).
+- Performance and benchmarks.
 - Chaos tests.
 
 ### CI
 
-- `backend` job (существующий) автоматически подхватит новые пакеты.
-- Smoke job не добавляем в phase 3a.
+- The existing `backend` job picks up the new packages automatically.
+- No smoke job is added in phase 3a.
 
-## 9. Конфиг, compose, запуск
+## 9. Config, compose, running it
 
-### Env-переменные phase 3a
+### Phase 3a env variables
 
 ```
 # TEI
-LINKTHECA_TEI_URL=http://tei:8080              # в compose; http://localhost:8081 для dev-локально
+LINKTHECA_TEI_URL=http://tei:8080              # in compose; http://localhost:8081 for local dev
 LINKTHECA_TEI_TIMEOUT=30s
 LINKTHECA_EMBEDDING_DIM=1024
 
@@ -782,27 +878,27 @@ LINKTHECA_URL=http://localhost:8080
 LINKTHECA_CONFIG_DIR=~/.config/linktheca
 ```
 
-Все существующие переменные phase 1/2 сохраняются.
+Every existing phase 1/2 variable is kept.
 
-### Последовательность старта `linktheca-server`
+### The `linktheca-server` startup sequence
 
 ```
 1. Parse env → Config
-2. Валидация config (JWT secret длина, DSN формат, RADAR_ENABLED парсинг)
-3. Подключение Postgres (pgxpool.New)
+2. Validate the config (JWT secret length, DSN format, RADAR_ENABLED parsing)
+3. Connect to Postgres (pgxpool.New)
 4. Goose migrations UP (embedded migrations 001-010)
 5. River migrations UP
-6. Если RADAR_ENABLED:
-     - Init TEI client
-     - Опциональный self-check Embed("ping"), warning в лог при mismatch
-     - Регистрация radar workers (ScheduleCrawls, CrawlFeed, EmbedFinding, MatchFinding)
-7. Инициализация River Client, старт
-8. HTTP server listen на HTTP_ADDR
+6. If RADAR_ENABLED:
+     - Init the TEI client
+     - An optional Embed("ping") self-check, with a warning logged on a mismatch
+     - Register the radar workers (ScheduleCrawls, CrawlFeed, EmbedFinding, MatchFinding)
+7. Initialize the River client and start it
+8. The HTTP server listens on HTTP_ADDR
 ```
 
 Shutdown: SIGTERM/SIGINT → HTTP Shutdown → river Stop → pool Close.
 
-### Makefile дополнения
+### Makefile additions
 
 ```make
 dev-server:           ## run backend with hot reload
@@ -821,98 +917,107 @@ smoke-radar:          ## smoke tests with real TEI (slow)
 	go test -tags=smoke -timeout=10m -count=1 ./internal/radar/... ./internal/core/embeddings/...
 ```
 
-### Dev-сценарий после phase 3a
+### The dev workflow after phase 3a
 
 ```bash
-# Терминал 1: инфраструктура
+# Terminal 1: infrastructure
 docker compose -f compose.dev.yaml up -d     # Postgres + TEI
 
-# Терминал 2: backend
+# Terminal 2: the backend
 make dev-server
 
-# Терминал 3: CLI
+# Terminal 3: the CLI
 ./bin/linktheca auth register --email=me@example.com --password=... --display-name="Me"
 ./bin/linktheca radar feed add --url=https://news.ycombinator.com/rss
 ./bin/linktheca radar topic add --name="AI" --description="..."
 ./bin/linktheca radar subscribe --feed-id=1
 
-# Проверка pipeline
+# Checking the pipeline
 psql ... -c "SELECT count(*) FROM radar_findings"
 psql ... -c "SELECT * FROM radar_topic_matches ORDER BY matched_at DESC LIMIT 10"
 ```
 
-### Переименование `cmd/linktheca` → `cmd/linktheca-server`
+### Renaming `cmd/linktheca` → `cmd/linktheca-server`
 
-Одним коммитом в начале phase 3a:
+In one commit at the start of phase 3a:
 - `git mv cmd/linktheca cmd/linktheca-server`
-- Обновить `Dockerfile`, `Makefile`, `.github/workflows/ci.yml`, README, любые `go run ./cmd/linktheca` в docs.
-- Package name остаётся `package main`, логика не меняется.
+- Update `Dockerfile`, `Makefile`, `.github/workflows/ci.yml`, the README, and
+  any `go run ./cmd/linktheca` in the docs.
+- The package name stays `package main` and the logic does not change.
 
-## 10. Риски
+## 10. Risks
 
-| Риск | Mitigation |
+| Risk | Mitigation |
 |---|---|
-| bge-m3 не помещается в память (~2.5-3 GB RSS) | README документирует минимум 4 GB RAM для режима с Radar. Альтернатива `bge-m3-small` (384 dim) — только если подтвердится боль (смена модели = смена миграции) |
-| TEI первый старт долгий (скачивание модели) | `start_period: 120s` в healthcheck, `tei-data` volume кеширует между ребутами |
-| River periodic jobs дублируются при HA | В phase 3a один инстанс, HA не в scope. River Leader election обеспечит singleton позже |
-| RSS feed отдаёт битый XML | gofeed возвращает error, `last_error` сохраняется, River ретраит |
-| TEI timeout при большом тексте | `description` ≤ 2000 chars, title+summary из RSS обычно <1000 |
-| pgvector/HNSW рост на 100k findings | HNSW масштабируется. Мониторинг размера — phase 3b |
-| CLI session.json с secrets на shared машине | Permissions 0600, документируется. OAuth-level security не в scope |
-| `RADAR_ENABLED=true`, но TEI недоступен | Handler на `POST /radar/topics` возвращает 503. Topic остаётся без embedding, MatchJob его пропускает. Юзер видит понятное сообщение |
+| bge-m3 does not fit in memory (~2.5–3 GB RSS) | The README documents a 4 GB RAM minimum for running with Radar. The `bge-m3-small` (384 dim) alternative is on the table only if the pain is confirmed (changing the model means changing a migration) |
+| The first TEI start is slow (downloading the model) | `start_period: 120s` in the healthcheck, and the `tei-data` volume caches it between reboots |
+| River periodic jobs duplicate under HA | Phase 3a runs a single instance; HA is out of scope. River's leader election will provide the singleton later |
+| An RSS feed serves broken XML | gofeed returns an error, `last_error` is saved, and River retries |
+| A TEI timeout on a large text | `description` ≤ 2000 chars, and title+summary from RSS is usually under 1000 |
+| pgvector/HNSW growth at 100k findings | HNSW scales. Monitoring the size is phase 3b |
+| The CLI's session.json holds secrets on a shared machine | Permissions 0600, documented. OAuth-level security is out of scope |
+| `RADAR_ENABLED=true` but TEI is unreachable | The `POST /radar/topics` handler returns 503. The topic is left without an embedding and MatchJob skips it. The user gets a clear message |
 
-### Принимаемые компромиссы
+### Accepted trade-offs
 
-- Нет дедупликации похожих findings между feeds.
-- Нет rate limiting на TEI сверх `MaxWorkers`.
-- SchedulerJob ограничен 100 feeds за цикл.
+- No deduplication of similar findings across feeds.
+- No rate limiting on TEI beyond `MaxWorkers`.
+- SchedulerJob is capped at 100 feeds per cycle.
 
-## 11. Опциональный Radar
+## 11. Optional Radar
 
-Один env-флаг — единственный документированный контракт:
+One env flag is the only documented contract:
 
 ```
 LINKTHECA_RADAR_ENABLED=true    # default true
 ```
 
-### Поведение backend'а
+### Backend behaviour
 
-**При `true`:**
-- TEI client инициализируется, делает self-check Embed.
-- River workers Radar регистрируются.
-- Роуты `POST /radar/*` монтируются за `RequireUser` / `RequireAdmin`.
-- SchedulerJob тикает.
+**When `true`:**
+- The TEI client is initialized and runs a self-check Embed.
+- The Radar River workers are registered.
+- The `POST /radar/*` routes are mounted behind `RequireUser` / `RequireAdmin`.
+- SchedulerJob ticks.
 
-**При `false`:**
-- TEI client не создаётся (`embeddings.Client` = nil в DI).
-- Radar workers в River не регистрируются.
-- Роуты `/radar/*` возвращают `501 Not Implemented` с `{"error":"radar_disabled"}` через catch-all handler на префиксе.
-- Миграции 006–010 **выполняются всегда** — таблицы создаются пустыми. Дёшево, упрощает последующее включение без data loss.
+**When `false`:**
+- The TEI client is not created (`embeddings.Client` = nil in DI).
+- The Radar workers are not registered with River.
+- The `/radar/*` routes return `501 Not Implemented` with
+  `{"error":"radar_disabled"}` through a catch-all handler on the prefix.
+- Migrations 006–010 **always run** — the tables are created empty. That is cheap
+  and it makes switching Radar on later painless, with no data loss.
 
-### CLI
+### The CLI
 
-501 с `radar_disabled` → сообщение:
+A 501 with `radar_disabled` produces:
 
 ```
 Error: Radar is disabled on this server.
 Set LINKTHECA_RADAR_ENABLED=true on the backend to enable.
 ```
 
-### Требования к ресурсам (для README)
+### Resource requirements (for the README)
 
-| Конфигурация | RAM минимум | RAM рекомендуется |
+| Configuration | Minimum RAM | Recommended RAM |
 |---|---|---|
 | `LINKTHECA_RADAR_ENABLED=true` (default) | 4 GB | 8 GB |
 | `LINKTHECA_RADAR_ENABLED=false` | 512 MB | 1 GB |
 
-### Что не документируем
+### What we do not document
 
-Управление TEI-контейнером через compose (scale, удаление, profiles) — оператор решает сам. Документация фокусируется на backend-флаге как единственном контракте фичи.
+Managing the TEI container through compose (scale, removal, profiles) — the
+operator decides that. The documentation focuses on the backend flag as the
+feature's only contract.
 
-### Будущие LLM-фичи
+### Future LLM features
 
-Когда появятся (суммаризация, Q&A, автотеги) — отдельные независимые флаги (`LINKTHECA_SUMMARIZATION_ENABLED` и т.п.) с external API ключами. Не завязаны на `RADAR_ENABLED`. Ресурсы локального сервера не меняют.
+When they arrive (summarization, Q&A, auto-tagging) they get their own
+independent flags (`LINKTHECA_SUMMARIZATION_ENABLED` and the like) with external
+API keys. They are not tied to `RADAR_ENABLED` and they do not change the local
+server's resource needs.
 
-## Следующие шаги
+## Next steps
 
-После approval этого документа — переход к `superpowers:writing-plans` skill для создания пошагового implementation plan'а.
+After this document is approved — move to the `superpowers:writing-plans` skill
+to create a step-by-step implementation plan.

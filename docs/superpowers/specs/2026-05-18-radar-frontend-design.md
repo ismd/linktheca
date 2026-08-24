@@ -1,40 +1,43 @@
 # Radar frontend (Topic UI) — design
 
-**Дата:** 2026-05-18
-**Статус:** approved, готов к writing-plans
-**Scope:** Radar UI поверх готового read-API + точечный backend-довесок `GET /radar/matches/{id}`. Полный CRUD топиков, чтение матчей, match reader, mark-seen, отключение «Radar disabled» state.
+**Date:** 2026-05-18
+**Status:** approved, ready for writing-plans
+**Scope:** the Radar UI on top of the finished read API, plus one targeted backend addition, `GET /radar/matches/{id}`. Full topic CRUD, reading matches, the match reader, mark-seen, and switching off the "Radar disabled" state.
 
-## Контекст
+## Context
 
-Backend Radar read-API завершён (spec `2026-05-14-radar-read-api-design.md`). Frontend foundation, auth и Library реализованы; sidebar содержит `Radar (disabled)`-пункт. Прототип в `prototype/index.html` определяет визуальный язык Radar и Topic view.
+The backend Radar read API is done (spec `2026-05-14-radar-read-api-design.md`).
+The frontend foundation, auth, and Library are built; the sidebar carries a
+`Radar (disabled)` item. The prototype in `prototype/index.html` sets the visual
+language for Radar and the Topic view.
 
-В этой фазе превращаем заглушенный пункт меню в живой раздел Radar.
+This phase turns that stubbed menu item into a live Radar section.
 
-## Решения, зафиксированные в brainstorming
+## Decisions taken during brainstorming
 
-| # | Вопрос | Решение |
+| # | Question | Decision |
 |---|---|---|
-| 1 | Scope | Полный CRUD топиков + чтение матчей + match reader. Bulk «mark all seen» отложено. |
-| 2 | Keywords (chips из прототипа) | Не выводим. Embedding считается из `name + description`; добавление `topics.keywords` отложено в [[project-radar-sources-not-per-topic]]. |
-| 3 | Sources (блок «Sources being watched» из прототипа) | Не выводим. Subscriptions — per-user (миграция `008_radar_feed_subscriptions`), не per-topic. Конкретный список «sources for this topic» не определён в модели. `source_count` остаётся как denormalized stat (число, не список). |
-| 4 | Match click → куда | Внутренний reader `/radar/matches/$matchId`, визуально как library reader; body = `summary`; крупная CTA «Open original»; action «Save to library». |
-| 5 | Match reader data fetching | Approach A: добавить backend `GET /radar/matches/{id}` для direct-URL и refresh support. Альтернативы (передача через router state, объединение Topic view + reader) отклонены. |
-| 6 | Mark seen lifecycle | Auto on reader open (mount-эффект → PATCH /radar/matches/{id} state="seen"). |
-| 7 | Embedder 503 при Create/Update | Specific toast «Embedder unavailable, retry later». Generic-toast только для остальных ошибок. Modal/Dialog не закрывается при 503. |
-| 8 | Threshold slider | Не показываем в Create/Edit (`project-radar-threshold-slider-deferred`). Backend использует default. |
-| 9 | Subscription management | Не в UI; admin/CLI добавляет feeds, юзер подписывается через API (`project-user-added-feeds-deferred`). |
-| 10 | Full-content reader для match'а | Нет; summary only (`project-radar-content-extraction-deferred`). |
+| 1 | Scope | Full topic CRUD plus reading matches plus the match reader. Bulk "mark all seen" is deferred. |
+| 2 | Keywords (the chips from the prototype) | Not shown. The embedding is computed from `name + description`; adding `topics.keywords` is deferred in [[project-radar-sources-not-per-topic]]. |
+| 3 | Sources (the "Sources being watched" block from the prototype) | Not shown. Subscriptions are per-user (migration `008_radar_feed_subscriptions`), not per-topic. A concrete "sources for this topic" list is not defined in the model. `source_count` stays as a denormalized stat (a number, not a list). |
+| 4 | Where a match click goes | An internal reader at `/radar/matches/$matchId`, visually like the library reader; the body is `summary`; a large "Open original" CTA; a "Save to library" action. |
+| 5 | Match reader data fetching | Approach A: add a backend `GET /radar/matches/{id}` for direct-URL and refresh support. The alternatives (passing through router state, merging Topic view and reader) were rejected. |
+| 6 | Mark-seen lifecycle | Automatic when the reader opens (a mount effect → PATCH /radar/matches/{id} state="seen"). |
+| 7 | Embedder 503 on Create/Update | A specific toast, "Embedder unavailable, retry later". The generic toast is only for other errors. The modal/dialog does not close on a 503. |
+| 8 | Threshold slider | Not shown in Create/Edit (`project-radar-threshold-slider-deferred`). The backend uses the default. |
+| 9 | Subscription management | Not in the UI; an admin or the CLI adds feeds and the user subscribes through the API (`project-user-added-feeds-deferred`). |
+| 10 | Full-content reader for a match | No; summary only (`project-radar-content-extraction-deferred`). |
 
-## 1. Архитектура
+## 1. Architecture
 
-Зеркалит структуру `features/library/` плюс одно расширение backend'а.
+Mirrors the structure of `features/library/`, plus one backend extension.
 
 ### Frontend
 
 ```
 web/src/features/radar/
-  api.ts                  fetch-функции, тонкая обёртка над apiFetch
-  schemas.ts              Zod-схемы для raw API + map-функции snake_case → camelCase
+  api.ts                  fetch functions, a thin wrapper over apiFetch
+  schemas.ts              Zod schemas for the raw API + map functions snake_case → camelCase
   types.ts                TopicWithStats, MatchView, RadarStatus, FilterParams, PAGE_SIZE
   use-radar.tsx           useTopicsQuery, useTopicQuery, useMatchesQuery (infinite),
                           useMatchQuery, useRadarStatusQuery
@@ -49,7 +52,7 @@ web/src/features/radar/
     DeleteTopicConfirm.tsx
     TopicHeader.tsx
     StatsLine.tsx
-    SkeletonCard.tsx      (если library-вариант не получится переиспользовать as-is)
+    SkeletonCard.tsx      (if the library version cannot be reused as is)
     EmptyTopicList.tsx
     EmptyTopicMatches.tsx
 
@@ -59,38 +62,39 @@ web/src/routes/
   radar.matches.$matchId.tsx  /radar/matches/$matchId
 
 web/src/shared/layout/Sidebar.tsx
-  снять disabled: true с Radar nav-пункта
+  drop disabled: true from the Radar nav item
 ```
 
 ### Backend addition (`internal/radar/`)
 
-Точечное расширение, симметричное `GetTopic`.
+A targeted extension, symmetrical with `GetTopic`.
 
-| Слой | Метод/Handler | Изменение |
+| Layer | Method/Handler | Change |
 |---|---|---|
-| Store | `GetMatch(ctx, userID, matchID) (*MatchView, error)` | Новый. SQL — тот же JOIN, что в `ListMatches`, плюс `WHERE m.id = $1 AND t.user_id = $2`. Чужой match → `ErrMatchNotFound`. |
-| Service | `GetMatch(ctx, userID, matchID) (*MatchView, error)` | Новый, проброс. |
-| HTTP | `GetMatchHandler() http.HandlerFunc` | Новый. 200/400/404/503. |
-| Server | `r.Get("/matches/{id}", radarHTTP.GetMatchHandler())` | Новый роут внутри существующего `r.Route("/radar", …)`. |
-| StoreAPI / mockStore | extend interface + mock | Обязательно. |
+| Store | `GetMatch(ctx, userID, matchID) (*MatchView, error)` | New. The SQL is the same JOIN as in `ListMatches`, plus `WHERE m.id = $1 AND t.user_id = $2`. Someone else's match → `ErrMatchNotFound`. |
+| Service | `GetMatch(ctx, userID, matchID) (*MatchView, error)` | New, a pass-through. |
+| HTTP | `GetMatchHandler() http.HandlerFunc` | New. 200/400/404/503. |
+| Server | `r.Get("/matches/{id}", radarHTTP.GetMatchHandler())` | A new route inside the existing `r.Route("/radar", …)`. |
+| StoreAPI / mockStore | extend the interface + the mock | Mandatory. |
 
-Никаких миграций, никаких новых пакетов.
+No migrations, no new packages.
 
-## 2. Routes & navigation
+## 2. Routes and navigation
 
-| Path | File | Назначение |
+| Path | File | Purpose |
 |---|---|---|
-| `/radar` | `radar._index.tsx` | Radar list: header + grid топик-карточек + last sweep + кнопка «New topic». Секции «On the radar» / «Paused». |
-| `/radar/$topicId` | `radar.$topicId.tsx` | Topic view: header (name/description) + StatsLine + матчи infinite scroll + Edit/Pause/Delete actions. |
-| `/radar/matches/$matchId` | `radar.matches.$matchId.tsx` | Match reader: layout как library reader, body = summary, CTA «Open original», action «Save to library», back-link на `/radar/$topicId`. |
+| `/radar` | `radar._index.tsx` | The Radar list: header + a grid of topic cards + last sweep + a "New topic" button. "On the radar" / "Paused" sections. |
+| `/radar/$topicId` | `radar.$topicId.tsx` | Topic view: header (name/description) + StatsLine + matches on infinite scroll + Edit/Pause/Delete actions. |
+| `/radar/matches/$matchId` | `radar.matches.$matchId.tsx` | Match reader: laid out like the library reader, body = summary, an "Open original" CTA, a "Save to library" action, and a back link to `/radar/$topicId`. |
 
-Все три под `_app.tsx` (sidebar + topbar) и `ProtectedRoute` (как library).
+All three sit under `_app.tsx` (sidebar + topbar) and `ProtectedRoute` (as
+library does).
 
-Sidebar: в `Sidebar.tsx` снять `disabled: true` с Radar (line 6).
+Sidebar: drop `disabled: true` from Radar in `Sidebar.tsx` (line 6).
 
 ## 3. Data layer
 
-### API-функции (`api.ts`)
+### API functions (`api.ts`)
 
 ```ts
 listTopics(): Promise<TopicWithStats[]>
@@ -125,16 +129,20 @@ radarKeys = {
 | `updateTopic` | `topics`, `topic(id)` |
 | `deleteTopic` | `topics`; remove `topic(id)`, `matches(id, *)` |
 | `markMatchSeen` | `matches(topicId, *)`, `topics` (newCount), `match(id)` |
-| `useUpdateTopic` (pause/resume) | optimistic, rollback в `onError` |
-| `useMarkMatchSeen` | optimistic, single field |
+| `useUpdateTopic` (pause/resume) | optimistic, rollback in `onError` |
+| `useMarkMatchSeen` | optimistic, a single field |
 
 ### Schemas
 
-Backend отдаёт snake_case (`new_count`, `last_match_at`, `topic_id`, `match_threshold`, `is_active`, `discovered_at`, `feed_title`). Zod schemas декодят raw shape; map-функции конвертят в camelCase. Date-поля парсим в `Date | null`. `parseInDev` гейтит валидацию по DEV/test, как в library.
+The backend returns snake_case (`new_count`, `last_match_at`, `topic_id`,
+`match_threshold`, `is_active`, `discovered_at`, `feed_title`). Zod schemas
+decode the raw shape; map functions convert to camelCase. Date fields are parsed
+into `Date | null`. `parseInDev` gates validation on DEV/test, as in library.
 
 ### Pagination
 
-`useMatchesQuery` — infinite query, `pageParam` = offset, `PAGE_SIZE` = 20. `getNextPageParam` идентичен library-варианту.
+`useMatchesQuery` is an infinite query, `pageParam` = offset, `PAGE_SIZE` = 20.
+`getNextPageParam` is identical to the library version.
 
 ## 4. Page components
 
@@ -145,28 +153,30 @@ PageHeader        title="Radar"   subtitle=`Last sweep · ${fmt(status.lastSweep
 RadarToolbar      [+ New topic] (desktop right, mobile full-width below header)
 <section>On the radar</section>
   TopicGrid (active=true)         grid-cols-1 md:grid-cols-2
-<section>Paused</section>          (рендерится только если есть paused)
+<section>Paused</section>          (rendered only if there are paused topics)
   TopicGrid (active=false, opacity-60)
 ```
 
-`TopicCard` рендерит `TopicWithStats`:
-- index-номер сверху-слева, `stats.newCount` справа (vermillion если > 0, dash если 0)
-- name (display-tight 1.75rem)
-- description (line-clamp-2)
-- нижняя строка: `${stats.totalCount} found · ${stats.sourceCount} sources · ${fmt(stats.lastMatchAt)}`
-- Link на `/radar/$topicId`
+`TopicCard` renders a `TopicWithStats`:
+- the index number at the top left, `stats.newCount` on the right (vermillion if
+  > 0, a dash if 0)
+- the name (display-tight 1.75rem)
+- the description (line-clamp-2)
+- a bottom line: `${stats.totalCount} found · ${stats.sourceCount} sources · ${fmt(stats.lastMatchAt)}`
+- a Link to `/radar/$topicId`
 
-**Не выводим:** keyword-chips, sources list.
+**Not shown:** keyword chips, the sources list.
 
-Loading: 4 `SkeletonCard`. Empty: `EmptyTopicList` (full-width CTA «+ New topic»).
+Loading: four `SkeletonCard`s. Empty: `EmptyTopicList` (a full-width "+ New
+topic" CTA).
 
-«Awaiting first sweep» вместо timestamp'а, если `status.lastSweepAt === null`.
+"Awaiting first sweep" replaces the timestamp when `status.lastSweepAt === null`.
 
 ### Topic view (`/radar/$topicId`)
 
 ```
 BackLink          ← Back to radar
-TopicHeader       name, description, Edit/Pause/Delete справа (desktop)
+TopicHeader       name, description, Edit/Pause/Delete on the right (desktop)
 StatsLine         <vermillion>{totalCount}</vermillion> found · {newCount} unread ·
                   {sourceCount} sources · created {fmt(createdAt)}
 SectionHeader     "Found entries" · "{visibleCount} shown"
@@ -174,133 +184,175 @@ MatchGrid         infinite scroll, grid-cols-1 md:grid-cols-2 lg:grid-cols-3
 ```
 
 `TopicHeader` actions:
-- **Edit** → `EditTopicDialog` с текущими значениями
-- **Pause/Resume** → `useUpdateTopic({ isActive: !current })`, optimistic toggle
-- **Delete** → `DeleteTopicConfirm`, confirm → `useDeleteTopic` → navigate `/radar`
+- **Edit** → `EditTopicDialog` with the current values
+- **Pause/Resume** → `useUpdateTopic({ isActive: !current })`, an optimistic
+  toggle
+- **Delete** → `DeleteTopicConfirm`, confirm → `useDeleteTopic` → navigate to
+  `/radar`
 
 `MatchCard`:
-- top строка: date · source · index
+- top line: date · source · index
 - title (display-tight, line-clamp-2)
 - summary (line-clamp-3)
-- vermillion stamp «new» в углу если `state === "new"`
-- Link на `/radar/matches/$matchId`
+- a vermillion "new" stamp in the corner when `state === "new"`
+- a Link to `/radar/matches/$matchId`
 
-Empty: `EmptyTopicMatches` — «Standing watch. New entries will appear here.»
-404 топика → not-found route.
+Empty: `EmptyTopicMatches` — "Standing watch. New entries will appear here."
+A 404 on the topic → the not-found route.
 
 ### Match reader (`/radar/matches/$matchId`)
 
 ```
 BackLink          ← Back to {match.topicName}     (navigate to /radar/${match.topicId})
-ReaderHeader      topic-stamp (link к топику), title, source · author · publishedAt · feedTitle
-ReaderBody        summary (font-body, без drop-cap)
-                  fallback «No summary captured. Open original to read.» если summary пуст
+ReaderHeader      topic stamp (a link to the topic), title, source · author · publishedAt · feedTitle
+ReaderBody        summary (font-body, no drop cap)
+                  fallback "No summary captured. Open original to read." when summary is empty
 ReaderActions     [Open original ↗] (primary) · [Save to library] (secondary)
 ```
 
-`useMatchQuery(matchId)` → mount-эффект: если `match.state === "new"` → `markSeen({ id, state: "seen" })`. Idempotent.
+`useMatchQuery(matchId)` → a mount effect: if `match.state === "new"` →
+`markSeen({ id, state: "seen" })`. Idempotent.
 
-**«Save to library»** → `saveLink(match.finding.url)` (existing `library/api.ts`). Toast «Saved» + invalidate `["library"]`. Match остаётся в Radar как seen.
+**"Save to library"** → `saveLink(match.finding.url)` (the existing
+`library/api.ts`). A "Saved" toast plus invalidating `["library"]`. The match
+stays in Radar as seen.
 
-Layout-компоненты переиспользуем из library reader (`ReaderHeader`, `ReaderActions`). Если интерфейсы не совпадают, выносим shared ядро в `shared/layout/Reader*` и оборачиваем обоими.
+Layout components are reused from the library reader (`ReaderHeader`,
+`ReaderActions`). If the interfaces do not line up, extract a shared core into
+`shared/layout/Reader*` and wrap it from both sides.
 
-Fallback'ы:
-- пустой `finding.title` → URL вместо заголовка
-- пустой `finding.author` / `finding.feedTitle` → пропускаем строку, не показываем плейсхолдер
+Fallbacks:
+- an empty `finding.title` → the URL instead of a heading
+- an empty `finding.author` / `finding.feedTitle` → skip the line, no placeholder
 
 ### Dialogs
 
-`NewTopicDialog` / `EditTopicDialog` — `shared/ui/dialog.tsx` (как `AddLinkDialog`):
-- Поля: `name` (required, max 200), `description` (required, textarea, max 2000)
-- Submit: `useCreateTopic` / `useUpdateTopic` → close + toast «Saved»
-- 503 от embedder'а → toast «Embedder unavailable, retry later»; диалог НЕ закрывается, данные не теряются
-- Generic ошибка → toast «Could not save»; dialog остаётся открытым
+`NewTopicDialog` / `EditTopicDialog` — `shared/ui/dialog.tsx` (like
+`AddLinkDialog`):
+- Fields: `name` (required, max 200), `description` (required, textarea, max
+  2000)
+- Submit: `useCreateTopic` / `useUpdateTopic` → close plus a "Saved" toast
+- A 503 from the embedder → an "Embedder unavailable, retry later" toast; the
+  dialog does NOT close and the data is not lost
+- A generic error → a "Could not save" toast; the dialog stays open
 
 `DeleteTopicConfirm` — `shared/ui/alert-dialog.tsx`:
-- Текст: «Delete topic "{name}"? Matches will be lost.» (backend каскадно дропает matches; findings не трогает)
-- Confirm → `useDeleteTopic` → navigate `/radar`, toast «Deleted»
+- Text: "Delete topic "{name}"? Matches will be lost." (the backend cascades away
+  the matches; findings are untouched)
+- Confirm → `useDeleteTopic` → navigate to `/radar`, a "Deleted" toast
 
 ## 5. Data flow
 
-Типичный путь:
-1. `/radar` mount → `useTopicsQuery` + `useRadarStatusQuery` параллельно.
-2. Клик по карточке → `/radar/$topicId` → `useTopicQuery(id)` + `useMatchesQuery({topicId: id})`. `topics` cache уже содержит этот топик от шага 1 — header рендерится мгновенно через placeholder/initialData.
-3. Клик по матчу → `/radar/matches/$matchId` → `useMatchQuery(id)`. Если `match.state === "new"`, mount-эффект → `markSeenMutation`. Optimistic update в `matches(topicId, *)` и `topic.stats.newCount` (decrement) для мгновенного UI feedback'а в sidebar/list.
-4. «Save to library» → `saveLink(finding.url)` → invalidate `["library"]`. Match остаётся seen.
+A typical path:
+1. `/radar` mounts → `useTopicsQuery` and `useRadarStatusQuery` in parallel.
+2. A card click → `/radar/$topicId` → `useTopicQuery(id)` plus
+   `useMatchesQuery({topicId: id})`. The `topics` cache already holds this topic
+   from step 1, so the header renders instantly through placeholder/initialData.
+3. A match click → `/radar/matches/$matchId` → `useMatchQuery(id)`. If
+   `match.state === "new"`, a mount effect fires `markSeenMutation`. An optimistic
+   update on `matches(topicId, *)` and `topic.stats.newCount` (decrement) gives
+   instant UI feedback in the sidebar and the list.
+4. "Save to library" → `saveLink(finding.url)` → invalidate `["library"]`. The
+   match stays seen.
 
-### Mutations (общий паттерн)
+### Mutations (the shared pattern)
 
-- `mutationFn` → `onSuccess` (invalidate) + `onError` (toast).
-- `useUpdateTopic`/`useCreateTopic` различают 503 (HTTP status или `error.code === "embedder_unavailable"`) от прочих.
-- Optimistic update для `markMatchSeen` и `Pause/Resume`. Rollback в `onError`.
+- `mutationFn` → `onSuccess` (invalidate) plus `onError` (toast).
+- `useUpdateTopic`/`useCreateTopic` distinguish a 503 (by HTTP status or
+  `error.code === "embedder_unavailable"`) from everything else.
+- Optimistic updates for `markMatchSeen` and Pause/Resume. Rollback in
+  `onError`.
 
-## 6. Edge cases & states
+## 6. Edge cases and states
 
-- **Direct URL на `/radar/matches/$matchId`** — `useMatchQuery` тянет match по id; BackLink использует `match.topicName` из ответа.
-- **Удалённый топик с открытым reader** — следующий рефетч отдаёт 404 → not-found UI.
-- **Пустой `last_sweep_at`** — «Awaiting first sweep» вместо timestamp'а.
-- **Пустой `finding.summary`** — fallback-текст в reader body.
-- **Пустой `finding.title`** — URL вместо заголовка.
-- **`LINKTHECA_RADAR_ENABLED=false`** — backend отдаёт `501 radar_disabled` на `/radar/*` (через `DisabledHandler`). UI детектит по `error.code === "radar_disabled"` и рендерит full-page «Radar is disabled in this instance.» вместо grid'а. Sidebar-пункт виден (модуль присутствует в коде).
-- **Embedder unavailable** — backend отдаёт `503 embedder_unavailable`. В Create/Edit dialog → specific toast; в других местах (например, фон) — generic toast.
-- **401** — existing logout-flow (как library).
+- **A direct URL to `/radar/matches/$matchId`** — `useMatchQuery` pulls the match
+  by id; the BackLink uses `match.topicName` from the response.
+- **A deleted topic with the reader open** — the next refetch returns 404 → the
+  not-found UI.
+- **An empty `last_sweep_at`** — "Awaiting first sweep" instead of a timestamp.
+- **An empty `finding.summary`** — the fallback text in the reader body.
+- **An empty `finding.title`** — the URL instead of a heading.
+- **`LINKTHECA_RADAR_ENABLED=false`** — the backend returns `501 radar_disabled`
+  on `/radar/*` (through `DisabledHandler`). The UI detects it by
+  `error.code === "radar_disabled"` and renders a full-page "Radar is disabled in
+  this instance." instead of the grid. The sidebar item stays visible (the module
+  is present in the code).
+- **Embedder unavailable** — the backend returns `503 embedder_unavailable`. In
+  the Create/Edit dialog it becomes a specific toast; elsewhere (in the
+  background, say) a generic toast.
+- **401** — the existing logout flow (as in library).
 
 ## 7. Accessibility
 
-- Dialog (Radix-based) — focus-trap включён, escape закрывает, ARIA labels.
-- Cards — wrapping `<Link>`, keyboard-accessible (Enter/Space через React Router).
-- Icon-only action buttons (Edit/Pause/Delete на mobile) — `aria-label`.
-- Status announcements: toast уже использует `sonner` (live region).
+- The dialog (Radix-based) — focus trap on, escape closes, ARIA labels.
+- Cards — a wrapping `<Link>`, keyboard accessible (Enter/Space through React
+  Router).
+- Icon-only action buttons (Edit/Pause/Delete on mobile) — `aria-label`.
+- Status announcements: the toast already uses `sonner` (a live region).
 
 ## 8. Testing
 
 ### Backend (Go, `internal/radar/`)
 
-- `store_test.go` — `GetMatch` happy / другой user → 404 / не существует → 404
-- `service_test.go` — mockStore проброс + ошибки
+- `store_test.go` — `GetMatch` happy path / another user → 404 / nonexistent →
+  404
+- `service_test.go` — the mockStore pass-through plus errors
 - `http_test.go` — 200 (JSON shape), 400 (bad id), 404, 503 disabled
-- `integration_test.go` — добавить шаг `GET /radar/matches/{id}` в end-to-end сценарий
-- Update `StoreAPI` interface + `mockStore`
+- `integration_test.go` — add a `GET /radar/matches/{id}` step to the end-to-end
+  scenario
+- Update the `StoreAPI` interface and `mockStore`
 
-### Frontend юнит (`features/radar/`)
+### Frontend unit tests (`features/radar/`)
 
-- `api.test.ts` — fetch URL'ы, query-string для `listMatches`, body shape для `updateTopic` PATCH (только non-undefined поля)
-- `schemas.test.ts` — Zod парсинг raw responses, snake_case → camelCase, null/optional поля
-- `use-radar.test.tsx` — list, single, infinite pagination, error path
+- `api.test.ts` — the fetch URLs, the query string for `listMatches`, the body
+  shape for the `updateTopic` PATCH (only non-undefined fields)
+- `schemas.test.ts` — Zod parsing of raw responses, snake_case → camelCase,
+  null/optional fields
+- `use-radar.test.tsx` — list, single, infinite pagination, the error path
 - `use-mutations.test.tsx`:
-  - `useCreateTopic` + 503 → specific toast
-  - `useUpdateTopic` optimistic + rollback
+  - `useCreateTopic` plus a 503 → the specific toast
+  - `useUpdateTopic` optimistic plus rollback
   - `useMarkMatchSeen` invalidation
-  - `useDeleteTopic` navigate
+  - `useDeleteTopic` navigation
 
-### Компонентные тесты
+### Component tests
 
-- `TopicCard.test.tsx` — рендер stats, vermillion newCount, paused dimming, link href
-- `NewTopicDialog.test.tsx` — submit, validation (empty name), 503 → dialog stays open, generic-error toast
-- `EditTopicDialog.test.tsx` — initial values, partial-update body (только изменённые поля)
-- Match reader **auto-mark-seen** — mount-эффект вызывает mutation ровно один раз при `state === "new"`, не вызывает при `state === "seen"` (критичный side-effect)
+- `TopicCard.test.tsx` — rendering the stats, the vermillion newCount, paused
+  dimming, the link href
+- `NewTopicDialog.test.tsx` — submit, validation (empty name), 503 → the dialog
+  stays open, the generic-error toast
+- `EditTopicDialog.test.tsx` — initial values, a partial-update body (only the
+  changed fields)
+- Match reader **auto-mark-seen** — the mount effect fires the mutation exactly
+  once when `state === "new"` and never when `state === "seen"` (a critical side
+  effect)
 
-### Не тестируем
+### Not tested
 
-- Тривиальные компоненты (`StatsLine`, `EmptyTopicList`, `EmptyTopicMatches`) — covered косвенно.
-- Layout-компоненты, переиспользованные из library — уже покрыты в library tests.
+- Trivial components (`StatsLine`, `EmptyTopicList`, `EmptyTopicMatches`) —
+  covered indirectly.
+- Layout components reused from library — already covered by the library tests.
 
-### Manual smoke (перед merge)
+### Manual smoke (before merge)
 
-- Создать топик через UI → виден в списке → клик → Topic view, пустой → seed match через CLI → обновить → match виден → клик → reader → newCount уменьшился в списке → «Open original» открывает новую вкладку → «Save to library» → проверить в Library.
-- Pause топика → переезжает в Paused-секцию → Resume → возвращается.
-- Delete topic → подтверждение → редирект на `/radar`, матчей нет.
-- Радикальный toggle: `LINKTHECA_RADAR_ENABLED=false` → UI показывает «Radar is disabled».
+- Create a topic through the UI → it appears in the list → click → Topic view,
+  empty → seed a match through the CLI → refresh → the match is visible → click →
+  reader → newCount drops in the list → "Open original" opens a new tab → "Save
+  to library" → check it in Library.
+- Pause a topic → it moves into the Paused section → Resume → it comes back.
+- Delete a topic → confirm → redirect to `/radar`, no matches.
+- The blunt toggle: `LINKTHECA_RADAR_ENABLED=false` → the UI shows "Radar is
+  disabled".
 
 ## 9. Out of scope (this iteration)
 
-Зафиксировано здесь, чтобы при writing-plans не возвращаться к обсуждению:
+Recorded here so writing-plans does not reopen the discussion:
 
-- Keyword-chips в Topic UI и поле keywords в Create/Edit modal
-- Sources block / per-topic feed picker
-- Subscription management UI
-- Threshold slider в Create/Edit
-- Bulk «Mark all seen» в Topic view
-- Full-content extraction для findings
+- Keyword chips in the Topic UI and a keywords field in the Create/Edit modal
+- The sources block / a per-topic feed picker
+- A subscription management UI
+- The threshold slider in Create/Edit
+- Bulk "Mark all seen" in the Topic view
+- Full-content extraction for findings
 - Cursor pagination
-- Mobile-specific Radar layout сверх media queries from prototype
+- A mobile-specific Radar layout beyond the media queries from the prototype

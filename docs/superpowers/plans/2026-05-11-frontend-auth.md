@@ -2,17 +2,17 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Поверх готового frontend foundation поднять полноценный auth-flow: Zod-схемы и API-функции, refresh-on-401 с in-flight singleton, bootstrap при загрузке, `<ProtectedRoute>`, Login/Register формы (React Hook Form + Zod), Logout через UserMenu в Topbar, sonner-тосты. После плана пользователь может зарегистрироваться, залогиниться, переключаться между сессиями и видеть `/library` (контента ещё нет — это следующий план).
+**Goal:** On top of the finished frontend foundation, stand up a complete auth flow: Zod schemas and API functions, refresh-on-401 with an in-flight singleton, bootstrap on load, `<ProtectedRoute>`, Login/Register forms (React Hook Form + Zod), logout through the UserMenu in the Topbar, and sonner toasts. After this plan a user can register, sign in, switch between sessions, and see `/library` (with no content yet — that is the next plan).
 
-**Architecture:** Refresh-token живёт в `localStorage` (`linktheca.refresh`), access-token — только в Zustand store. `apiFetch` сам обрабатывает 401: одиночный in-flight Promise `POST /auth/refresh` запускается из первого 401, остальные 401-запросы ждут тот же Promise, после успеха оригиналы ретраятся ровно один раз. При провале refresh — `clearSession()`, и `<ProtectedRoute>` редиректит на `/login` с `from`-location в state. Bootstrap при mount → `status='bootstrapping'` пока не отработает refresh из storage; `<ProtectedRoute>` рендерит `<FullPageSpinner>` пока bootstrapping. Login/Register — React Hook Form + Zod, серверные ошибки маппятся в top-of-form alert или inline-field-error.
+**Architecture:** The refresh token lives in `localStorage` (`linktheca.refresh`); the access token lives only in the Zustand store. `apiFetch` handles 401 itself: a single in-flight `POST /auth/refresh` Promise is started by the first 401, every other 401 request waits on that same Promise, and after success the originals are retried exactly once. If the refresh fails, `clearSession()` runs and `<ProtectedRoute>` redirects to `/login` with the `from` location in state. Bootstrap on mount sets `status='bootstrapping'` until the refresh from storage completes; `<ProtectedRoute>` renders `<FullPageSpinner>` while bootstrapping. Login/Register use React Hook Form + Zod, and server errors map to a top-of-form alert or an inline field error.
 
-**Tech Stack:** zod, react-hook-form, @hookform/resolvers, sonner; уже стоящие React Router v7, TanStack Query v5, Zustand, Radix Dialog/Slot/Label, shadcn/ui copies, lucide-react, Vitest + RTL + MSW.
+**Tech Stack:** zod, react-hook-form, @hookform/resolvers, sonner; plus the already-installed React Router v7, TanStack Query v5, Zustand, Radix Dialog/Slot/Label, shadcn/ui copies, lucide-react, Vitest + RTL + MSW.
 
-**Spec:** `docs/superpowers/specs/2026-05-08-frontend-foundation-library-design.md` секции 3–4.
+**Spec:** `docs/superpowers/specs/2026-05-08-frontend-foundation-library-design.md`, sections 3–4.
 
 ---
 
-## Файловая структура (создаётся/меняется этим планом)
+## File structure (created or changed by this plan)
 
 ```
 web/
@@ -21,9 +21,9 @@ web/
     App.tsx                                         # mount Toaster + use useBootstrap + ProtectedRoute wrapper
     main.tsx                                        # (no change)
     routes/
-      _public.tsx                                   # masthead + .rule-double визуал
+      _public.tsx                                   # masthead + the .rule-double visual
       login.tsx                                     # renders <LoginForm/>
-      register.tsx                                  # renders <RegisterForm/> или <RegistrationDisabled/>
+      register.tsx                                  # renders <RegisterForm/> or <RegistrationDisabled/>
     features/
       auth/
         api.ts                                      # NEW — login/register/refresh/logout/me functions
@@ -39,9 +39,9 @@ web/
           LoginForm.test.tsx                        # NEW
           RegisterForm.tsx                          # NEW
           RegisterForm.test.tsx                     # NEW
-          RegistrationDisabled.tsx                  # NEW — full-page «registration is closed» сообщение
+          RegistrationDisabled.tsx                  # NEW — a full-page "registration is closed" message
           UserMenu.tsx                              # NEW — initials → dropdown → logout
-          PublicMasthead.tsx                        # NEW — «Linktheca» italic header для public layout
+          PublicMasthead.tsx                        # NEW — the "Linktheca" italic header for the public layout
     shared/
       api/
         client.ts                                   # ADD refresh-on-401 singleton + retry-once
@@ -58,9 +58,9 @@ web/
 
 ---
 
-## Группа 1 — Deps + schemas + API + storage
+## Group 1 — Deps + schemas + API + storage
 
-### Task 1: Установить зависимости
+### Task 1: Install the dependencies
 
 **Files:**
 - Modify: `web/package.json`
@@ -92,12 +92,12 @@ git commit -m "deps(web): add zod, react-hook-form, sonner, radix dropdown-menu"
 
 ---
 
-### Task 2: Zod schemas для auth-ответов
+### Task 2: Zod schemas for the auth responses
 
 **Files:**
 - Create: `web/src/features/auth/schemas.ts`
 
-Backend serializes User in snake_case (`display_name`, `is_admin`, `created_at`, `updated_at`); TokenPair as `access_token`/`refresh_token`; AuthResponse as `{ user, tokens }`. На фронте мы используем camelCase для `User` (`displayName`, `isAdmin`). Zod-схемы парсят raw shape, маппинг к camelCase делаем в `mapUser()` ниже.
+The backend serializes User in snake_case (`display_name`, `is_admin`, `created_at`, `updated_at`); TokenPair as `access_token`/`refresh_token`; AuthResponse as `{ user, tokens }`. On the frontend we use camelCase for `User` (`displayName`, `isAdmin`). The Zod schemas parse the raw shape, and the mapping to camelCase happens in `mapUser()` below.
 
 - [x] **Step 1: Write the file**
 
@@ -159,7 +159,7 @@ git commit -m "feat(web/auth): add Zod schemas for auth responses and User mappe
 - Create: `web/src/features/auth/storage.ts`
 - Test: `web/src/features/auth/storage.test.ts`
 
-Зачем отдельный модуль: спрятать ключ `linktheca.refresh` за тремя функциями (`read`, `write`, `clear`), чтобы тесты могли мокать одно место и чтобы доступ к localStorage не разрастался.
+Why a separate module: it hides the `linktheca.refresh` key behind three functions (`read`, `write`, `clear`), so tests can mock one place and localStorage access does not sprawl.
 
 - [x] **Step 1: Write the failing test**
 
@@ -258,7 +258,7 @@ git commit -m "feat(web/auth): add refresh token localStorage helpers"
 - Create: `web/src/features/auth/api.ts`
 - Test: `web/src/features/auth/api.test.ts`
 
-Этот модуль НЕ занимается refresh-логикой — он только зовёт `apiFetch` и парсит ответы. Refresh-on-401 живёт внутри `apiFetch` (Task 6). Login/Register **раньше bootstrap-а делают side-effects** (`setSession` + `writeRefreshToken`), потому что апп должен сразу стать authed. Logout наоборот — side-effects делает консамер (`use-logout`), потому что нужен `queryClient.clear()`.
+This module does NOT own the refresh logic — it only calls `apiFetch` and parses the responses. Refresh-on-401 lives inside `apiFetch` (Task 6). Login and Register perform **side effects before bootstrap** (`setSession` + `writeRefreshToken`), because the app has to become authed immediately. Logout is the opposite: the consumer (`use-logout`) performs the side effects, because it needs `queryClient.clear()`.
 
 - [x] **Step 1: Write the failing test**
 
@@ -508,7 +508,7 @@ git commit -m "feat(web/auth): add login/register/refresh-aware me/logout API fu
 
 ---
 
-## Группа 2 — Refresh-on-401 в apiFetch
+## Group 2 — Refresh-on-401 inside apiFetch
 
 ### Task 5: Refresh-on-401 singleton + retry-once
 
@@ -516,16 +516,16 @@ git commit -m "feat(web/auth): add login/register/refresh-aware me/logout API fu
 - Modify: `web/src/shared/api/client.ts`
 - Modify: `web/src/shared/api/client.test.ts`
 
-Спецификация:
-1. 401 + есть refresh-token + это не `/auth/refresh` сам → запустить refresh (singleton Promise, один in-flight на все параллельные 401), после успеха ретраить **ровно один раз**.
-2. Refresh-успех → `setSession(newAccess, mappedUser)` + `writeRefreshToken(newRefresh)`.
-3. Refresh-провал (любой статус, network error, parse error) → `clearRefreshToken()`, `clearSession()`, прокинуть ApiError(401) дальше. ProtectedRoute среагирует.
-4. Ретрай оригинального запроса использует **новый** access-token из store (apiFetch читает токен в начале каждого вызова — уже так).
-5. Запросы с `_retry: true` НЕ инициируют второй refresh — если снова 401, бросаем ApiError.
+The specification:
+1. A 401 + a refresh token present + the request is not `/auth/refresh` itself → start a refresh (a singleton Promise, one in-flight across all concurrent 401s), and after success retry **exactly once**.
+2. A successful refresh → `setSession(newAccess, mappedUser)` + `writeRefreshToken(newRefresh)`.
+3. A failed refresh (any status, a network error, a parse error) → `clearRefreshToken()`, `clearSession()`, and rethrow ApiError(401). ProtectedRoute reacts to it.
+4. The retry of the original request uses the **new** access token from the store (apiFetch already reads the token at the start of every call).
+5. Requests carrying `_retry: true` do NOT start a second refresh — on another 401 we throw ApiError.
 
 - [x] **Step 1: Write failing tests (extend existing file)**
 
-Add to `web/src/shared/api/client.test.ts`, в конец файла:
+Add to `web/src/shared/api/client.test.ts`, at the end of the file:
 
 ```ts
 import { writeRefreshToken, readRefreshToken, clearRefreshToken } from "@/features/auth/storage";
@@ -789,14 +789,14 @@ git commit -m "feat(web/api): refresh-on-401 with singleton in-flight Promise an
 
 ---
 
-## Группа 3 — Bootstrap + ProtectedRoute
+## Group 3 — Bootstrap + ProtectedRoute
 
 ### Task 6: FullPageSpinner
 
 **Files:**
 - Create: `web/src/shared/layout/FullPageSpinner.tsx`
 
-Тонкий компонент, без логики. Визуально — paper-surface на весь экран, центрированная подпись «Linktheca» Cormorant italic + ниже маленький subtle pulse-dot ряд. Без зависимостей от lucide-spinner (статичные точки выглядят editorial-нее).
+A thin component with no logic. Visually: a full-screen paper-surface, a centred "Linktheca" caption in Cormorant italic, and a small row of subtle pulsing dots below. No dependency on a lucide spinner (static dots read as more editorial).
 
 - [x] **Step 1: Implement**
 
@@ -847,11 +847,11 @@ git commit -m "feat(web): add FullPageSpinner for bootstrapping state"
 - Create: `web/src/features/auth/use-bootstrap.ts`
 - Test: `web/src/features/auth/use-bootstrap.test.tsx`
 
-Хук вызывается **один раз** при mount в `App.tsx`. Поведение:
-- При mount: если в localStorage нет refresh-токена → `status='anonymous'`, выходим.
-- Если refresh-токен есть → пытаемся `POST /auth/refresh`. На успех `setSession` (уже делает `performRefresh` внутри apiFetch — но тут мы зовём низкоуровневый запрос). На провал → `clearRefreshToken()`, `clearSession()`.
+The hook is called **once** on mount in `App.tsx`. Its behaviour:
+- On mount: if there is no refresh token in localStorage → `status='anonymous'`, exit.
+- If a refresh token exists → try `POST /auth/refresh`. On success, `setSession` (which `performRefresh` inside apiFetch already does — but here we call the low-level request). On failure → `clearRefreshToken()`, `clearSession()`.
 
-Тонкость: можно ли переиспользовать `apiFetch('/auth/me')`? Да: оно само словит 401, дёрнет refresh, ретрайнёт `/auth/me`. После успеха store будет authed. На провал — store anonymous. Этот путь короче.
+A subtlety: can we reuse `apiFetch('/auth/me')`? Yes — it catches the 401 itself, triggers the refresh, and retries `/auth/me`. On success the store is authed; on failure it is anonymous. That path is shorter.
 
 - [x] **Step 1: Write the failing test**
 
@@ -967,7 +967,7 @@ export function useBootstrap(): void {
 
     (async () => {
       try {
-        await me(); // апи сам зовёт /auth/refresh при 401 и обновит store
+        await me(); // the api calls /auth/refresh on a 401 itself and updates the store
       } catch {
         useAuthStore.getState().clearSession();
       }
@@ -996,12 +996,12 @@ git commit -m "feat(web/auth): add useBootstrap hook to restore session from ref
 - Create: `web/src/shared/layout/ProtectedRoute.tsx`
 - Test: `web/src/shared/layout/ProtectedRoute.test.tsx`
 
-Поведение:
+Behaviour:
 - `status === 'bootstrapping'` → `<FullPageSpinner />`.
 - `status === 'anonymous'` → `<Navigate to="/login" state={{ from: location }} replace />`.
 - `status === 'authed'` → `<Outlet />`.
 
-`from`-location сохраняется в state, чтобы `/login` мог редиректить обратно после успеха.
+The `from` location is kept in state so `/login` can redirect back after success.
 
 - [x] **Step 1: Write the failing test**
 
@@ -1102,7 +1102,7 @@ git commit -m "feat(web): add ProtectedRoute with bootstrapping/anonymous/authed
 **Files:**
 - Modify: `web/src/App.tsx`
 
-В router-tree оборачиваем `AppLayout`-ветку в `ProtectedRoute`. `useBootstrap` зовём из тонкого компонента-обёртки внутри `<QueryClientProvider>`.
+In the router tree we wrap the `AppLayout` branch in `ProtectedRoute`. `useBootstrap` is called from a thin wrapper component inside `<QueryClientProvider>`.
 
 - [x] **Step 1: Update App.tsx**
 
@@ -1182,7 +1182,7 @@ Expected: PASS.
 - [x] **Step 3: Smoke-test dev server**
 
 Run in one terminal: `npm run dev`
-Open `http://localhost:5173/`. With no backend running, Vite proxy will fail, but the page should render FullPageSpinner briefly then settle on `/login` (because `/auth/me` fails → bootstrap clears session → ProtectedRoute redirects). The current `/login` stub is still text; визуал в Task 11.
+Open `http://localhost:5173/`. With no backend running, Vite proxy will fail, but the page should render FullPageSpinner briefly then settle on `/login` (because `/auth/me` fails → bootstrap clears session → ProtectedRoute redirects). The current `/login` stub is still text; the visuals land in Task 11.
 
 If you don't want to spin up the backend, you can also temporarily delete the refresh token from `localStorage` in the browser console — bootstrap goes straight to anonymous and redirects to /login. Confirm the spinner appears for at least a frame before the redirect.
 
@@ -1197,14 +1197,14 @@ git commit -m "feat(web): wire bootstrap and ProtectedRoute into router"
 
 ---
 
-## Группа 4 — Public layout + Login
+## Group 4 — Public layout + Login
 
 ### Task 10: PublicMasthead component
 
 **Files:**
 - Create: `web/src/features/auth/components/PublicMasthead.tsx`
 
-«Linktheca» Cormorant italic + декоративный `.rule-double` ниже. Используем в `_public.tsx` (Login/Register).
+"Linktheca" in Cormorant italic plus a decorative `.rule-double` below. Used in `_public.tsx` (Login/Register).
 
 - [x] **Step 1: Implement**
 
@@ -1274,15 +1274,15 @@ git commit -m "feat(web): mount PublicMasthead in _public layout"
 - Create: `web/src/features/auth/components/LoginForm.tsx`
 - Test: `web/src/features/auth/components/LoginForm.test.tsx`
 
-Поведение:
-- Поля: `email` (валидный email), `password` (≥1 char — длину проверит бэкенд).
-- Inline-error для каждого поля через `aria-describedby`.
+Behaviour:
+- Fields: `email` (a valid email), `password` (≥1 char — the backend checks the length).
+- An inline error for each field through `aria-describedby`.
 - Top-of-form alert:
   - `401 invalid_credentials` → «Invalid email or password».
   - `5xx` → «Service unavailable. Please try again.».
-  - Прочее → берём `error.message` как fallback.
-- Submit-кнопка disabled пока `formState.isSubmitting`.
-- На success зовёт `onSuccess()`-callback (роут сам делает navigate).
+  - Anything else → fall back to `error.message`.
+- The submit button is disabled while `formState.isSubmitting`.
+- On success it calls the `onSuccess()` callback (the route does the navigation itself).
 
 - [x] **Step 1: Write the failing test**
 
@@ -1565,14 +1565,14 @@ git commit -m "feat(web): wire LoginForm into /login with from-location redirect
 
 ---
 
-## Группа 5 — Register
+## Group 5 — Register
 
 ### Task 14: RegistrationDisabled component
 
 **Files:**
 - Create: `web/src/features/auth/components/RegistrationDisabled.tsx`
 
-Полностраничное сообщение «New accounts are disabled on this instance.», отображается, когда бэкенд возвращает 403 `registration_disabled` на `POST /auth/register`. Сообщение появляется ВНУТРИ public layout (masthead уже сверху), не вместо него.
+A full-page "New accounts are disabled on this instance." message, shown when the backend returns 403 `registration_disabled` on `POST /auth/register`. The message appears INSIDE the public layout (the masthead is already above it), not instead of it.
 
 - [x] **Step 1: Implement**
 
@@ -1612,12 +1612,12 @@ git commit -m "feat(web/auth): add RegistrationDisabled message"
 - Create: `web/src/features/auth/components/RegisterForm.tsx`
 - Test: `web/src/features/auth/components/RegisterForm.test.tsx`
 
-Поведение:
-- Поля: `email` (валидный), `displayName` (≥1), `password` (≥10 с inline-подсказкой).
-- На 409 `email_taken` → top-of-form «An account with this email already exists.».
-- На 403 `registration_disabled` → колбэк `onRegistrationDisabled()` (route переключит UI).
-- На 400 `weak_password` → inline-ошибка под `password`.
-- На success → `onSuccess()`.
+Behaviour:
+- Fields: `email` (valid), `displayName` (≥1), `password` (≥10, with an inline hint).
+- On 409 `email_taken` → a top-of-form "An account with this email already exists.".
+- On 403 `registration_disabled` → the `onRegistrationDisabled()` callback (the route switches the UI).
+- On 400 `weak_password` → an inline error under `password`.
+- On success → `onSuccess()`.
 
 - [x] **Step 1: Write the failing test**
 
@@ -1906,7 +1906,7 @@ git commit -m "feat(web/auth): add RegisterForm with weak-password and email-tak
 **Files:**
 - Modify: `web/src/routes/register.tsx`
 
-Route хранит local state: `disabled: boolean`. Если `disabled` — рендерит `<RegistrationDisabled/>`, иначе `<RegisterForm/>`. Колбэк `onRegistrationDisabled` от формы переключает state.
+The route holds local state: `disabled: boolean`. When `disabled`, it renders `<RegistrationDisabled/>`, otherwise `<RegisterForm/>`. The form's `onRegistrationDisabled` callback flips that state.
 
 - [x] **Step 1: Edit**
 
@@ -1948,7 +1948,7 @@ git commit -m "feat(web): wire RegisterForm + RegistrationDisabled switch into /
 
 ---
 
-## Группа 6 — Logout: Toaster + UserMenu
+## Group 6 — Logout: Toaster + UserMenu
 
 ### Task 17: Sonner Toaster wrapper
 
@@ -1956,7 +1956,7 @@ git commit -m "feat(web): wire RegisterForm + RegistrationDisabled switch into /
 - Create: `web/src/shared/ui/sonner.tsx`
 - Modify: `web/src/App.tsx`
 
-Стандартный shadcn-обвес: тонкий компонент `<Toaster />` поверх `sonner`. Mount внутри `<BootstrapGate>`. Position top-right, paper styling делаем через `richColors=false` + Tailwind в `toastOptions.className`.
+The standard shadcn wrapper: a thin `<Toaster />` component over `sonner`. Mounted inside `<BootstrapGate>`. Position top-right, with the paper styling done through `richColors=false` plus Tailwind in `toastOptions.className`.
 
 - [x] **Step 1: Create wrapper**
 
@@ -2018,7 +2018,7 @@ git commit -m "feat(web): add sonner Toaster and mount in App"
 **Files:**
 - Create: `web/src/shared/ui/dropdown-menu.tsx`
 
-Стандартный shadcn-snippet для Radix `DropdownMenu`, адаптированный к style file. Используем минимальный набор примитивов: `Root`, `Trigger`, `Portal`, `Content`, `Item`, `Label`, `Separator`. Без sub-menu, checkbox, radio — пока не нужны.
+The standard shadcn snippet for Radix `DropdownMenu`, adapted to the style file. We use a minimal set of primitives: `Root`, `Trigger`, `Portal`, `Content`, `Item`, `Label`, `Separator`. No sub-menus, checkboxes, or radios — not needed yet.
 
 - [x] **Step 1: Implement**
 
@@ -2138,8 +2138,8 @@ git commit -m "feat(web/ui): add shadcn dropdown-menu component"
 **Files:**
 - Create: `web/src/features/auth/use-logout.ts`
 
-Хук возвращает `logout()`-функцию, которая:
-1. Зовёт `POST /auth/logout` (best-effort — на сетевую ошибку молча игнорируем).
+The hook returns a `logout()` function that:
+1. Calls `POST /auth/logout` (best-effort — a network error is silently ignored).
 2. `clearRefreshToken()`.
 3. `useAuthStore.clearSession()`.
 4. `queryClient.clear()`.
@@ -2195,7 +2195,7 @@ git commit -m "feat(web/auth): add useLogout hook"
 **Files:**
 - Create: `web/src/features/auth/components/UserMenu.tsx`
 
-Кнопка-trigger — 36px квадрат с инициалом `user.displayName[0]` Cormorant. Dropdown показывает: label `displayName` + `email` (muted), separator, item «Sign out».
+The trigger button is a 36px square with the `user.displayName[0]` initial in Cormorant. The dropdown shows: a label with `displayName` plus `email` (muted), a separator, and a "Sign out" item.
 
 - [x] **Step 1: Implement**
 
@@ -2335,9 +2335,9 @@ git commit -m "feat(web): mount UserMenu in Topbar"
 
 ---
 
-## Группа 7 — Финальная проверка
+## Group 7 — Final verification
 
-### Task 22: Final sanity-проверка + lint + build
+### Task 22: Final sanity check + lint + build
 
 **Files:** —
 
@@ -2392,7 +2392,7 @@ Walk through spec sections 3 and 4. Each requirement should be implementable fro
 | 3 — Refresh-failure → clearSession + redirect via ProtectedRoute | Task 5 + Task 8 |
 | 3 — Bootstrap on App mount, status='bootstrapping' until done | Task 7 + Task 9 |
 | 3 — `<ProtectedRoute>`: FullPageSpinner / redirect / Outlet | Task 8 |
-| 3 — Zod-парсинг `/auth/me`, `/auth/login`, `/auth/refresh` always | Task 2 + Task 4 + Task 5 |
+| 3 — Zod parsing of `/auth/me`, `/auth/login`, `/auth/refresh` always | Task 2 + Task 4 + Task 5 |
 | 3 — TanStack Query config (existed in foundation) | Foundation Task 14 |
 | 3 — Logout: POST `/auth/logout`, clearSession, queryClient.clear, redirect | Task 17 (toaster) + Task 19 (use-logout) + Task 20–21 (wire) |
 | 4 — Route tree with `/login`, `/register`, `/library*` protected | Task 9 |
@@ -2413,7 +2413,7 @@ If anything turned up — fix and commit. Otherwise this task is just a checkpoi
 
 ---
 
-## Сводный self-review
+## Consolidated self-review
 
 **Coverage:**
 - All sections 3 and 4 of the spec covered by tasks 1–21 (see Task 22 table).
@@ -2438,12 +2438,12 @@ If anything turned up — fix and commit. Otherwise this task is just a checkpoi
 
 ---
 
-## Следующие шаги
+## Next steps
 
-После approval и merge этого плана — переход к `2026-05-XX-frontend-library.md`:
+After this plan is approved and merged — move to `2026-05-XX-frontend-library.md`:
 - Library list (filters, infinite query, card grid).
-- Add Link modal (long-running POST с pending-progress UI).
+- The Add Link modal (a long-running POST with pending-progress UI).
 - Reader view (meta + content parallel queries, drop-cap, scroll-to-read).
-- Optimistic updates для favorite/mark-read.
+- Optimistic updates for favorite/mark-read.
 - Edit (note) + Delete (confirm + invalidate).
-- Wire «+ Add Link» Topbar button.
+- Wire up the "+ Add Link" Topbar button.

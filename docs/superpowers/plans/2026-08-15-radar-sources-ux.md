@@ -2,67 +2,67 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Дать пользователю экран `/radar/sources` с каталогом лент и переключателями подписки, а админу — добавление, правку, паузу и удаление лент прямо в строках каталога.
+**Goal:** Give the user a `/radar/sources` screen with the feed catalog and subscription toggles, and give the admin add, edit, pause, and delete right inside the catalog rows.
 
-**Architecture:** Каталог отдаётся одним эндпоинтом `GET /radar/feeds`, открытым всем ролям; каждая строка несёт `subscribed` и `finding_count`. Запись по лентам остаётся под `RequireAdmin`, подписки — под обычным `RequireUser`. Новый пользователь подписывается на весь активный каталог через хук `OnUserCreated`, который `server.go` подставляет в `auth.Service` только при включённом Radar. Отдельно краулер начинает сохранять заголовок канала в `radar_feeds.title`.
+**Architecture:** The catalog is served by a single endpoint, `GET /radar/feeds`, open to every role; each row carries `subscribed` and `finding_count`. Writes on feeds stay behind `RequireAdmin`, and subscriptions behind the ordinary `RequireUser`. A new user is subscribed to the whole active catalog through an `OnUserCreated` hook, which `server.go` installs into `auth.Service` only when Radar is enabled. Separately, the crawler starts saving the channel title into `radar_feeds.title`.
 
-**Tech Stack:** Go 1.x (chi, pgx, River, gofeed, testify, testcontainers), React 19 + TypeScript (react-router, TanStack Query, zod, react-hook-form, Radix UI, Tailwind), тесты — vitest + Testing Library + msw.
+**Tech Stack:** Go 1.x (chi, pgx, River, gofeed, testify, testcontainers), React 19 + TypeScript (react-router, TanStack Query, zod, react-hook-form, Radix UI, Tailwind), with tests in vitest + Testing Library + msw.
 
 **Spec:** `docs/superpowers/specs/2026-08-15-radar-sources-ux-design.md`
 
 ## Global Constraints
 
-- Миграций БД нет. Схема `radar_feeds` / `radar_feed_subscriptions` / `radar_findings` / `radar_topic_matches` используется как есть.
-- Личные ленты пользователей, квоты и колонка `created_by` — вне объёма. Не добавлять.
-- Интервал обхода валидируется границами, уже заданными в `internal/radar/service.go:110-112`: `defaultFetchIntervalSeconds = 3600`, `minFetchIntervalSeconds = 300`, `maxFetchIntervalSeconds = 86400`.
-- Любой новый метод в `radar.StoreAPI` (`internal/radar/service.go:33`) обязан быть добавлен и в `mockStore` в `internal/radar/service_test.go` — там стоит compile-time проверка `var _ radar.StoreAPI = (*mockStore)(nil)`, иначе не соберётся весь пакет тестов.
-- Очистка названия ленты передаётся по проводу как пустая строка: `{"title": ""}` → `NULL` в БД. Отсутствие поля означает «не менять».
-- Go-тесты: `make test-unit` (быстрые, `-short`), `make test` (всё, нужен Docker для testcontainers). Фронт: `cd web && npm test`.
-- Все коммиты — с `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
+- No database migrations. The `radar_feeds` / `radar_feed_subscriptions` / `radar_findings` / `radar_topic_matches` schema is used as is.
+- Users' personal feeds, quotas, and the `created_by` column are out of scope. Do not add them.
+- The fetch interval is validated against the bounds already set in `internal/radar/service.go:110-112`: `defaultFetchIntervalSeconds = 3600`, `minFetchIntervalSeconds = 300`, `maxFetchIntervalSeconds = 86400`.
+- Any new method on `radar.StoreAPI` (`internal/radar/service.go:33`) must also be added to `mockStore` in `internal/radar/service_test.go` — a compile-time `var _ radar.StoreAPI = (*mockStore)(nil)` lives there, and without it the whole test package fails to build.
+- Clearing a feed title travels over the wire as an empty string: `{"title": ""}` → `NULL` in the database. An absent field means "do not change".
+- Go tests: `make test-unit` (fast, `-short`), `make test` (everything, needs Docker for testcontainers). Frontend: `cd web && npm test`.
+- Every commit carries `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
 
 ---
 
 ## File Structure
 
-**Backend, изменяемые:**
-- `internal/radar/types.go` — DTO каталога (`FeedListItem`, `UpdateFeedRequest`, `UpdateFeedParams`), правка `FeedList`.
-- `internal/radar/store.go` — `ListFeeds` (новая сигнатура + подзапросы), `Unsubscribe`, `UpdateFeed`, `DeleteFeed`, `SeedSubscriptions`, `MarkFeedFetched` (+title).
-- `internal/radar/service.go` — `validateFetchInterval`, `UpdateFeed`, `DeleteFeed`, `Unsubscribe`, `SeedSubscriptions`, новая сигнатура `ListFeeds`, расширение `StoreAPI`.
-- `internal/radar/http.go` — `updateFeed`, `deleteFeed`, `unsubscribe`, правка `listFeeds`.
-- `internal/radar/crawler/crawler.go` — `ParsedFeed`, новая сигнатура `Parse`.
-- `internal/radar/jobs/crawl_feed.go` — передача заголовка канала в `MarkFeedFetched`.
-- `internal/auth/service.go` — поле `OnUserCreated` в `ServiceConfig` и его вызов в `Register`.
-- `internal/server/server.go` — маршруты и проводка хука.
+**Backend, modified:**
+- `internal/radar/types.go` — the catalog DTOs (`FeedListItem`, `UpdateFeedRequest`, `UpdateFeedParams`), plus an edit to `FeedList`.
+- `internal/radar/store.go` — `ListFeeds` (a new signature plus subqueries), `Unsubscribe`, `UpdateFeed`, `DeleteFeed`, `SeedSubscriptions`, and `MarkFeedFetched` (+title).
+- `internal/radar/service.go` — `validateFetchInterval`, `UpdateFeed`, `DeleteFeed`, `Unsubscribe`, `SeedSubscriptions`, the new `ListFeeds` signature, and the `StoreAPI` extension.
+- `internal/radar/http.go` — `updateFeed`, `deleteFeed`, `unsubscribe`, and an edit to `listFeeds`.
+- `internal/radar/crawler/crawler.go` — `ParsedFeed` and the new `Parse` signature.
+- `internal/radar/jobs/crawl_feed.go` — passing the channel title into `MarkFeedFetched`.
+- `internal/auth/service.go` — the `OnUserCreated` field on `ServiceConfig` and its call in `Register`.
+- `internal/server/server.go` — the routes and the hook wiring.
 
-**Backend, тесты:** `internal/radar/store_test.go`, `internal/radar/service_test.go`, `internal/radar/http_test.go`, `internal/radar/integration_test.go`, `internal/radar/crawler/crawler_test.go`, `internal/radar/jobs/jobs_test.go`, `internal/auth/service_test.go`.
+**Backend, tests:** `internal/radar/store_test.go`, `internal/radar/service_test.go`, `internal/radar/http_test.go`, `internal/radar/integration_test.go`, `internal/radar/crawler/crawler_test.go`, `internal/radar/jobs/jobs_test.go`, `internal/auth/service_test.go`.
 
-**Frontend, создаваемые:**
-- `web/src/features/radar/components/SourceRow.tsx` — строка каталога.
-- `web/src/features/radar/components/AddFeedDialog.tsx`, `EditFeedDialog.tsx`, `DeleteFeedConfirm.tsx` — админские диалоги.
-- `web/src/routes/radar.sources.tsx` — экран.
-- Тесты рядом: `SourceRow.test.tsx`, `radar.sources.test.tsx`, `AddFeedDialog.test.tsx`.
+**Frontend, created:**
+- `web/src/features/radar/components/SourceRow.tsx` — the catalog row.
+- `web/src/features/radar/components/AddFeedDialog.tsx`, `EditFeedDialog.tsx`, `DeleteFeedConfirm.tsx` — the admin dialogs.
+- `web/src/routes/radar.sources.tsx` — the screen.
+- Tests beside them: `SourceRow.test.tsx`, `radar.sources.test.tsx`, `AddFeedDialog.test.tsx`.
 
-**Frontend, изменяемые:** `web/src/features/radar/types.ts`, `schemas.ts`, `api.ts`, `use-radar.tsx`, `use-mutations.tsx`, `web/src/App.tsx`, `web/src/routes/radar._index.tsx`, `web/src/routes/radar.topics._index.tsx`.
+**Frontend, modified:** `web/src/features/radar/types.ts`, `schemas.ts`, `api.ts`, `use-radar.tsx`, `use-mutations.tsx`, `web/src/App.tsx`, `web/src/routes/radar._index.tsx`, `web/src/routes/radar.topics._index.tsx`.
 
 ---
 
-### Task 1: Каталог лент — read-модель
+### Task 1: The feed catalog — the read model
 
 **Files:**
-- Modify: `internal/radar/types.go` (блок `FeedList`, ~строка 175)
+- Modify: `internal/radar/types.go` (the `FeedList` block, ~line 175)
 - Modify: `internal/radar/store.go:573` (`ListFeeds`)
 - Modify: `internal/radar/service.go:33` (`StoreAPI`), `internal/radar/service.go:298` (`ListFeeds`)
 - Modify: `internal/radar/http.go:308` (`listFeeds`)
-- Modify: `internal/server/server.go:136-147` (перенос маршрута)
+- Modify: `internal/server/server.go:136-147` (moving the route)
 - Test: `internal/radar/store_test.go`, `internal/radar/service_test.go`, `internal/radar/http_test.go`
 
 **Interfaces:**
-- Consumes: существующие `Feed`, `ListFeedsParams`.
+- Consumes: the existing `Feed` and `ListFeedsParams`.
 - Produces: `radar.FeedListItem{Feed; Subscribed bool; FindingCount int}`; `FeedList{Items []FeedListItem; Total int}`; `Store.ListFeeds(ctx, userID int64, p ListFeedsParams) ([]FeedListItem, int, error)`; `Service.ListFeeds(ctx, userID int64, p ListFeedsParams) (*FeedList, error)`.
 
-- [x] **Step 1: Написать падающий тест стора**
+- [x] **Step 1: Write the failing store test**
 
-В `internal/radar/store_test.go`:
+In `internal/radar/store_test.go`:
 
 ```go
 func TestStore_ListFeeds_SubscribedAndCounts(t *testing.T) {
@@ -109,14 +109,14 @@ func TestStore_ListFeeds_SubscribedAndCounts(t *testing.T) {
 }
 ```
 
-- [x] **Step 2: Запустить и убедиться, что не компилируется**
+- [x] **Step 2: Run it and confirm it does not compile**
 
 Run: `go test ./internal/radar/ -run TestStore_ListFeeds_SubscribedAndCounts -count=1`
 Expected: FAIL — `too many arguments in call to store.ListFeeds`, `undefined: radar.FeedListItem`.
 
-- [x] **Step 3: Добавить DTO в `types.go`**
+- [x] **Step 3: Add the DTO to `types.go`**
 
-Заменить существующий блок `FeedList` на:
+Replace the existing `FeedList` block with:
 
 ```go
 // FeedListItem is one catalog row: the feed plus per-user subscription state
@@ -134,7 +134,7 @@ type FeedList struct {
 }
 ```
 
-- [x] **Step 4: Переписать `Store.ListFeeds`**
+- [x] **Step 4: Rewrite `Store.ListFeeds`**
 
 ```go
 func (s *Store) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) ([]FeedListItem, int, error) {
@@ -178,15 +178,15 @@ func (s *Store) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) 
 }
 ```
 
-- [x] **Step 5: Провести userID через сервис**
+- [x] **Step 5: Thread userID through the service**
 
-В `internal/radar/service.go` заменить строку интерфейса `StoreAPI` на
+In `internal/radar/service.go`, replace the `StoreAPI` interface line with
 
 ```go
 	ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) ([]FeedListItem, int, error)
 ```
 
-и сам метод:
+and the method itself:
 
 ```go
 // ListFeeds returns the instance feed catalog with the caller's subscription
@@ -210,9 +210,9 @@ func (s *Service) ListFeeds(ctx context.Context, userID int64, p ListFeedsParams
 }
 ```
 
-- [x] **Step 6: Обновить mockStore**
+- [x] **Step 6: Update mockStore**
 
-В `internal/radar/service_test.go` заменить поле `listFeedsResult []radar.Feed` на `listFeedsResult []radar.FeedListItem` и метод на:
+In `internal/radar/service_test.go`, replace the `listFeedsResult []radar.Feed` field with `listFeedsResult []radar.FeedListItem` and the method with:
 
 ```go
 func (m *mockStore) ListFeeds(_ context.Context, userID int64, p radar.ListFeedsParams) ([]radar.FeedListItem, int, error) {
@@ -222,20 +222,20 @@ func (m *mockStore) ListFeeds(_ context.Context, userID int64, p radar.ListFeeds
 }
 ```
 
-Добавить в структуру `mockStore` поля `listFeedsUserID int64` и `listFeedsParams radar.ListFeedsParams`.
+Add the `listFeedsUserID int64` and `listFeedsParams radar.ListFeedsParams` fields to the `mockStore` struct.
 
-- [x] **Step 7: Обновить хендлер**
+- [x] **Step 7: Update the handler**
 
-В `internal/radar/http.go` в `listFeeds` перед вызовом сервиса добавить пользователя:
+In `internal/radar/http.go`, inside `listFeeds`, add the user before the service call:
 
 ```go
 	userID := coreauth.UserID(r.Context())
 	result, err := h.svc.ListFeeds(r.Context(), userID, params)
 ```
 
-- [x] **Step 8: Тест хендлера на прокидывание userID**
+- [x] **Step 8: A handler test for passing userID through**
 
-В `internal/radar/http_test.go`:
+In `internal/radar/http_test.go`:
 
 ```go
 func TestHTTP_ListFeeds_PassesCallerID(t *testing.T) {
@@ -263,18 +263,18 @@ func TestHTTP_ListFeeds_PassesCallerID(t *testing.T) {
 }
 ```
 
-Существующий `TestHTTP_ListFeeds_*` в файле поправить под новый тип, если он собирает `[]radar.Feed`.
+Adjust the existing `TestHTTP_ListFeeds_*` in the file to the new type if it builds `[]radar.Feed`.
 
-- [x] **Step 9: Открыть маршрут всем ролям**
+- [x] **Step 9: Open the route to every role**
 
-В `internal/server/server.go` перенести `r.Get("/feeds", radarHTTP.ListFeedsHandler())` из группы `RequireAdmin` в общую user-группу (рядом с `r.Post("/subscriptions", …)`). В админской группе остаётся только `r.Post("/feeds", …)`.
+In `internal/server/server.go`, move `r.Get("/feeds", radarHTTP.ListFeedsHandler())` out of the `RequireAdmin` group and into the shared user group (next to `r.Post("/subscriptions", …)`). Only `r.Post("/feeds", …)` stays in the admin group.
 
-- [x] **Step 10: Прогнать тесты**
+- [x] **Step 10: Run the tests**
 
 Run: `make test-unit && go test ./internal/radar/ -run 'TestStore_ListFeeds|TestHTTP_ListFeeds' -count=1`
 Expected: PASS.
 
-- [x] **Step 11: Коммит**
+- [x] **Step 11: Commit**
 
 ```bash
 git add internal/radar internal/server/server.go
@@ -285,20 +285,20 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 2: Отписка от ленты
+### Task 2: Unsubscribing from a feed
 
 **Files:**
-- Modify: `internal/radar/store.go` (рядом с `Subscribe`, ~строка 93)
-- Modify: `internal/radar/service.go` (`StoreAPI`, рядом с `Subscribe`, ~строка 153)
-- Modify: `internal/radar/http.go` (рядом с `subscribe`, ~строка 112)
+- Modify: `internal/radar/store.go` (next to `Subscribe`, ~line 93)
+- Modify: `internal/radar/service.go` (`StoreAPI`, next to `Subscribe`, ~line 153)
+- Modify: `internal/radar/http.go` (next to `subscribe`, ~line 112)
 - Modify: `internal/server/server.go`
 - Test: `internal/radar/store_test.go`, `internal/radar/service_test.go`, `internal/radar/http_test.go`, `internal/radar/integration_test.go`
 
 **Interfaces:**
-- Consumes: `Store.Subscribe` из Task 1 без изменений.
-- Produces: `Store.Unsubscribe(ctx, userID, feedID int64) error`; `Service.Unsubscribe(ctx, userID, feedID int64) error`; `HTTP.UnsubscribeHandler() http.HandlerFunc` для `DELETE /radar/subscriptions/{feedId}`.
+- Consumes: `Store.Subscribe` from Task 1, unchanged.
+- Produces: `Store.Unsubscribe(ctx, userID, feedID int64) error`; `Service.Unsubscribe(ctx, userID, feedID int64) error`; `HTTP.UnsubscribeHandler() http.HandlerFunc` for `DELETE /radar/subscriptions/{feedId}`.
 
-- [x] **Step 1: Написать падающий тест стора**
+- [x] **Step 1: Write the failing store test**
 
 ```go
 func TestStore_Unsubscribe(t *testing.T) {
@@ -329,12 +329,12 @@ func TestStore_Unsubscribe(t *testing.T) {
 }
 ```
 
-- [x] **Step 2: Запустить, убедиться в провале**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `go test ./internal/radar/ -run TestStore_Unsubscribe -count=1`
 Expected: FAIL — `store.Unsubscribe undefined`.
 
-- [x] **Step 3: Реализовать стор**
+- [x] **Step 3: Implement the store**
 
 ```go
 // Unsubscribe drops the user's subscription. Removing one that is not there is
@@ -349,9 +349,9 @@ func (s *Store) Unsubscribe(ctx context.Context, userID, feedID int64) error {
 }
 ```
 
-- [x] **Step 4: Сервис и mockStore**
+- [x] **Step 4: The service and mockStore**
 
-В `StoreAPI` добавить `Unsubscribe(ctx context.Context, userID, feedID int64) error`, в сервис:
+Add `Unsubscribe(ctx context.Context, userID, feedID int64) error` to `StoreAPI`, and to the service:
 
 ```go
 func (s *Service) Unsubscribe(ctx context.Context, userID, feedID int64) error {
@@ -362,7 +362,7 @@ func (s *Service) Unsubscribe(ctx context.Context, userID, feedID int64) error {
 }
 ```
 
-В `mockStore`:
+In `mockStore`:
 
 ```go
 func (m *mockStore) Unsubscribe(_ context.Context, userID, feedID int64) error {
@@ -374,11 +374,11 @@ func (m *mockStore) Unsubscribe(_ context.Context, userID, feedID int64) error {
 }
 ```
 
-плюс поле `unsubscribeErr error` в структуру.
+plus an `unsubscribeErr error` field on the struct.
 
-- [x] **Step 5: Хендлер**
+- [x] **Step 5: The handler**
 
-В `internal/radar/http.go`:
+In `internal/radar/http.go`:
 
 ```go
 // UnsubscribeHandler returns the http.HandlerFunc for
@@ -403,7 +403,7 @@ func (h *HTTP) unsubscribe(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [x] **Step 6: Тест хендлера на идемпотентность**
+- [x] **Step 6: A handler test for idempotency**
 
 ```go
 func TestHTTP_Unsubscribe_204Twice(t *testing.T) {
@@ -427,17 +427,17 @@ func TestHTTP_Unsubscribe_204Twice(t *testing.T) {
 }
 ```
 
-- [x] **Step 7: Маршрут**
+- [x] **Step 7: The route**
 
-В `internal/server/server.go` в user-группе рядом с `r.Post("/subscriptions", …)`:
+In `internal/server/server.go`, in the user group next to `r.Post("/subscriptions", …)`:
 
 ```go
 			r.Delete("/subscriptions/{feedId}", radarHTTP.UnsubscribeHandler())
 ```
 
-- [x] **Step 8: Интеграционный тест — старые матчи живут, новых нет**
+- [x] **Step 8: An integration test — old matches survive, new ones stop**
 
-В `internal/radar/integration_test.go`:
+In `internal/radar/integration_test.go`:
 
 ```go
 func TestIntegrationUnsubscribeStopsNewMatchesOnly(t *testing.T) {
@@ -510,14 +510,14 @@ func countMatches(t *testing.T, pool *pgxpool.Pool, topicID int64) int {
 }
 ```
 
-Сверить сигнатуру `embeddings.FakeEmbedder.Embed` с существующим использованием в `internal/radar/jobs/jobs_test.go` и подогнать вызов, если она отличается.
+Check the `embeddings.FakeEmbedder.Embed` signature against its existing use in `internal/radar/jobs/jobs_test.go` and adjust the call if it differs.
 
-- [x] **Step 9: Прогнать тесты**
+- [x] **Step 9: Run the tests**
 
 Run: `make test-unit && go test ./internal/radar/ -run 'Unsubscribe' -count=1`
 Expected: PASS.
 
-- [x] **Step 10: Коммит**
+- [x] **Step 10: Commit**
 
 ```bash
 git add internal/radar internal/server/server.go
@@ -528,7 +528,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 3: Админская правка ленты (PATCH)
+### Task 3: The admin feed edit (PATCH)
 
 **Files:**
 - Modify: `internal/radar/types.go`, `internal/radar/store.go`, `internal/radar/service.go`, `internal/radar/http.go`, `internal/server/server.go`
@@ -536,11 +536,11 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: `Feed`, `ErrNotFound`, `ErrInvalidInput`.
-- Produces: `UpdateFeedRequest{Title *string; FetchIntervalSeconds *int; IsActive *bool}`; `UpdateFeedParams` с теми же полями; `Store.UpdateFeed(ctx, feedID int64, p UpdateFeedParams) (*Feed, error)`; `Service.UpdateFeed(ctx, feedID int64, req UpdateFeedRequest) (*Feed, error)`; `HTTP.UpdateFeedHandler()`.
+- Produces: `UpdateFeedRequest{Title *string; FetchIntervalSeconds *int; IsActive *bool}`; `UpdateFeedParams` with the same fields; `Store.UpdateFeed(ctx, feedID int64, p UpdateFeedParams) (*Feed, error)`; `Service.UpdateFeed(ctx, feedID int64, req UpdateFeedRequest) (*Feed, error)`; `HTTP.UpdateFeedHandler()`.
 
-- [x] **Step 1: Тест сервиса на валидацию**
+- [x] **Step 1: A service test for validation**
 
-В `internal/radar/service_test.go`:
+In `internal/radar/service_test.go`:
 
 ```go
 func TestService_UpdateFeed_Validation(t *testing.T) {
@@ -570,12 +570,12 @@ func TestService_UpdateFeed_Validation(t *testing.T) {
 }
 ```
 
-- [x] **Step 2: Запустить, убедиться в провале**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `go test ./internal/radar/ -run TestService_UpdateFeed_Validation -count=1`
 Expected: FAIL — `undefined: radar.UpdateFeedRequest`.
 
-- [x] **Step 3: DTO в `types.go`**
+- [x] **Step 3: The DTOs in `types.go`**
 
 ```go
 // UpdateFeedRequest is the payload for PATCH /radar/feeds/{id} (admin).
@@ -595,9 +595,9 @@ type UpdateFeedParams struct {
 }
 ```
 
-- [x] **Step 4: Вынести валидацию интервала и написать сервис**
+- [x] **Step 4: Extract the interval validation and write the service**
 
-В `internal/radar/service.go` добавить хелпер и заменить им проверку внутри `AddFeed`:
+In `internal/radar/service.go`, add the helper and replace the check inside `AddFeed` with it:
 
 ```go
 func validateFetchInterval(seconds int) error {
@@ -637,7 +637,7 @@ func (s *Service) UpdateFeed(ctx context.Context, feedID int64, req UpdateFeedRe
 }
 ```
 
-В `StoreAPI` добавить `UpdateFeed(ctx context.Context, feedID int64, p UpdateFeedParams) (*Feed, error)`.
+Add `UpdateFeed(ctx context.Context, feedID int64, p UpdateFeedParams) (*Feed, error)` to `StoreAPI`.
 
 - [x] **Step 5: mockStore**
 
@@ -665,9 +665,9 @@ func (m *mockStore) UpdateFeed(_ context.Context, feedID int64, p radar.UpdateFe
 }
 ```
 
-плюс поля `updateFeedCalled bool`, `updateFeedParams radar.UpdateFeedParams`, `updateFeedErr error`.
+plus the `updateFeedCalled bool`, `updateFeedParams radar.UpdateFeedParams`, and `updateFeedErr error` fields.
 
-- [x] **Step 6: Стор**
+- [x] **Step 6: The store**
 
 ```go
 // UpdateFeed applies a partial patch. An empty title clears the column so the
@@ -717,7 +717,7 @@ func (s *Store) UpdateFeed(ctx context.Context, feedID int64, p UpdateFeedParams
 }
 ```
 
-- [x] **Step 7: Тест стора**
+- [x] **Step 7: The store test**
 
 ```go
 func TestStore_UpdateFeed_PartialAndClearTitle(t *testing.T) {
@@ -747,7 +747,7 @@ func TestStore_UpdateFeed_PartialAndClearTitle(t *testing.T) {
 }
 ```
 
-- [x] **Step 8: Хендлер и маршрут**
+- [x] **Step 8: The handler and the route**
 
 ```go
 // UpdateFeedHandler returns the http.HandlerFunc for PATCH /radar/feeds/{id} (admin).
@@ -776,9 +776,9 @@ func (h *HTTP) updateFeed(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-В `server.go`, в группе `RequireAdmin`: `r.Patch("/feeds/{id}", radarHTTP.UpdateFeedHandler())`.
+In `server.go`, inside the `RequireAdmin` group: `r.Patch("/feeds/{id}", radarHTTP.UpdateFeedHandler())`.
 
-- [x] **Step 9: Тест хендлера на пустой патч**
+- [x] **Step 9: A handler test for an empty patch**
 
 ```go
 func TestHTTP_UpdateFeed_EmptyPatch400(t *testing.T) {
@@ -796,7 +796,7 @@ func TestHTTP_UpdateFeed_EmptyPatch400(t *testing.T) {
 }
 ```
 
-- [x] **Step 10: Прогнать тесты и закоммитить**
+- [x] **Step 10: Run the tests and commit**
 
 Run: `make test-unit && go test ./internal/radar/ -run 'UpdateFeed' -count=1`
 Expected: PASS.
@@ -810,7 +810,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 4: Админское удаление ленты (DELETE)
+### Task 4: The admin feed delete (DELETE)
 
 **Files:**
 - Modify: `internal/radar/store.go`, `internal/radar/service.go`, `internal/radar/http.go`, `internal/server/server.go`
@@ -820,7 +820,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `ErrNotFound`.
 - Produces: `Store.DeleteFeed(ctx, feedID int64) error`; `Service.DeleteFeed(ctx, feedID int64) error`; `HTTP.DeleteFeedHandler()`.
 
-- [x] **Step 1: Интеграционный тест каскада**
+- [x] **Step 1: An integration test for the cascade**
 
 ```go
 func TestIntegrationDeleteFeedCascades(t *testing.T) {
@@ -863,12 +863,12 @@ func TestIntegrationDeleteFeedCascades(t *testing.T) {
 }
 ```
 
-- [x] **Step 2: Запустить, убедиться в провале**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `go test ./internal/radar/ -run TestIntegrationDeleteFeedCascades -count=1`
 Expected: FAIL — `svc.DeleteFeed undefined`.
 
-- [x] **Step 3: Стор**
+- [x] **Step 3: The store**
 
 ```go
 // DeleteFeed removes a feed. Findings and their matches go with it via
@@ -885,7 +885,7 @@ func (s *Store) DeleteFeed(ctx context.Context, feedID int64) error {
 }
 ```
 
-- [x] **Step 4: Сервис, StoreAPI и mockStore**
+- [x] **Step 4: The service, StoreAPI, and mockStore**
 
 ```go
 // DeleteFeed removes a feed from the catalog. Admin scope; middleware enforces.
@@ -897,7 +897,7 @@ func (s *Service) DeleteFeed(ctx context.Context, feedID int64) error {
 }
 ```
 
-В `StoreAPI`: `DeleteFeed(ctx context.Context, feedID int64) error`. В `mockStore`:
+In `StoreAPI`: `DeleteFeed(ctx context.Context, feedID int64) error`. In `mockStore`:
 
 ```go
 func (m *mockStore) DeleteFeed(_ context.Context, feedID int64) error {
@@ -915,9 +915,9 @@ func (m *mockStore) DeleteFeed(_ context.Context, feedID int64) error {
 }
 ```
 
-плюс поля `deleteFeedCalled bool`, `deleteFeedErr error`.
+plus the `deleteFeedCalled bool` and `deleteFeedErr error` fields.
 
-- [x] **Step 5: Хендлер и маршрут**
+- [x] **Step 5: The handler and the route**
 
 ```go
 // DeleteFeedHandler returns the http.HandlerFunc for DELETE /radar/feeds/{id} (admin).
@@ -939,9 +939,9 @@ func (h *HTTP) deleteFeed(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-В `server.go`, в группе `RequireAdmin`: `r.Delete("/feeds/{id}", radarHTTP.DeleteFeedHandler())`.
+In `server.go`, inside the `RequireAdmin` group: `r.Delete("/feeds/{id}", radarHTTP.DeleteFeedHandler())`.
 
-- [x] **Step 6: Тест хендлера на 404**
+- [x] **Step 6: A handler test for the 404**
 
 ```go
 func TestHTTP_DeleteFeed_404(t *testing.T) {
@@ -958,7 +958,7 @@ func TestHTTP_DeleteFeed_404(t *testing.T) {
 }
 ```
 
-- [x] **Step 7: Прогнать тесты и закоммитить** — тесты прогнаны и зелёные; коммит отложен по просьбе.
+- [x] **Step 7: Run the tests and commit** — the tests were run and are green; the commit was deferred by request.
 
 Run: `make test-unit && go test ./internal/radar/ -run 'DeleteFeed' -count=1`
 Expected: PASS.
@@ -972,19 +972,19 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 5: Автоподписка нового пользователя
+### Task 5: Auto-subscribing a new user
 
 **Files:**
 - Modify: `internal/radar/store.go`, `internal/radar/service.go`
 - Modify: `internal/auth/service.go:30-33` (`ServiceConfig`), `internal/auth/service.go:47-77` (`Register`)
-- Modify: `internal/server/server.go:47-51` (конструирование `authSvc`) и ветка `cfg.RadarEnabled`
+- Modify: `internal/server/server.go:47-51` (constructing `authSvc`) and the `cfg.RadarEnabled` branch
 - Test: `internal/auth/service_test.go`, `internal/radar/store_test.go`
 
 **Interfaces:**
 - Consumes: `Store.Subscribe` (Task 1), `Store.AddFeed`.
-- Produces: `Store.SeedSubscriptions(ctx, userID int64) (int, error)`; `Service.SeedSubscriptions(ctx, userID int64) error`; поле `auth.ServiceConfig.OnUserCreated func(ctx context.Context, userID int64)`.
+- Produces: `Store.SeedSubscriptions(ctx, userID int64) (int, error)`; `Service.SeedSubscriptions(ctx, userID int64) error`; the `auth.ServiceConfig.OnUserCreated func(ctx context.Context, userID int64)` field.
 
-**Порядок проводки:** `authSvc` создаётся раньше, чем `radarSvc`. Чтобы не переставлять блоки, в `server.go` объявляется изменяемая переменная-хук, которую замыкание читает при вызове:
+**Wiring order:** `authSvc` is created before `radarSvc`. Rather than reordering the blocks, `server.go` declares a mutable hook variable that the closure reads at call time:
 
 ```go
 	var onUserCreated func(ctx context.Context, userID int64)
@@ -999,11 +999,11 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 	})
 ```
 
-а внутри `if cfg.RadarEnabled && deps.Radar != nil` переменная получает реальное значение.
+and inside `if cfg.RadarEnabled && deps.Radar != nil` the variable gets its real value.
 
-- [x] **Step 1: Тест auth на вызов хука**
+- [x] **Step 1: An auth test for the hook being called**
 
-В `internal/auth/service_test.go`:
+In `internal/auth/service_test.go`:
 
 ```go
 func TestRegister_CallsOnUserCreated(t *testing.T) {
@@ -1036,16 +1036,16 @@ func TestRegister_NilHookIsFine(t *testing.T) {
 }
 ```
 
-Сверить сигнатуру `coreauth.NewJWTIssuer` и поля `auth.RegisterRequest` с существующими тестами в файле и подогнать.
+Check the `coreauth.NewJWTIssuer` signature and the `auth.RegisterRequest` fields against the existing tests in the file and adjust.
 
-- [x] **Step 2: Запустить, убедиться в провале**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `go test ./internal/auth/ -run TestRegister_ -count=1`
 Expected: FAIL — `unknown field OnUserCreated in struct literal`.
 
-- [x] **Step 3: Хук в auth**
+- [x] **Step 3: The hook in auth**
 
-В `ServiceConfig`:
+In `ServiceConfig`:
 
 ```go
 type ServiceConfig struct {
@@ -1060,7 +1060,7 @@ type ServiceConfig struct {
 }
 ```
 
-В `Register`, сразу после успешного `s.store.CreateUser`:
+In `Register`, right after a successful `s.store.CreateUser`:
 
 ```go
 	if s.cfg.OnUserCreated != nil {
@@ -1068,9 +1068,9 @@ type ServiceConfig struct {
 	}
 ```
 
-- [x] **Step 4: Тест стора на сидинг**
+- [x] **Step 4: A store test for seeding**
 
-В `internal/radar/store_test.go`:
+In `internal/radar/store_test.go`:
 
 ```go
 func TestStore_SeedSubscriptions_ActiveOnlyAndIdempotent(t *testing.T) {
@@ -1111,7 +1111,7 @@ func TestStore_SeedSubscriptions_ActiveOnlyAndIdempotent(t *testing.T) {
 }
 ```
 
-- [x] **Step 5: Стор и сервис**
+- [x] **Step 5: The store and the service**
 
 ```go
 // SeedSubscriptions subscribes a fresh user to every active catalog feed and
@@ -1128,7 +1128,7 @@ func (s *Store) SeedSubscriptions(ctx context.Context, userID int64) (int, error
 }
 ```
 
-В `StoreAPI`: `SeedSubscriptions(ctx context.Context, userID int64) (int, error)`. В сервисе:
+In `StoreAPI`: `SeedSubscriptions(ctx context.Context, userID int64) (int, error)`. In the service:
 
 ```go
 // SeedSubscriptions is called from the auth module's OnUserCreated hook.
@@ -1138,7 +1138,7 @@ func (s *Service) SeedSubscriptions(ctx context.Context, userID int64) error {
 }
 ```
 
-В `mockStore`:
+In `mockStore`:
 
 ```go
 func (m *mockStore) SeedSubscriptions(_ context.Context, userID int64) (int, error) {
@@ -1161,11 +1161,11 @@ func (m *mockStore) SeedSubscriptions(_ context.Context, userID int64) (int, err
 }
 ```
 
-плюс поле `seedErr error`.
+plus a `seedErr error` field.
 
-- [x] **Step 6: Проводка в server.go**
+- [x] **Step 6: Wiring in server.go**
 
-Заменить создание `authSvc` на вариант с переменной-хуком (см. блок в шапке задачи), а внутри ветки `if cfg.RadarEnabled && deps.Radar != nil`, сразу после `radarSvc := radar.NewService(...)`:
+Replace the creation of `authSvc` with the hook-variable version (see the block in this task's header), and inside the `if cfg.RadarEnabled && deps.Radar != nil` branch, right after `radarSvc := radar.NewService(...)`:
 
 ```go
 		onUserCreated = func(ctx context.Context, userID int64) {
@@ -1175,14 +1175,14 @@ func (m *mockStore) SeedSubscriptions(_ context.Context, userID int64) (int, err
 		}
 ```
 
-Добавить `"context"` в импорты `server.go`.
+Add `"context"` to the imports in `server.go`.
 
-- [x] **Step 7: Прогнать тесты**
+- [x] **Step 7: Run the tests**
 
 Run: `make test-unit && go test ./internal/auth/ ./internal/radar/ ./internal/server/ -count=1`
 Expected: PASS.
 
-- [x] **Step 8: Коммит**
+- [x] **Step 8: Commit**
 
 ```bash
 git add internal/auth internal/radar internal/server
@@ -1193,7 +1193,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 6: Заголовок канала из краулера
+### Task 6: The channel title from the crawler
 
 **Files:**
 - Modify: `internal/radar/crawler/crawler.go:86-95` (`Parse`)
@@ -1202,12 +1202,12 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Test: `internal/radar/crawler/crawler_test.go`, `internal/radar/store_test.go`
 
 **Interfaces:**
-- Consumes: `Store.UpdateFeed` (Task 3) — в тестах для проверки приоритета ручного названия.
+- Consumes: `Store.UpdateFeed` (Task 3) — in the tests, to check that the manual name wins.
 - Produces: `crawler.ParsedFeed{Title string; Items []*gofeed.Item}`; `crawler.Parse(body []byte) (*ParsedFeed, error)`; `Store.MarkFeedFetched(ctx, feedID int64, etag, lastModified, title *string) error`.
 
-- [x] **Step 1: Тест парсера**
+- [x] **Step 1: The parser test**
 
-В `internal/radar/crawler/crawler_test.go`:
+In `internal/radar/crawler/crawler_test.go`:
 
 ```go
 func TestParse_ReturnsChannelTitle(t *testing.T) {
@@ -1223,12 +1223,12 @@ func TestParse_ReturnsChannelTitle(t *testing.T) {
 }
 ```
 
-- [x] **Step 2: Запустить, убедиться в провале**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `go test ./internal/radar/crawler/ -run TestParse_ReturnsChannelTitle -count=1`
 Expected: FAIL — `got.Title undefined (type []*gofeed.Item has no field Title)`.
 
-- [x] **Step 3: Новая форма Parse**
+- [x] **Step 3: The new shape of Parse**
 
 ```go
 // ParsedFeed is what one fetched document yields: the channel's own title and
@@ -1250,9 +1250,9 @@ func Parse(body []byte) (*ParsedFeed, error) {
 }
 ```
 
-Поправить существующие вызовы `crawler.Parse` в `crawler_test.go` (`TestParse_RSS`, `TestToUpserts_*`) — теперь это `parsed.Items`.
+Fix the existing `crawler.Parse` calls in `crawler_test.go` (`TestParse_RSS`, `TestToUpserts_*`) — they now use `parsed.Items`.
 
-- [x] **Step 4: MarkFeedFetched пишет только пустой title**
+- [x] **Step 4: MarkFeedFetched writes the title only when it is empty**
 
 ```go
 // MarkFeedFetched records a successful fetch. The channel title is written
@@ -1269,7 +1269,7 @@ func (s *Store) MarkFeedFetched(ctx context.Context, feedID int64, etag, lastMod
 }
 ```
 
-- [x] **Step 5: Тест стора на приоритет ручного имени**
+- [x] **Step 5: A store test for the manual name winning**
 
 ```go
 func TestStore_MarkFeedFetched_TitleFillsOnlyWhenEmpty(t *testing.T) {
@@ -1314,9 +1314,9 @@ func findFeed(t *testing.T, items []radar.FeedListItem, id int64) radar.FeedList
 }
 ```
 
-- [x] **Step 6: Прокинуть заголовок в джобе**
+- [x] **Step 6: Pass the title through in the job**
 
-В `internal/radar/jobs/crawl_feed.go`:
+In `internal/radar/jobs/crawl_feed.go`:
 
 ```go
 	if res.NotModified {
@@ -1332,14 +1332,14 @@ func findFeed(t *testing.T, items []radar.FeedListItem, id int64) radar.FeedList
 	for _, up := range crawler.ToUpserts(feedID, parsed.Items) {
 ```
 
-и финальная строка:
+and the final line:
 
 ```go
 	return w.store.MarkFeedFetched(ctx, feedID,
 		ptrOrNil(res.Etag), ptrOrNil(res.LastModified), ptrOrNil(parsed.Title))
 ```
 
-- [x] **Step 7: Прогнать тесты и закоммитить** — тесты прогнаны и зелёные; коммит отложен по просьбе.
+- [x] **Step 7: Run the tests and commit** — the tests were run and are green; the commit was deferred by request.
 
 Run: `make test-unit && go test ./internal/radar/... -count=1`
 Expected: PASS.
@@ -1353,19 +1353,19 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 7: Фронтенд — слой данных
+### Task 7: Frontend — the data layer
 
 **Files:**
 - Modify: `web/src/features/radar/types.ts`, `schemas.ts`, `api.ts`, `use-radar.tsx`, `use-mutations.tsx`
 - Test: `web/src/features/radar/api.test.ts`, `web/src/features/radar/use-mutations.test.tsx`
 
 **Interfaces:**
-- Consumes: JSON `GET /radar/feeds` из Task 1, мутации из Task 2-4.
-- Produces: тип `FeedListItem`; `listFeeds(): Promise<FeedListItem[]>`; `subscribeFeed(feedId: number)`, `unsubscribeFeed(feedId: number)`, `addFeed(input: AddFeedInput)`, `updateFeed(id, input: UpdateFeedInput)`, `deleteFeed(id)`; `radarKeys.feeds`; хуки `useFeedsQuery`, `useToggleSubscription`, `useAddFeed`, `useUpdateFeed`, `useDeleteFeed`.
+- Consumes: the `GET /radar/feeds` JSON from Task 1, and the mutations from Tasks 2-4.
+- Produces: the `FeedListItem` type; `listFeeds(): Promise<FeedListItem[]>`; `subscribeFeed(feedId: number)`, `unsubscribeFeed(feedId: number)`, `addFeed(input: AddFeedInput)`, `updateFeed(id, input: UpdateFeedInput)`, `deleteFeed(id)`; `radarKeys.feeds`; and the `useFeedsQuery`, `useToggleSubscription`, `useAddFeed`, `useUpdateFeed`, `useDeleteFeed` hooks.
 
-- [x] **Step 1: Тест API-слоя**
+- [x] **Step 1: The API-layer test**
 
-В `web/src/features/radar/api.test.ts` (файл уже настроен на msw через `@/test/setup`):
+In `web/src/features/radar/api.test.ts` (the file is already wired to msw through `@/test/setup`):
 
 ```ts
 it("maps the feed catalog", async () => {
@@ -1411,12 +1411,12 @@ it("sends an empty title to clear it", async () => {
 });
 ```
 
-- [x] **Step 2: Запустить, убедиться в провале**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `cd web && npx vitest run src/features/radar/api.test.ts`
 Expected: FAIL — `listFeeds is not exported`.
 
-- [x] **Step 3: Тип в `types.ts`**
+- [x] **Step 3: The type in `types.ts`**
 
 ```ts
 export type FeedListItem = {
@@ -1434,7 +1434,7 @@ export type FeedListItem = {
 };
 ```
 
-- [x] **Step 4: Схемы в `schemas.ts`**
+- [x] **Step 4: The schemas in `schemas.ts`**
 
 ```ts
 export const RawFeedSchema = z.object({
@@ -1478,9 +1478,9 @@ export function mapFeedListItem(
 }
 ```
 
-Импортировать `FeedListItem` из `./types` в шапке файла.
+Import `FeedListItem` from `./types` at the top of the file.
 
-- [x] **Step 5: Функции в `api.ts`**
+- [x] **Step 5: The functions in `api.ts`**
 
 ```ts
 export async function listFeeds(): Promise<FeedListItem[]> {
@@ -1536,9 +1536,9 @@ export async function deleteFeed(id: number): Promise<void> {
 }
 ```
 
-- [x] **Step 6: Запрос в `use-radar.tsx`**
+- [x] **Step 6: The query in `use-radar.tsx`**
 
-Добавить в `radarKeys`: `feeds: ["radar", "feeds"] as const,` и хук:
+Add `feeds: ["radar", "feeds"] as const,` to `radarKeys`, plus the hook:
 
 ```tsx
 export function useFeedsQuery() {
@@ -1549,9 +1549,9 @@ export function useFeedsQuery() {
 }
 ```
 
-- [x] **Step 7: Тест оптимистичного тумблера**
+- [x] **Step 7: A test for the optimistic toggle**
 
-В `web/src/features/radar/use-mutations.test.tsx`:
+In `web/src/features/radar/use-mutations.test.tsx`:
 
 ```tsx
 const rawFeed = (id: number, subscribed: boolean) => ({
@@ -1589,7 +1589,7 @@ it("rolls the subscription toggle back when the request fails", async () => {
 });
 ```
 
-- [x] **Step 8: Мутации в `use-mutations.tsx`**
+- [x] **Step 8: The mutations in `use-mutations.tsx`**
 
 ```tsx
 type ToggleArgs = { feedId: number; subscribed: boolean };
@@ -1647,9 +1647,9 @@ export function useDeleteFeed() {
 }
 ```
 
-Дописать импорты `subscribeFeed`, `unsubscribeFeed`, `addFeed`, `updateFeed`, `deleteFeed`, типы `AddFeedInput`, `UpdateFeedInput`, `FeedListItem`.
+Add the `subscribeFeed`, `unsubscribeFeed`, `addFeed`, `updateFeed`, `deleteFeed` imports and the `AddFeedInput`, `UpdateFeedInput`, `FeedListItem` types.
 
-- [x] **Step 9: Прогнать тесты и закоммитить** — тесты/typecheck/lint прогнаны и зелёные; коммит отложен по просьбе.
+- [x] **Step 9: Run the tests and commit** — tests, typecheck, and lint were run and are green; the commit was deferred by request.
 
 Run: `cd web && npm test && npm run typecheck && npm run lint`
 Expected: PASS.
@@ -1663,7 +1663,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 8: Экран `/radar/sources`
+### Task 8: The `/radar/sources` screen
 
 **Files:**
 - Create: `web/src/features/radar/components/SourceRow.tsx`, `web/src/features/radar/components/SourceRow.test.tsx`
@@ -1672,9 +1672,9 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: `useFeedsQuery`, `useToggleSubscription` (Task 7), `FeedListItem`, `useAuthStore`, `RadarDisabled`, `PageHeader`.
-- Produces: компонент `SourceRow` с пропсами `{ feed: FeedListItem; isAdmin: boolean; onToggle: (subscribed: boolean) => void; onEdit: () => void; onDelete: () => void }`; роут `radar/sources`.
+- Produces: the `SourceRow` component with the props `{ feed: FeedListItem; isAdmin: boolean; onToggle: (subscribed: boolean) => void; onEdit: () => void; onDelete: () => void }`; and the `radar/sources` route.
 
-- [x] **Step 1: Тест строки каталога**
+- [x] **Step 1: The catalog row test**
 
 `web/src/features/radar/components/SourceRow.test.tsx`:
 
@@ -1741,12 +1741,12 @@ describe("SourceRow", () => {
 });
 ```
 
-- [x] **Step 2: Запустить, убедиться в провале**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `cd web && npx vitest run src/features/radar/components/SourceRow.test.tsx`
-Expected: FAIL — модуль `./SourceRow` не найден.
+Expected: FAIL — module `./SourceRow` not found.
 
-- [x] **Step 3: Реализовать `SourceRow`**
+- [x] **Step 3: Implement `SourceRow`**
 
 ```tsx
 import { relativeFromNow } from "@/features/library/time";
@@ -1841,9 +1841,9 @@ export function SourceRow({ feed, isAdmin, onToggle, onEdit, onDelete }: Props) 
 }
 ```
 
-- [x] **Step 4: Тест экрана**
+- [x] **Step 4: The screen test**
 
-`web/src/routes/radar.sources.test.tsx` — по образцу `radar._index.test.tsx` (msw + `MemoryRouter`):
+`web/src/routes/radar.sources.test.tsx` — modelled on `radar._index.test.tsx` (msw + `MemoryRouter`):
 
 ```tsx
 it("shows a different empty state for admins", async () => {
@@ -1871,7 +1871,7 @@ it("lists the catalog", async () => {
 });
 ```
 
-- [x] **Step 5: Реализовать роут**
+- [x] **Step 5: Implement the route**
 
 `web/src/routes/radar.sources.tsx`:
 
@@ -1930,13 +1930,13 @@ export default function SourcesRoute() {
 }
 ```
 
-Заглушки `onEdit` / `onDelete` заполняются в Task 9.
+The `onEdit` / `onDelete` stubs are filled in during Task 9.
 
-- [x] **Step 6: Регистрация роута и навигация**
+- [x] **Step 6: Registering the route and the navigation**
 
-В `web/src/App.tsx` добавить импорт `import SourcesRoute from "./routes/radar.sources";` и элемент `{ path: "radar/sources", element: <SourcesRoute /> },` рядом с `radar/topics`.
+In `web/src/App.tsx`, add the `import SourcesRoute from "./routes/radar.sources";` import and the `{ path: "radar/sources", element: <SourcesRoute /> },` entry next to `radar/topics`.
 
-В `web/src/routes/radar._index.tsx` и `web/src/routes/radar.topics._index.tsx` в `actions` у `PageHeader` добавить вторую ссылку:
+In `web/src/routes/radar._index.tsx` and `web/src/routes/radar.topics._index.tsx`, add a second link to the `PageHeader`'s `actions`:
 
 ```tsx
           <Link
@@ -1947,7 +1947,7 @@ export default function SourcesRoute() {
           </Link>
 ```
 
-- [x] **Step 7: Прогнать тесты и закоммитить** — тесты/typecheck/lint прогнаны и зелёные; коммит отложен по просьбе.
+- [x] **Step 7: Run the tests and commit** — tests, typecheck, and lint were run and are green; the commit was deferred by request.
 
 Run: `cd web && npm test && npm run typecheck && npm run lint`
 Expected: PASS.
@@ -1961,7 +1961,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 9: Админские диалоги
+### Task 9: The admin dialogs
 
 **Files:**
 - Create: `web/src/features/radar/components/AddFeedDialog.tsx`, `AddFeedDialog.test.tsx`, `EditFeedDialog.tsx`, `DeleteFeedConfirm.tsx`
@@ -1971,7 +1971,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `useAddFeed`, `useUpdateFeed`, `useDeleteFeed` (Task 7), `SourceRow` (Task 8).
 - Produces: `AddFeedDialog{open, onOpenChange}`; `EditFeedDialog{feed: FeedListItem | null, onOpenChange}`; `DeleteFeedConfirm{feed: FeedListItem | null, pending, onOpenChange, onConfirm}`.
 
-- [x] **Step 1: Тест диалога добавления на 409**
+- [x] **Step 1: An add-dialog test for the 409**
 
 `web/src/features/radar/components/AddFeedDialog.test.tsx`:
 
@@ -1996,16 +1996,16 @@ it("shows the duplicate error inline", async () => {
 });
 ```
 
-Форму ошибки ответа сверить с `ApiError` в `web/src/shared/api/errors.ts` и msw-стабами в `use-mutations.test.tsx`, чтобы `err.status === 409` действительно выставлялся.
+Check the error response shape against `ApiError` in `web/src/shared/api/errors.ts` and the msw stubs in `use-mutations.test.tsx`, so `err.status === 409` really gets set.
 
-- [x] **Step 2: Запустить, убедиться в провале**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `cd web && npx vitest run src/features/radar/components/AddFeedDialog.test.tsx`
-Expected: FAIL — модуль `./AddFeedDialog` не найден.
+Expected: FAIL — module `./AddFeedDialog` not found.
 
 - [x] **Step 3: `AddFeedDialog`**
 
-По образцу `NewTopicDialog.tsx` (react-hook-form + zodResolver + `Dialog`):
+Modelled on `NewTopicDialog.tsx` (react-hook-form + zodResolver + `Dialog`):
 
 ```tsx
 const schema = z.object({
@@ -2033,15 +2033,15 @@ function mapError(err: unknown): string {
 }
 ```
 
-Сабмит вызывает `useAddFeed().mutateAsync`, при успехе — `toast.success("Feed added")` и закрытие, при ошибке — `setTopError(mapError(err))` в блоке `role="alert"` (та же разметка, что в `NewTopicDialog`).
+Submit calls `useAddFeed().mutateAsync`; on success it fires `toast.success("Feed added")` and closes, and on error it sets `setTopError(mapError(err))` in a `role="alert"` block (the same markup as in `NewTopicDialog`).
 
 - [x] **Step 4: `EditFeedDialog`**
 
-Тот же каркас; поля — `title` (текст, пустое значение отправляется как `""` и очищает название), селект интервала из `INTERVAL_OPTIONS`, чекбокс `Paused` (в запрос уходит `isActive: !paused`). Значения по умолчанию берутся из пропса `feed`. Сабмит — `useUpdateFeed().mutateAsync({ id: feed.id, input })`.
+The same skeleton; the fields are `title` (text, where an empty value is sent as `""` and clears the name), an interval select from `INTERVAL_OPTIONS`, and a `Paused` checkbox (the request carries `isActive: !paused`). The default values come from the `feed` prop. Submit is `useUpdateFeed().mutateAsync({ id: feed.id, input })`.
 
 - [x] **Step 5: `DeleteFeedConfirm`**
 
-Копия структуры `DeleteTopicConfirm.tsx` с другим текстом:
+A copy of the `DeleteTopicConfirm.tsx` structure with different text:
 
 ```tsx
         <AlertDialogTitle className="display-tight text-2xl">
@@ -2053,9 +2053,9 @@ function mapError(err: unknown): string {
         </AlertDialogDescription>
 ```
 
-- [x] **Step 6: Подключить диалоги к экрану**
+- [x] **Step 6: Wire the dialogs into the screen**
 
-В `web/src/routes/radar.sources.tsx` добавить локальное состояние и заменить заглушки:
+In `web/src/routes/radar.sources.tsx`, add local state and replace the stubs:
 
 ```tsx
   const [addOpen, setAddOpen] = useState(false);
@@ -2064,7 +2064,7 @@ function mapError(err: unknown): string {
   const remove = useDeleteFeed();
 ```
 
-`PageHeader` получает `actions={isAdmin ? <Button onClick={() => setAddOpen(true)}>Add feed</Button> : undefined}`, у строк — `onEdit={() => setEditing(feed)}` и `onDelete={() => setDeleting(feed)}`, а под списком рендерятся три диалога. Подтверждение удаления:
+`PageHeader` gets `actions={isAdmin ? <Button onClick={() => setAddOpen(true)}>Add feed</Button> : undefined}`, the rows get `onEdit={() => setEditing(feed)}` and `onDelete={() => setDeleting(feed)}`, and the three dialogs render below the list. The delete confirmation:
 
 ```tsx
         onConfirm={async () => {
@@ -2080,9 +2080,9 @@ function mapError(err: unknown): string {
         }}
 ```
 
-- [x] **Step 7: Тест экрана на админские действия**
+- [x] **Step 7: A screen test for the admin actions**
 
-В `web/src/routes/radar.sources.test.tsx`:
+In `web/src/routes/radar.sources.test.tsx`:
 
 ```tsx
 it("shows the finding count in the delete confirmation", async () => {
@@ -2102,9 +2102,9 @@ it("shows the finding count in the delete confirmation", async () => {
 });
 ```
 
-Хелпер `rawFeed` из Step 4 Task 8 расширить третьим аргументом-переопределением.
+Extend the `rawFeed` helper from Task 8's Step 4 with a third override argument.
 
-- [x] **Step 8: Прогнать всё и закоммитить** — тесты/typecheck/lint/test-unit прогнаны и зелёные; коммит отложен по просьбе.
+- [x] **Step 8: Run everything and commit** — tests, typecheck, lint, and test-unit were run and are green; the commit was deferred by request.
 
 Run: `cd web && npm test && npm run typecheck && npm run lint && cd .. && make test-unit`
 Expected: PASS.
@@ -2118,7 +2118,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-## Финальная проверка
+## Final verification
 
-- [x] **Полный прогон:** `make test` (нужен Docker) и `cd web && npm test && npm run build`.
-- [x] **Ручная проверка:** поднять `make dev-db && make run`, зарегистрировать второго пользователя при непустом каталоге — он должен получить подписки на все активные ленты; на `/radar/sources` снять галочку, добавить и удалить ленту админом.
+- [x] **The full run:** `make test` (needs Docker) and `cd web && npm test && npm run build`.
+- [x] **Manual check:** bring up `make dev-db && make run`, register a second user while the catalog is non-empty — they should get subscriptions to every active feed; on `/radar/sources` untick a box, then add and delete a feed as the admin.

@@ -1,82 +1,82 @@
-# Решение: модель embeddings — `BAAI/bge-m3`
+# Decision: the embedding model is `BAAI/bge-m3`
 
-**Дата:** 2026-05-06
-**Статус:** approved
-**Уточняет:**
-- `2026-04-10-architecture-design.md` — раздел 6 «Embeddings»
-- `2026-04-22-phase-3a-radar-pipeline-design.md` — раздел «Контекст», п. 1
+**Date:** 2026-05-06
+**Status:** approved
+**Refines:**
+- `2026-04-10-architecture-design.md` — section 6, "Embeddings"
+- `2026-04-22-phase-3a-radar-pipeline-design.md` — the "Context" section, item 1
 
 ## TL;DR
 
-Linktheca использует **`BAAI/bge-m3`** (1024 dim, MIT) на сервере **HuggingFace Text Embeddings Inference (TEI)** для всех embeddings проекта (Radar topics, Radar findings). Модель выбрана как Pareto-оптимум по жёстким ограничениям: self-hosted, бюджет RAM, мультиязычность с cross-lingual retrieval, permissive-лицензия, dim = 1024 (зафиксирован в pgvector schema), нативная поддержка в TEI.
+Linktheca uses **`BAAI/bge-m3`** (1024 dim, MIT) on a **HuggingFace Text Embeddings Inference (TEI)** server for every embedding in the project (Radar topics, Radar findings). The model was picked as the Pareto optimum under hard constraints: self-hosted, a RAM budget, multilingual with cross-lingual retrieval, a permissive licence, dim = 1024 (already fixed in the pgvector schema), and native support in TEI.
 
-Альтернативы (`bge-multilingual-gemma2`, `Qwen3-Embedding-*`, `multilingual-e5-large`, `Llama-Embed-Nemotron`, `gemini-embedding-001` и др.) рассмотрены и отклонены — см. таблицу ниже.
+The alternatives (`bge-multilingual-gemma2`, `Qwen3-Embedding-*`, `multilingual-e5-large`, `Llama-Embed-Nemotron`, `gemini-embedding-001` and others) were considered and rejected — see the table below.
 
-## Контекст
+## Context
 
-Linktheca — open-source on-premise сервис; пользователи деплоят его на свои машины и читают контент на разных языках. Модуль Radar выполняет semantic retrieval: тема пользователя (на любом языке) ищет статьи из RSS на любом языке. Качество cross-lingual retrieval и широта языкового покрытия определяют пользу Radar для международной аудитории.
+Linktheca is an open-source, on-premise service; users deploy it on their own machines and read content in many languages. The Radar module performs semantic retrieval: a user's topic (in any language) looks for articles from RSS in any language. The quality of cross-lingual retrieval and the breadth of language coverage decide how useful Radar is to an international audience.
 
-Размерность embedding'а — **долгосрочное архитектурное решение**: смена модели на другую dim потребует миграции pgvector schema, пересчёта всех существующих embeddings и пересборки HNSW-индексов. Цена ошибки на этом уровне высокая, поэтому решение оформляется отдельным документом.
+Embedding dimensionality is a **long-term architectural decision**: switching to a model with a different dim would require migrating the pgvector schema, recomputing every existing embedding, and rebuilding the HNSW indexes. The cost of getting this wrong is high, so the decision gets its own document.
 
-## Жёсткие ограничения
+## Hard constraints
 
-| # | Требование | Источник |
+| # | Requirement | Source |
 |---|---|---|
-| **R1** | Self-hosted, без cloud API для embeddings | `CLAUDE.md`; решение «embeddings локально, LLM — opt-in cloud» зафиксировано в memory `project_ai_stack_decision.md` |
-| **R2** | RAM ≤ ~3 GB для embedding-сервиса | Целевое железо: домашний сервер / VPS пользователя, не дата-центр |
-| **R3** | Multilingual + **cross-lingual retrieval** (тема на одном языке → находит статьи на других) | Международная аудитория open-source проекта; без cross-lingual'а тематический мониторинг сводится к моноязычному поиску |
-| **R4** | Permissive-лицензия (MIT/Apache 2.0) | Пользователи деплоят на свои машины — нельзя подвязывать их под restrictive TOS вендора |
-| **R5** | dim = 1024 | Уже зафиксировано в pgvector schema (`vector(1024)` в миграциях `006_radar_topics`, `009_radar_findings`) и в HNSW-индексах |
-| **R6** | Контекст ≥ 4K токенов | Title + description + summary статей бывают длинными, особенно у языков с длинными словоформами (финский, немецкий) |
-| **R7** | Совместимость с TEI image `cpu-1.9` | Уже подключено в `compose.dev.yaml`, протестировано в `internal/core/embeddings/client_smoke_test.go` |
+| **R1** | Self-hosted, no cloud API for embeddings | `CLAUDE.md`; the "embeddings local, LLM opt-in cloud" decision is recorded in the `project_ai_stack_decision.md` memory |
+| **R2** | RAM ≤ ~3 GB for the embedding service | Target hardware: a user's home server or VPS, not a data centre |
+| **R3** | Multilingual plus **cross-lingual retrieval** (a topic in one language finds articles in others) | The international audience of an open-source project; without cross-lingual retrieval, topic monitoring collapses into monolingual search |
+| **R4** | A permissive licence (MIT/Apache 2.0) | Users deploy on their own machines — we cannot bind them to a vendor's restrictive TOS |
+| **R5** | dim = 1024 | Already fixed in the pgvector schema (`vector(1024)` in the `006_radar_topics` and `009_radar_findings` migrations) and in the HNSW indexes |
+| **R6** | Context ≥ 4K tokens | An article's title + description + summary can run long, especially in languages with long word forms (Finnish, German) |
+| **R7** | Compatible with the TEI `cpu-1.9` image | Already wired into `compose.dev.yaml` and exercised by `internal/core/embeddings/client_smoke_test.go` |
 
-## Сравнение кандидатов
+## Candidate comparison
 
-| Модель | Dim | RAM | Multilingual | License | TEI | Решение |
+| Model | Dim | RAM | Multilingual | License | TEI | Verdict |
 |---|---|---|---|---|---|---|
-| **`BAAI/bge-m3`** | **1024** | ~2.5 GB | ✅ 100+ langs, MIRACL nDCG@10 ≈ 70.0 (комбо-режим) | **MIT** | ✅ XLM-RoBERTa native | ✅ **выбран** |
-| `BAAI/bge-multilingual-gemma2` | 3584 | ~18 GB FP16 | ✅ SOTA на MIRACL / MTEB-pl / MTEB-fr | Gemma TOS (не permissive) | ⚠️ требует не-cpu образ | ❌ R2, R4, R5 |
-| `BAAI/bge-en-icl` | 4096 | ~14 GB | ❌ только EN | Apache 2.0 | LLM-style | ❌ R3 |
-| `BAAI/bge-large-en-v1.5` | 1024 | ~700 MB | ❌ только EN | MIT | ✅ | ❌ R3 |
-| `Qwen3-Embedding-0.6B` | 1024 | ~1.2 GB | ✅ | Apache 2.0 | ✅ | ⚠️ см. ниже |
+| **`BAAI/bge-m3`** | **1024** | ~2.5 GB | ✅ 100+ langs, MIRACL nDCG@10 ≈ 70.0 (combined mode) | **MIT** | ✅ XLM-RoBERTa native | ✅ **chosen** |
+| `BAAI/bge-multilingual-gemma2` | 3584 | ~18 GB FP16 | ✅ SOTA on MIRACL / MTEB-pl / MTEB-fr | Gemma TOS (not permissive) | ⚠️ needs a non-cpu image | ❌ R2, R4, R5 |
+| `BAAI/bge-en-icl` | 4096 | ~14 GB | ❌ EN only | Apache 2.0 | LLM-style | ❌ R3 |
+| `BAAI/bge-large-en-v1.5` | 1024 | ~700 MB | ❌ EN only | MIT | ✅ | ❌ R3 |
+| `Qwen3-Embedding-0.6B` | 1024 | ~1.2 GB | ✅ | Apache 2.0 | ✅ | ⚠️ see below |
 | `Qwen3-Embedding-8B` | 4096 | ~16 GB | ✅ MTEB-multi top | Apache 2.0 | ✅ | ❌ R2, R5 |
 | `nvidia/llama-embed-nemotron-8b` | 4096 | ~16 GB | ✅ MMTEB top | NVIDIA Open Model | ⚠️ | ❌ R2, R4 |
 | `google/gemini-embedding-001` | configurable | — | ✅ MTEB top | Cloud API only | — | ❌ R1 |
-| `intfloat/multilingual-e5-large` | 1024 | ~1.1 GB | ✅ 100+ langs | MIT | ✅ | ⚠️ см. ниже |
+| `intfloat/multilingual-e5-large` | 1024 | ~1.1 GB | ✅ 100+ langs | MIT | ✅ | ⚠️ see below |
 
-### Близкие альтернативы и почему отвергнуты
+### The near misses and why they were rejected
 
-**`Qwen3-Embedding-0.6B`** — единственный кандидат, удовлетворяющий всем R1–R7 одновременно. Отвергнут потому, что:
-- На MIRACL `bge-m3` (≈70.0 nDCG@10 в комбо-режиме) опережает `Qwen3-Embedding-0.6B`; SOTA-числа Qwen относятся к 8B-варианту, не к 0.6B.
-- `bge-m3` поддерживает **dense + sparse + multi-vector retrieval** в одной модели. Сейчас используется только dense, но sparse/multi-vec — запасной путь, если dense окажется недостаточным для Radar (например, для редких терминов). У `Qwen3-Embedding` только dense.
-- `bge-m3` уже verified в TEI cpu-1.9; миграция на Qwen потребовала бы перевалидации совместимости и пересчёта всех embeddings.
+**`Qwen3-Embedding-0.6B`** is the only other candidate that satisfies R1–R7 all at once. Rejected because:
+- On MIRACL, `bge-m3` (≈70.0 nDCG@10 in combined mode) leads `Qwen3-Embedding-0.6B`; Qwen's SOTA numbers belong to the 8B variant, not to 0.6B.
+- `bge-m3` supports **dense + sparse + multi-vector retrieval** in one model. Only dense is used today, but sparse and multi-vector are a fallback if dense turns out to be insufficient for Radar (for rare terms, say). `Qwen3-Embedding` is dense only.
+- `bge-m3` is already verified against TEI cpu-1.9; moving to Qwen would mean revalidating compatibility and recomputing every embedding.
 
-**`intfloat/multilingual-e5-large` (mE5)** — близкий конкурент: 1024 dim, 100+ языков, MIT, ~1.1 GB. Отвергнут потому, что:
-- M3-paper (arXiv 2402.03216) показывает разрыв ~+5 nDCG@10 в пользу `bge-m3` на MIRACL, причём разрыв шире на низкоресурсных языках — важно для R3.
-- У mE5 нет sparse / multi-vec режимов.
+**`intfloat/multilingual-e5-large` (mE5)** is a close competitor: 1024 dim, 100+ languages, MIT, ~1.1 GB. Rejected because:
+- The M3 paper (arXiv 2402.03216) shows a gap of about +5 nDCG@10 in favour of `bge-m3` on MIRACL, and the gap widens on low-resource languages — which matters for R3.
+- mE5 has no sparse or multi-vector modes.
 
-**`gemini-embedding-001`, `Qwen3-Embedding-8B`, `Llama-Embed-Nemotron-8B`, `bge-multilingual-gemma2`** — топ MTEB Multilingual, но каждый нарушает минимум одно из жёстких требований: либо cloud-only (R1), либо 8–9B параметров (R2, R5), либо restrictive license (R4).
+**`gemini-embedding-001`, `Qwen3-Embedding-8B`, `Llama-Embed-Nemotron-8B`, `bge-multilingual-gemma2`** top the MTEB Multilingual board, but each violates at least one hard requirement: cloud-only (R1), 8–9B parameters (R2, R5), or a restrictive licence (R4).
 
-## Известные слабые места `bge-m3`
+## Known weaknesses of `bge-m3`
 
-Перечислены явно, чтобы не было сюрпризов в эксплуатации:
+Listed explicitly so nothing is a surprise in production:
 
-- **Низкоресурсные языки** (баскский, эстонский, многие африканские, мн. малых языков Океании) — качество заметно ниже среднего. Это общее ограничение всех open-weight embedding-моделей такого размера, не специфичное для `bge-m3`. Cross-lingual режим (тема на низкоресурсном языке → статья на en/ru/zh) работает приемлемо благодаря токенизатору XLM-RoBERTa.
-- **SOTA-разрыв с большими моделями.** `bge-multilingual-gemma2` / `Qwen3-Embedding-8B` / `Llama-Embed-Nemotron-8B` объективно лучше на бенчмарках, но требуют 16+ GB RAM. Вопрос «extended embedding mode» с большой моделью — потенциальная **дополнительная** конфигурация на будущее, не замена дефолта.
-- **Не обучался на коде.** Для технического контента (документация, dev-блоги) семантический поиск может проседать. Текущий scope Radar — новостные RSS-фиды.
+- **Low-resource languages** (Basque, Estonian, many African languages, many small languages of Oceania) come out noticeably below average. This is a general limitation of every open-weight embedding model at this size, not something specific to `bge-m3`. Cross-lingual mode (a topic in a low-resource language finding an article in en/ru/zh) works acceptably thanks to the XLM-RoBERTa tokenizer.
+- **The SOTA gap against larger models.** `bge-multilingual-gemma2` / `Qwen3-Embedding-8B` / `Llama-Embed-Nemotron-8B` are objectively better on benchmarks, but need 16+ GB of RAM. An "extended embedding mode" with a large model is a possible **additional** configuration for the future, not a replacement for the default.
+- **It was not trained on code.** For technical content (documentation, dev blogs) semantic search may sag. Radar's current scope is news RSS feeds.
 
-## Когда пересматривать решение
+## When to revisit
 
-Решение не вечное. Триггеры пересмотра:
+This decision is not permanent. Triggers for revisiting it:
 
-1. Появление open-weight multilingual-модели с RAM ≤ 2 GB и приростом ≥ 5 nDCG@10 на MIRACL относительно `bge-m3`.
-2. Воспроизводимые жалобы пользователей на качество retrieval для конкретных языков (с примерами тем и статей).
-3. Прекращение поддержки `bge-m3` в новых релизах TEI (маловероятно — модель массовая).
-4. Изменение R1 (например, появление cloud API c гарантиями privacy и opt-in от пользователя). Не отменит R5.
+1. An open-weight multilingual model appears with RAM ≤ 2 GB and a gain of ≥ 5 nDCG@10 on MIRACL over `bge-m3`.
+2. Reproducible user complaints about retrieval quality for specific languages (with example topics and articles).
+3. `bge-m3` support is dropped in new TEI releases (unlikely — the model is widely used).
+4. R1 changes (a cloud API with privacy guarantees and user opt-in, for instance). That would not lift R5.
 
-**Стоимость смены модели** при пересмотре: миграция pgvector schema (если меняется dim), background job на пересчёт всех existing embeddings (`radar_topics.embedding`, `radar_findings.embedding`), пересборка HNSW-индексов, обновление `internal/core/embeddings/client_smoke_test.go`.
+**The cost of switching models** on a revisit: migrating the pgvector schema (if the dim changes), a background job recomputing every existing embedding (`radar_topics.embedding`, `radar_findings.embedding`), rebuilding the HNSW indexes, and updating `internal/core/embeddings/client_smoke_test.go`.
 
-## Источники
+## Sources
 
 - `BAAI/bge-m3` model card: https://huggingface.co/BAAI/bge-m3
 - M3-Embedding paper (ACL 2024, arXiv 2402.03216): https://arxiv.org/abs/2402.03216

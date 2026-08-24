@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Создать `web/` SPA-проект (Vite + React 19 + TS strict + Tailwind v4 + shadcn/ui), responsive AppShell, API client skeleton, auth store skeleton, тулинг, deploy-конфиги. Функционально это будет shell, через который можно навигировать между route-stubs, но без auth и без Library — это идёт в следующих планах.
+**Goal:** Create the `web/` SPA project (Vite + React 19 + TS strict + Tailwind v4 + shadcn/ui), a responsive AppShell, an API client skeleton, an auth store skeleton, the tooling, and the deploy configs. Functionally this is a shell you can navigate between route stubs in, but with no auth and no Library — those come in the following plans.
 
-**Architecture:** Frontend живёт в `web/` поддиректории монорепо. Vite dev server проксирует `/api/*` на backend `:8080`, в проде — nginx. Layout: одна `<Sidebar />` рендерится либо pinned (`lg+`), либо в Radix `<Dialog>` overlay drawer (`< lg`). API-доступ через единый `apiFetch` wrapper, состояние auth — Zustand.
+**Architecture:** The frontend lives in the monorepo's `web/` subdirectory. The Vite dev server proxies `/api/*` to the backend on `:8080`; in production that is nginx. Layout: a single `<Sidebar />` renders either pinned (`lg+`) or inside a Radix `<Dialog>` overlay drawer (`< lg`). API access goes through one `apiFetch` wrapper, and auth state lives in Zustand.
 
 **Tech Stack:** Vite 5, React 19, TypeScript strict, Tailwind v4, shadcn/ui, React Router v7 (data mode), TanStack Query v5, Zustand, Radix primitives, lucide-react, Vitest + React Testing Library + MSW.
 
@@ -12,7 +12,7 @@
 
 ---
 
-## Файловая структура (создаётся этим планом)
+## File structure (created by this plan)
 
 ```
 web/
@@ -63,21 +63,21 @@ web/
         PageHeader.tsx
       lib/
         cn.ts
-      hooks/                    # пусто пока, появится в Library plan
+      hooks/                    # empty for now; it appears in the Library plan
     styles/
       globals.css
     test/
       setup.ts
 
-compose.prod.yaml                # на корне репо, для prod-деплоя web+backend
-.github/workflows/ci.yml         # модификация: добавляется frontend job
+compose.prod.yaml                # at the repo root, for the prod web+backend deploy
+.github/workflows/ci.yml         # modified: a frontend job is added
 ```
 
 ---
 
-## Группа 1 — Project skeleton
+## Group 1 — Project skeleton
 
-### Task 1: Initialize Vite + React 19 + TypeScript strict в `web/`
+### Task 1: Initialize Vite + React 19 + TypeScript strict in `web/`
 
 **Files:**
 - Create: `web/package.json`
@@ -90,7 +90,7 @@ compose.prod.yaml                # на корне репо, для prod-деп�
 - Create: `web/src/App.tsx`
 - Create: `web/.gitignore`
 
-- [x] **Step 1: Создать `web/package.json`**
+- [x] **Step 1: Create `web/package.json`**
 
 ```json
 {
@@ -117,13 +117,13 @@ compose.prod.yaml                # на корне репо, для prod-деп�
 }
 ```
 
-- [x] **Step 2: Создать `web/tsconfig.json`** (root, references + alias)
+- [x] **Step 2: Create `web/tsconfig.json`** (root, references + alias)
 
-Канонический split-шаблон create-vite: корневой tsconfig — пустой контейнер с `references`, конкретные настройки живут в `tsconfig.app.json` и `tsconfig.node.json`. Это разделяет контексты `src/` (DOM) и `vite.config.ts` (Node), у которых разные `lib`/`module`.
+The canonical create-vite split template: the root tsconfig is an empty container with `references`, and the concrete settings live in `tsconfig.app.json` and `tsconfig.node.json`. That separates the `src/` (DOM) and `vite.config.ts` (Node) contexts, which need different `lib`/`module`.
 
-Дополнительно дублируем `paths` в корневом конфиге. Причина: shadcn CLI (`npx shadcn add ...`) резолвит alias из `components.json` через **корневой** `tsconfig.json` и не ходит по `references`. Без этого блока CLI не находит `@/*`, считает `@/shared/ui/...` буквальным путём и создаёт директорию `web/@/` вместо файлов в `web/src/shared/ui/`.
+We also duplicate `paths` in the root config. The reason: the shadcn CLI (`npx shadcn add ...`) resolves the alias from `components.json` through the **root** `tsconfig.json` and does not follow `references`. Without that block the CLI cannot find `@/*`, treats `@/shared/ui/...` as a literal path, and creates a `web/@/` directory instead of files in `web/src/shared/ui/`.
 
-`baseUrl` намеренно не указываем: TypeScript 5.5+ резолвит `paths` относительно самого `tsconfig.json` и без него, а в TypeScript 6 опция помечена как deprecated (TS5101) и будет удалена в TS 7. Современные версии shadcn CLI работают с `paths` без `baseUrl`.
+`baseUrl` is deliberately omitted: TypeScript 5.5+ resolves `paths` relative to the `tsconfig.json` itself without it, and in TypeScript 6 the option is deprecated (TS5101) and will be removed in TS 7. Current shadcn CLI versions work with `paths` and no `baseUrl`.
 
 ```json
 {
@@ -140,14 +140,14 @@ compose.prod.yaml                # на корне репо, для prod-деп�
 }
 ```
 
-- [x] **Step 3: Создать `web/tsconfig.app.json`** (для `src/`)
+- [x] **Step 3: Create `web/tsconfig.app.json`** (for `src/`)
 
-Ключевые отличия от стандартного шаблона:
-- `types: ["vite/client"]` — типы для `import.meta.env`, `import.meta.hot`, ассет-импортов (`?url`, `?raw`, `?worker`).
-- `verbatimModuleSyntax: true` — заставляет писать `import type` явно; помогает Oxc-транспайлеру Vite 8 и улучшает tree-shaking.
-- `isolatedModules: true` — обязательно для Vite (Oxc не читает типы при транспиляции).
-- `composite: true` + `tsBuildInfoFile` — нужно для project references, чтобы `tsc -b` не ругался TS6306.
-- `paths: { "@/*": ["./src/*"] }` — алиас, который синхронизируется с `vite.config.ts`.
+The key differences from the standard template:
+- `types: ["vite/client"]` — the types for `import.meta.env`, `import.meta.hot`, and asset imports (`?url`, `?raw`, `?worker`).
+- `verbatimModuleSyntax: true` — forces explicit `import type`; it helps Vite 8's Oxc transpiler and improves tree-shaking.
+- `isolatedModules: true` — mandatory for Vite (Oxc does not read types while transpiling).
+- `composite: true` + `tsBuildInfoFile` — needed for project references so `tsc -b` does not complain with TS6306.
+- `paths: { "@/*": ["./src/*"] }` — the alias, kept in sync with `vite.config.ts`.
 
 ```json
 {
@@ -185,7 +185,7 @@ compose.prod.yaml                # на корне репо, для prod-деп�
 }
 ```
 
-- [x] **Step 3b: Создать `web/tsconfig.node.json`** (для `vite.config.ts` и `vitest.config.ts`)
+- [x] **Step 3b: Create `web/tsconfig.node.json`** (for `vite.config.ts` and `vitest.config.ts`)
 
 ```json
 {
@@ -214,9 +214,9 @@ compose.prod.yaml                # на корне репо, для prod-деп�
 }
 ```
 
-> **Note:** `vitest.config.ts` появится в Task 15 — тогда его нужно будет добавить в `include`.
+> **Note:** `vitest.config.ts` arrives in Task 15 — it has to be added to `include` then.
 
-- [x] **Step 4: Создать `web/vite.config.ts`**
+- [x] **Step 4: Create `web/vite.config.ts`**
 
 ```ts
 import { defineConfig } from "vite";
@@ -233,7 +233,7 @@ export default defineConfig({
 });
 ```
 
-- [x] **Step 5: Создать `web/index.html`**
+- [x] **Step 5: Create `web/index.html`**
 
 ```html
 <!doctype html>
@@ -250,7 +250,7 @@ export default defineConfig({
 </html>
 ```
 
-- [x] **Step 6: Создать `web/src/main.tsx`**
+- [x] **Step 6: Create `web/src/main.tsx`**
 
 ```tsx
 import { StrictMode } from "react";
@@ -264,7 +264,7 @@ createRoot(document.getElementById("root")!).render(
 );
 ```
 
-- [x] **Step 7: Создать `web/src/App.tsx`**
+- [x] **Step 7: Create `web/src/App.tsx`**
 
 ```tsx
 export default function App() {
@@ -272,7 +272,7 @@ export default function App() {
 }
 ```
 
-- [x] **Step 8: Создать `web/.gitignore`**
+- [x] **Step 8: Create `web/.gitignore`**
 
 ```
 node_modules
@@ -281,20 +281,20 @@ dist
 *.log
 ```
 
-- [x] **Step 9: Установить зависимости**
+- [x] **Step 9: Install the dependencies**
 
 Run: `cd web && npm install`
-Expected: `package-lock.json` создан, `node_modules/` появилась, без ошибок.
+Expected: `package-lock.json` is created, `node_modules/` appears, no errors.
 
 - [x] **Step 10: Verify dev server**
 
 Run: `cd web && npm run dev`
-Expected: vite поднимается на `:5173`, в браузере «Linktheca» большим текстом. Завершить через Ctrl+C.
+Expected: vite comes up on `:5173`, and the browser shows "Linktheca" in large text. Stop it with Ctrl+C.
 
 - [x] **Step 11: Verify build**
 
 Run: `cd web && npm run build`
-Expected: `dist/` создан, в нём `index.html` и `assets/`.
+Expected: `dist/` is created, containing `index.html` and `assets/`.
 
 - [x] **Step 12: Commit**
 
@@ -314,12 +314,12 @@ git commit -m "feat(web): initialize Vite + React 19 + TypeScript strict skeleto
 - Modify: `web/src/main.tsx` (import globals)
 - Modify: `web/src/App.tsx` (verify token usage)
 
-- [x] **Step 1: Установить Tailwind v4**
+- [x] **Step 1: Install Tailwind v4**
 
 Run: `cd web && npm install -D tailwindcss@^4 @tailwindcss/vite@^4`
-Expected: пакеты добавлены в devDependencies.
+Expected: the packages are added to devDependencies.
 
-- [x] **Step 2: Подключить tailwind plugin в `web/vite.config.ts`**
+- [x] **Step 2: Wire the tailwind plugin into `web/vite.config.ts`**
 
 ```ts
 import { defineConfig } from "vite";
@@ -337,7 +337,7 @@ export default defineConfig({
 });
 ```
 
-- [x] **Step 3: Создать `web/src/styles/globals.css`**
+- [x] **Step 3: Create `web/src/styles/globals.css`**
 
 ```css
 @import "tailwindcss";
@@ -412,7 +412,7 @@ select:focus {
 }
 ```
 
-- [x] **Step 4: Импортировать globals в `web/src/main.tsx`**
+- [x] **Step 4: Import globals in `web/src/main.tsx`**
 
 ```tsx
 import { StrictMode } from "react";
@@ -427,7 +427,7 @@ createRoot(document.getElementById("root")!).render(
 );
 ```
 
-- [x] **Step 5: Использовать токены в `web/src/App.tsx` для проверки**
+- [x] **Step 5: Use the tokens in `web/src/App.tsx` as a check**
 
 ```tsx
 export default function App() {
@@ -442,7 +442,7 @@ export default function App() {
 - [x] **Step 6: Verify**
 
 Run: `cd web && npm run dev`
-Expected: страница на тёплом бежевом фоне (paper), заголовок vermillion-цвета. Проверить в браузере, потом Ctrl+C.
+Expected: the page sits on a warm beige (paper) background with a vermillion heading. Check it in the browser, then Ctrl+C.
 
 - [x] **Step 7: Commit**
 
@@ -453,13 +453,13 @@ git commit -m "feat(web): add Tailwind v4 with editorial design tokens"
 
 ---
 
-### Task 3: Шрифты через @fontsource
+### Task 3: Fonts through @fontsource
 
 **Files:**
 - Modify: `web/package.json` (deps)
 - Modify: `web/src/main.tsx` (font imports)
 
-- [x] **Step 1: Установить шрифты**
+- [x] **Step 1: Install the fonts**
 
 Run:
 ```bash
@@ -469,9 +469,9 @@ cd web && npm install \
   @fontsource/ibm-plex-mono
 ```
 
-Expected: три пакета добавлены в dependencies.
+Expected: three packages are added to dependencies.
 
-- [x] **Step 2: Импортировать в `web/src/main.tsx`**
+- [x] **Step 2: Import them in `web/src/main.tsx`**
 
 ```tsx
 import { StrictMode } from "react";
@@ -499,7 +499,7 @@ createRoot(document.getElementById("root")!).render(
 
 - [x] **Step 3: Verify**
 
-Run: `cd web && npm run dev` и в браузере проверить, что заголовок «Linktheca» в Cormorant Garamond, а не в дефолтном serif. Network tab покажет загрузку `.woff2` файлов из @fontsource. Ctrl+C.
+Run: `cd web && npm run dev` and check in the browser that the "Linktheca" heading is in Cormorant Garamond, not the default serif. The Network tab shows the `.woff2` files loading from @fontsource. Ctrl+C.
 
 - [x] **Step 4: Commit**
 
@@ -510,12 +510,12 @@ git commit -m "feat(web): bundle Cormorant Garamond, Newsreader, IBM Plex Mono v
 
 ---
 
-### Task 4: Перенести utility classes из прототипа в `globals.css`
+### Task 4: Move the prototype's utility classes into `globals.css`
 
 **Files:**
 - Modify: `web/src/styles/globals.css`
 
-- [x] **Step 1: Добавить `@layer components` блок в конец `globals.css`**
+- [x] **Step 1: Add an `@layer components` block at the end of `globals.css`**
 
 ```css
 @layer components {
@@ -822,9 +822,9 @@ git commit -m "feat(web): bundle Cormorant Garamond, Newsreader, IBM Plex Mono v
 }
 ```
 
-- [x] **Step 2: Verify в браузере, что классы работают (smoke check)**
+- [x] **Step 2: Verify in the browser that the classes work (a smoke check)**
 
-В `App.tsx` временно добавить:
+Temporarily add to `App.tsx`:
 
 ```tsx
 export default function App() {
@@ -839,9 +839,9 @@ export default function App() {
 }
 ```
 
-Run: `cd web && npm run dev` — в браузере увидеть paper-surface фон, dotted-rule, наклонённый stamp с буквами «READ» в моно-шрифте. Ctrl+C.
+Run: `cd web && npm run dev` — the browser shows the paper-surface background, a dotted rule, and a tilted stamp reading "READ" in the mono font. Ctrl+C.
 
-- [x] **Step 3: Откатить временные изменения в App.tsx**
+- [x] **Step 3: Revert the temporary changes in App.tsx**
 
 ```tsx
 export default function App() {
@@ -862,12 +862,12 @@ git commit -m "feat(web): port editorial utility classes from prototype"
 
 ---
 
-### Task 5: Vite dev proxy для `/api/*`
+### Task 5: The Vite dev proxy for `/api/*`
 
 **Files:**
 - Modify: `web/vite.config.ts`
 
-- [x] **Step 1: Добавить proxy в `web/vite.config.ts`**
+- [x] **Step 1: Add the proxy to `web/vite.config.ts`**
 
 ```ts
 import { defineConfig } from "vite";
@@ -897,12 +897,12 @@ export default defineConfig({
 
 - [x] **Step 2: Verify proxy works**
 
-Поднять backend (отдельный терминал): `make dev-db && make run`
-Run в первом терминале: `cd web && npm run dev`
-В браузере открыть `http://localhost:5173/api/healthz`
-Expected: ответ `ok` (бэкенд `/healthz` возвращает `ok`).
+Bring up the backend (in a separate terminal): `make dev-db && make run`
+Run in the first terminal: `cd web && npm run dev`
+Open `http://localhost:5173/api/healthz` in the browser
+Expected: the response `ok` (the backend's `/healthz` returns `ok`).
 
-Завершить оба процесса.
+Stop both processes.
 
 - [x] **Step 3: Commit**
 
@@ -913,9 +913,9 @@ git commit -m "feat(web): proxy /api/* to backend during dev"
 
 ---
 
-## Группа 2 — shadcn + Routing
+## Group 2 — shadcn + Routing
 
-### Task 6: Установить shadcn/ui и базовые primitives
+### Task 6: Install shadcn/ui and the base primitives
 
 **Files:**
 - Create: `web/components.json`
@@ -926,9 +926,9 @@ git commit -m "feat(web): proxy /api/* to backend during dev"
 - Create: `web/src/shared/ui/input.tsx`
 - Create: `web/src/shared/ui/label.tsx`
 - Create: `web/src/shared/ui/alert-dialog.tsx`
-- Modify: `web/package.json` (deps добавит shadcn cli)
+- Modify: `web/package.json` (the shadcn CLI adds the deps)
 
-- [x] **Step 1: Установить базовые зависимости вручную**
+- [x] **Step 1: Install the base dependencies by hand**
 
 Run:
 ```bash
@@ -939,7 +939,7 @@ cd web && npm install \
   lucide-react
 ```
 
-- [x] **Step 2: Создать `web/src/shared/lib/cn.ts`**
+- [x] **Step 2: Create `web/src/shared/lib/cn.ts`**
 
 ```ts
 import { clsx, type ClassValue } from "clsx";
@@ -950,7 +950,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 ```
 
-- [x] **Step 3: Создать `web/components.json`**
+- [x] **Step 3: Create `web/components.json`**
 
 ```json
 {
@@ -975,18 +975,18 @@ export function cn(...inputs: ClassValue[]) {
 }
 ```
 
-- [x] **Step 4: Установить shadcn primitives через CLI**
+- [x] **Step 4: Install the shadcn primitives through the CLI**
 
 Run:
 ```bash
 cd web && npx shadcn@latest add button card dialog input label alert-dialog --yes
 ```
 
-Expected: создаются файлы в `src/shared/ui/`. CLI может задавать вопросы — отвечать дефолтами.
+Expected: files appear in `src/shared/ui/`. The CLI may ask questions — answer with the defaults.
 
-- [x] **Step 5: Verify импорт работает**
+- [x] **Step 5: Verify the import works**
 
-Временно изменить `web/src/App.tsx`:
+Temporarily change `web/src/App.tsx`:
 
 ```tsx
 import { Button } from "@/shared/ui/button";
@@ -1001,9 +1001,9 @@ export default function App() {
 }
 ```
 
-Run: `cd web && npm run dev` — кнопка отрендерилась. Ctrl+C.
+Run: `cd web && npm run dev` — the button renders. Ctrl+C.
 
-- [x] **Step 6: Откатить App.tsx**
+- [x] **Step 6: Revert App.tsx**
 
 ```tsx
 export default function App() {
@@ -1024,7 +1024,7 @@ git commit -m "feat(web): set up shadcn/ui with button, card, dialog, input, lab
 
 ---
 
-### Task 7: Установить React Router v7 и собрать route tree
+### Task 7: Install React Router v7 and assemble the route tree
 
 **Files:**
 - Modify: `web/package.json` (deps)
@@ -1040,13 +1040,13 @@ git commit -m "feat(web): set up shadcn/ui with button, card, dialog, input, lab
 - Create: `web/src/routes/not-found.tsx`
 - Modify: `web/src/App.tsx`
 
-- [x] **Step 1: Установить React Router**
+- [x] **Step 1: Install React Router**
 
 Run: `cd web && npm install react-router@^7`
 
-> В v7 `react-router-dom` объединён в один пакет `react-router`. Все хуки и компоненты импортируются из `react-router`; единственное исключение — DOM-специфичный `RouterProvider`, который идёт из deep path `react-router/dom`.
+> In v7 `react-router-dom` is merged into the single `react-router` package. Every hook and component is imported from `react-router`; the one exception is the DOM-specific `RouterProvider`, which comes from the `react-router/dom` deep path.
 
-- [x] **Step 2: Создать stub `web/src/routes/__root.tsx`**
+- [x] **Step 2: Create the `web/src/routes/__root.tsx` stub**
 
 ```tsx
 import { Outlet } from "react-router";
@@ -1060,7 +1060,7 @@ export default function RootLayout() {
 }
 ```
 
-- [x] **Step 3: Создать `web/src/routes/_public.tsx`**
+- [x] **Step 3: Create `web/src/routes/_public.tsx`**
 
 ```tsx
 import { Outlet } from "react-router";
@@ -1076,7 +1076,7 @@ export default function PublicLayout() {
 }
 ```
 
-- [x] **Step 3b: Создать `web/src/routes/__app.tsx` (stub до Task 12)**
+- [x] **Step 3b: Create `web/src/routes/__app.tsx` (a stub until Task 12)**
 
 ```tsx
 import { Outlet } from "react-router";
@@ -1086,7 +1086,7 @@ export default function AppLayout() {
 }
 ```
 
-- [x] **Step 4: Создать stubs для всех страниц**
+- [x] **Step 4: Create stubs for every page**
 
 `web/src/routes/index.tsx`:
 
@@ -1183,7 +1183,7 @@ export default function NotFoundRoute() {
 }
 ```
 
-- [x] **Step 5: Собрать router и подключить в `web/src/App.tsx`**
+- [x] **Step 5: Assemble the router and wire it into `web/src/App.tsx`**
 
 ```tsx
 import { createBrowserRouter } from "react-router";
@@ -1229,14 +1229,14 @@ export default function App() {
 }
 ```
 
-- [x] **Step 6: Verify навигацию**
+- [x] **Step 6: Verify navigation**
 
-Run: `cd web && npm run dev`. В браузере проверить:
-- `/` → редиректит на `/library` (видно «Library»).
-- `/login`, `/register` → public layout, центрированный card.
+Run: `cd web && npm run dev`. In the browser, check:
+- `/` → redirects to `/library` ("Library" is visible).
+- `/login`, `/register` → the public layout, a centred card.
 - `/library/42` → «Reader: 42».
 - `/settings` → «Settings».
-- `/zzz` → 404 страница.
+- `/zzz` → the 404 page.
 
 Ctrl+C.
 
@@ -1247,11 +1247,11 @@ git add web/package.json web/package-lock.json web/src/routes/ web/src/App.tsx
 git commit -m "feat(web): wire React Router v7 with route stubs and 404 page"
 ```
 
-**Note:** `__app.tsx` сейчас просто `<Outlet />`. В Task 12 он начнёт оборачивать содержимое в `<AppShell>`. Это даёт чистую структуру маршрутов без условной логики в `__root.tsx`.
+**Note:** `__app.tsx` is just `<Outlet />` for now. In Task 12 it starts wrapping the content in `<AppShell>`. That keeps the route structure clean, with no conditional logic in `__root.tsx`.
 
 ---
 
-## Группа 3 — Layout components
+## Group 3 — Layout components
 
 ### Task 8: PaperGrainOverlay component
 
@@ -1259,7 +1259,7 @@ git commit -m "feat(web): wire React Router v7 with route stubs and 404 page"
 - Create: `web/src/shared/layout/PaperGrainOverlay.tsx`
 - Modify: `web/src/routes/__root.tsx`
 
-- [x] **Step 1: Создать `web/src/shared/layout/PaperGrainOverlay.tsx`**
+- [x] **Step 1: Create `web/src/shared/layout/PaperGrainOverlay.tsx`**
 
 ```tsx
 export function PaperGrainOverlay() {
@@ -1267,7 +1267,7 @@ export function PaperGrainOverlay() {
 }
 ```
 
-- [x] **Step 2: Подключить в `__root.tsx`**
+- [x] **Step 2: Wire it into `__root.tsx`**
 
 ```tsx
 import { Outlet } from "react-router";
@@ -1285,7 +1285,7 @@ export default function RootLayout() {
 
 - [x] **Step 3: Verify**
 
-Run: `cd web && npm run dev`. Открыть `/library`. В DevTools видно `<div class="grain-overlay">` поверх контента, content интерактивен (overlay не блокирует клики). Ctrl+C.
+Run: `cd web && npm run dev`. Open `/library`. DevTools shows `<div class="grain-overlay">` over the content, and the content stays interactive (the overlay does not block clicks). Ctrl+C.
 
 - [x] **Step 4: Commit**
 
@@ -1296,13 +1296,13 @@ git commit -m "feat(web): add paper grain overlay to root layout"
 
 ---
 
-### Task 9: Sidebar component (skeleton с nav-items)
+### Task 9: The Sidebar component (a skeleton with nav items)
 
 **Files:**
 - Create: `web/src/shared/layout/Sidebar.tsx`
-- Create: `web/src/shared/layout/Sidebar.test.tsx` (тест добавим в Task 16, когда vitest настроен)
+- Create: `web/src/shared/layout/Sidebar.test.tsx` (the test is added in Task 16, once vitest is configured)
 
-- [x] **Step 1: Создать `web/src/shared/layout/Sidebar.tsx`**
+- [x] **Step 1: Create `web/src/shared/layout/Sidebar.tsx`**
 
 ```tsx
 import { NavLink } from "react-router";
@@ -1364,7 +1364,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 }
 ```
 
-- [x] **Step 2: Commit (тест добавим после Vitest setup)**
+- [x] **Step 2: Commit (the test comes after the Vitest setup)**
 
 ```bash
 git add web/src/shared/layout/Sidebar.tsx
@@ -1378,7 +1378,7 @@ git commit -m "feat(web): add Sidebar with nav items (Radar disabled stub)"
 **Files:**
 - Create: `web/src/shared/layout/Topbar.tsx`
 
-- [x] **Step 1: Создать `web/src/shared/layout/Topbar.tsx`**
+- [x] **Step 1: Create `web/src/shared/layout/Topbar.tsx`**
 
 ```tsx
 import { Menu, Plus } from "lucide-react";
@@ -1438,7 +1438,7 @@ git commit -m "feat(web): add Topbar with hamburger and add-link button stubs"
 **Files:**
 - Create: `web/src/shared/layout/MobileDrawer.tsx`
 
-- [x] **Step 1: Создать `web/src/shared/layout/MobileDrawer.tsx`**
+- [x] **Step 1: Create `web/src/shared/layout/MobileDrawer.tsx`**
 
 ```tsx
 import * as Dialog from "@radix-ui/react-dialog";
@@ -1491,7 +1491,7 @@ git commit -m "feat(web): add MobileDrawer hosting Sidebar on <lg via Radix Dial
 **Files:**
 - Create: `web/src/shared/layout/AppShell.tsx`
 
-- [x] **Step 1: Создать `web/src/shared/layout/AppShell.tsx`**
+- [x] **Step 1: Create `web/src/shared/layout/AppShell.tsx`**
 
 ```tsx
 import { useState } from "react";
@@ -1523,9 +1523,9 @@ export function AppShell({ children }: Props) {
 }
 ```
 
-- [x] **Step 2: Подключить AppShell через `__app.tsx`** (route layout)
+- [x] **Step 2: Wire AppShell in through `__app.tsx`** (a route layout)
 
-Изменить `web/src/routes/__app.tsx`:
+Change `web/src/routes/__app.tsx`:
 
 ```tsx
 import { Outlet } from "react-router";
@@ -1540,14 +1540,14 @@ export default function AppLayout() {
 }
 ```
 
-`__root.tsx` остаётся без изменений (paper-grain + Outlet). Структура роутов уже разделяет public-ветку и app-ветку — никакой условной логики в layout не нужно.
+`__root.tsx` stays as it is (paper grain plus Outlet). The route structure already separates the public branch from the app branch, so no conditional logic is needed in the layout.
 
 - [x] **Step 3: Verify**
 
-Run: `cd web && npm run dev`. На `/library`:
-- На широком окне (≥1024px) — sidebar pinned слева, topbar сверху, контент справа от sidebar.
-- Сжать окно до < 1024px — sidebar исчезает, появляется hamburger в topbar. Клик по hamburger открывает drawer слева. Клик по nav-item внутри — drawer закрывается, навигация срабатывает.
-- На `/login` — public layout, без sidebar/topbar, центрированная карточка.
+Run: `cd web && npm run dev`. On `/library`:
+- In a wide window (≥1024px) the sidebar is pinned on the left, the topbar is on top, and the content sits to the right of the sidebar.
+- Narrow the window below 1024px — the sidebar disappears and a hamburger appears in the topbar. Clicking the hamburger opens the drawer from the left. Clicking a nav item inside closes the drawer and navigates.
+- On `/login` — the public layout, with no sidebar or topbar and a centred card.
 
 Ctrl+C.
 
@@ -1567,7 +1567,7 @@ git commit -m "feat(web): compose AppShell with responsive sidebar and mount via
 - Modify: `web/src/routes/library._index.tsx`
 - Modify: `web/src/routes/settings.tsx`
 
-- [x] **Step 1: Создать `web/src/shared/layout/PageHeader.tsx`**
+- [x] **Step 1: Create `web/src/shared/layout/PageHeader.tsx`**
 
 ```tsx
 type Props = {
@@ -1591,7 +1591,7 @@ export function PageHeader({ title, subtitle, actions }: Props) {
 }
 ```
 
-- [x] **Step 2: Использовать в `library._index.tsx`**
+- [x] **Step 2: Use it in `library._index.tsx`**
 
 ```tsx
 import { PageHeader } from "@/shared/layout/PageHeader";
@@ -1608,7 +1608,7 @@ export default function LibraryListRoute() {
 }
 ```
 
-- [x] **Step 3: Использовать в `settings.tsx`**
+- [x] **Step 3: Use it in `settings.tsx`**
 
 ```tsx
 import { PageHeader } from "@/shared/layout/PageHeader";
@@ -1624,7 +1624,7 @@ export default function SettingsRoute() {
 
 - [x] **Step 4: Verify**
 
-Run: `cd web && npm run dev`. На `/library` и `/settings` — большой Cormorant title и small-caps subtitle, разделитель снизу. Ctrl+C.
+Run: `cd web && npm run dev`. On `/library` and `/settings` there is a large Cormorant title, a small-caps subtitle, and a divider below. Ctrl+C.
 
 - [x] **Step 5: Commit**
 
@@ -1635,7 +1635,7 @@ git commit -m "feat(web): add PageHeader and apply to Library/Settings routes"
 
 ---
 
-## Группа 4 — Data infra
+## Group 4 — Data infrastructure
 
 ### Task 14: TanStack Query setup
 
@@ -1644,11 +1644,11 @@ git commit -m "feat(web): add PageHeader and apply to Library/Settings routes"
 - Create: `web/src/shared/api/query-client.ts`
 - Modify: `web/src/App.tsx`
 
-- [x] **Step 1: Установить TanStack Query**
+- [x] **Step 1: Install TanStack Query**
 
 Run: `cd web && npm install @tanstack/react-query`
 
-- [x] **Step 2: Создать `web/src/shared/api/query-client.ts`**
+- [x] **Step 2: Create `web/src/shared/api/query-client.ts`**
 
 ```ts
 import { QueryClient } from "@tanstack/react-query";
@@ -1667,9 +1667,9 @@ export const queryClient = new QueryClient({
 });
 ```
 
-(Файл `errors.ts` ещё не существует — создаём в Task 17. Здесь делаем заглушку, которую заменим. Для разрыва циклов: создать `errors.ts` сейчас минимально.)
+(`errors.ts` does not exist yet — it is created in Task 17. Here we make a stub to be replaced. To break the cycle, create a minimal `errors.ts` now.)
 
-- [x] **Step 3: Создать минимальный `web/src/shared/api/errors.ts`**
+- [x] **Step 3: Create a minimal `web/src/shared/api/errors.ts`**
 
 ```ts
 export class ApiError extends Error {
@@ -1685,9 +1685,9 @@ export class ApiError extends Error {
 }
 ```
 
-(Полные тесты — в Task 17.)
+(The full tests are in Task 17.)
 
-- [x] **Step 4: Обернуть App в `QueryClientProvider`**
+- [x] **Step 4: Wrap App in `QueryClientProvider`**
 
 ```tsx
 import { createBrowserRouter } from "react-router";
@@ -1742,7 +1742,7 @@ export default function App() {
 - [x] **Step 5: Verify build**
 
 Run: `cd web && npm run build`
-Expected: build проходит без ошибок.
+Expected: the build passes with no errors.
 
 - [x] **Step 6: Commit**
 
@@ -1761,7 +1761,7 @@ git commit -m "feat(web): wire TanStack Query client with retry/staleTime config
 - Create: `web/src/test/setup.ts`
 - Create: `web/src/test/sanity.test.ts` (smoke check)
 
-- [x] **Step 1: Установить тестовые зависимости**
+- [x] **Step 1: Install the test dependencies**
 
 Run:
 ```bash
@@ -1772,7 +1772,7 @@ cd web && npm install -D \
   msw
 ```
 
-- [x] **Step 2: Создать `web/vitest.config.ts`**
+- [x] **Step 2: Create `web/vitest.config.ts`**
 
 ```ts
 import { defineConfig } from "vitest/config";
@@ -1795,7 +1795,7 @@ export default defineConfig({
 });
 ```
 
-- [x] **Step 3: Создать `web/src/test/setup.ts`**
+- [x] **Step 3: Create `web/src/test/setup.ts`**
 
 ```ts
 import "@testing-library/jest-dom/vitest";
@@ -1809,16 +1809,16 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 ```
 
-- [x] **Step 4: Добавить test scripts в `web/package.json`**
+- [x] **Step 4: Add the test scripts to `web/package.json`**
 
-В блок `scripts`:
+Into the `scripts` block:
 
 ```json
 "test": "vitest run",
 "test:watch": "vitest"
 ```
 
-- [x] **Step 5: Создать smoke-test `web/src/test/sanity.test.ts`**
+- [x] **Step 5: Create the smoke test `web/src/test/sanity.test.ts`**
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -1839,7 +1839,7 @@ describe("test setup", () => {
 - [x] **Step 6: Run tests**
 
 Run: `cd web && npm test`
-Expected: 2 теста PASS.
+Expected: 2 tests PASS.
 
 - [x] **Step 7: Commit**
 
@@ -1850,12 +1850,12 @@ git commit -m "test(web): set up Vitest + RTL + MSW with jsdom environment"
 
 ---
 
-### Task 16: Sidebar render test (используем настроенный Vitest)
+### Task 16: A Sidebar render test (using the configured Vitest)
 
 **Files:**
 - Create: `web/src/shared/layout/Sidebar.test.tsx`
 
-- [x] **Step 1: Написать failing test `web/src/shared/layout/Sidebar.test.tsx`**
+- [x] **Step 1: Write failing test `web/src/shared/layout/Sidebar.test.tsx`**
 
 ```tsx
 import { describe, it, expect } from "vitest";
@@ -1895,7 +1895,7 @@ describe("Sidebar", () => {
 - [x] **Step 2: Run tests**
 
 Run: `cd web && npm test`
-Expected: все Sidebar тесты PASS, smoke-tests тоже PASS.
+Expected: every Sidebar test passes, and the smoke tests pass too.
 
 - [x] **Step 3: Commit**
 
@@ -1906,14 +1906,14 @@ git commit -m "test(web): cover Sidebar nav rendering and Radar disabled state"
 
 ---
 
-### Task 17: ApiError + apiFetch (skeleton, без refresh)
+### Task 17: ApiError + apiFetch (a skeleton, without refresh)
 
 **Files:**
-- Create: `web/src/shared/api/errors.test.ts` (тесты для уже созданного в Task 14 `errors.ts`)
+- Create: `web/src/shared/api/errors.test.ts` (tests for the `errors.ts` already created in Task 14)
 - Create: `web/src/shared/api/client.ts`
 - Create: `web/src/shared/api/client.test.ts`
 
-- [x] **Step 1: Failing test для ApiError `web/src/shared/api/errors.test.ts`**
+- [x] **Step 1: A failing test for ApiError in `web/src/shared/api/errors.test.ts`**
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -1936,12 +1936,12 @@ describe("ApiError", () => {
 });
 ```
 
-- [x] **Step 2: Run test (должен проходить — `errors.ts` уже создан в Task 14)**
+- [x] **Step 2: Run the test (it should pass — `errors.ts` was created in Task 14)**
 
 Run: `cd web && npm test src/shared/api/errors.test.ts`
 Expected: PASS.
 
-- [x] **Step 3: Failing test для `apiFetch` `web/src/shared/api/client.test.ts`**
+- [x] **Step 3: A failing test for `apiFetch` in `web/src/shared/api/client.test.ts`**
 
 ```ts
 import { describe, it, expect, beforeEach } from "vitest";
@@ -1994,7 +1994,7 @@ describe("apiFetch", () => {
 });
 ```
 
-- [x] **Step 4: Создать `web/src/shared/api/client.ts`**
+- [x] **Step 4: Create `web/src/shared/api/client.ts`**
 
 ```ts
 import { ApiError } from "./errors";
@@ -2040,7 +2040,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 - [x] **Step 5: Run tests**
 
 Run: `cd web && npm test`
-Expected: все тесты PASS.
+Expected: all tests PASS.
 
 - [x] **Step 6: Commit**
 
@@ -2058,7 +2058,7 @@ git commit -m "feat(web): add apiFetch wrapper with ApiError normalization"
 - Create: `web/src/features/auth/store.ts`
 - Create: `web/src/features/auth/store.test.ts`
 
-- [x] **Step 1: Установить Zustand**
+- [x] **Step 1: Install Zustand**
 
 Run: `cd web && npm install zustand`
 
@@ -2105,7 +2105,7 @@ describe("useAuthStore", () => {
 });
 ```
 
-- [x] **Step 3: Создать `web/src/features/auth/store.ts`**
+- [x] **Step 3: Create `web/src/features/auth/store.ts`**
 
 ```ts
 import { create } from "zustand";
@@ -2150,15 +2150,15 @@ git commit -m "feat(web): add Zustand auth store with bootstrapping/authed/anony
 
 ---
 
-### Task 19: Wire access token из auth store в apiFetch
+### Task 19: Wire the access token from the auth store into apiFetch
 
 **Files:**
 - Modify: `web/src/shared/api/client.ts`
 - Modify: `web/src/shared/api/client.test.ts`
 
-- [x] **Step 1: Failing test — добавить кейсы в `client.test.ts`**
+- [x] **Step 1: A failing test — add cases to `client.test.ts`**
 
-В существующий `describe("apiFetch", ...)` добавить новый sub-describe в конец:
+Add a new sub-describe at the end of the existing `describe("apiFetch", ...)`:
 
 ```ts
 import { useAuthStore } from "@/features/auth/store";
@@ -2192,12 +2192,12 @@ describe("apiFetch with auth token", () => {
 });
 ```
 
-- [x] **Step 2: Run test, увидеть FAIL**
+- [x] **Step 2: Run the test and see it FAIL**
 
 Run: `cd web && npm test src/shared/api/client.test.ts`
-Expected: новые «Bearer» тесты FAIL.
+Expected: the new "Bearer" tests FAIL.
 
-- [x] **Step 3: Обновить `web/src/shared/api/client.ts`**
+- [x] **Step 3: Update `web/src/shared/api/client.ts`**
 
 ```ts
 import { ApiError } from "./errors";
@@ -2245,7 +2245,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 - [x] **Step 4: Run tests**
 
 Run: `cd web && npm test`
-Expected: все тесты PASS.
+Expected: all tests PASS.
 
 - [x] **Step 5: Commit**
 
@@ -2256,7 +2256,7 @@ git commit -m "feat(web): inject Bearer token from auth store into apiFetch"
 
 ---
 
-## Группа 5 — Tooling и deploy
+## Group 5 — Tooling and deploy
 
 ### Task 20: ESLint + Prettier
 
@@ -2266,7 +2266,7 @@ git commit -m "feat(web): inject Bearer token from auth store into apiFetch"
 - Create: `web/.prettierrc`
 - Create: `web/.prettierignore`
 
-- [x] **Step 1: Установить зависимости**
+- [x] **Step 1: Install the dependencies**
 
 Run:
 ```bash
@@ -2276,9 +2276,9 @@ cd web && npm install -D \
   prettier eslint-config-prettier
 ```
 
-> ESLint v10 пока не поддерживается `eslint-plugin-jsx-a11y` (≤v9) и `eslint-plugin-react` (≤v9.7+); `*` резолвится в v10 и npm падает с ERESOLVE. Пинуем `eslint`/`@eslint/js` на `^9` до выхода совместимых релизов плагинов.
+> ESLint v10 is not yet supported by `eslint-plugin-jsx-a11y` (≤v9) or `eslint-plugin-react` (≤v9.7+); `*` resolves to v10 and npm fails with ERESOLVE. We pin `eslint`/`@eslint/js` to `^9` until compatible plugin releases land.
 
-- [x] **Step 2: Создать `web/eslint.config.js`**
+- [x] **Step 2: Create `web/eslint.config.js`**
 
 ```js
 import js from "@eslint/js";
@@ -2312,11 +2312,11 @@ export default tseslint.config(
 );
 ```
 
-> Используем flat-config пресеты плагинов (`react.configs.flat.*`, `reactHooks.configs.flat.recommended`, `jsxA11y.flatConfigs.recommended`) — старая форма `configs.recommended.rules` это legacy eslintrc и в `eslint-plugin-react-hooks@7` её фактически нет. `jsx-runtime` сам отключает `react-in-jsx-scope`. `prop-types` выключен — типы покрывает TypeScript.
+> We use the plugins' flat-config presets (`react.configs.flat.*`, `reactHooks.configs.flat.recommended`, `jsxA11y.flatConfigs.recommended`) — the old `configs.recommended.rules` form is legacy eslintrc and is effectively absent from `eslint-plugin-react-hooks@7`. `jsx-runtime` switches off `react-in-jsx-scope` by itself. `prop-types` is off — TypeScript covers the types.
 
-> `settings.react.version` лежит в отдельном блоке без `files`-ограничения: `react.configs.flat.recommended` подключается ко всем файлам, и без глобального `settings` ESLint выдаёт «React version not specified» warning при `npm run lint`.
+> `settings.react.version` sits in its own block with no `files` restriction: `react.configs.flat.recommended` applies to every file, and without a global `settings` ESLint emits a "React version not specified" warning on `npm run lint`.
 
-- [x] **Step 3: Создать `web/.prettierrc`**
+- [x] **Step 3: Create `web/.prettierrc`**
 
 ```json
 {
@@ -2327,7 +2327,7 @@ export default tseslint.config(
 }
 ```
 
-- [x] **Step 4: Создать `web/.prettierignore`**
+- [x] **Step 4: Create `web/.prettierignore`**
 
 ```
 dist
@@ -2335,7 +2335,7 @@ node_modules
 package-lock.json
 ```
 
-- [x] **Step 5: Добавить scripts в `web/package.json`**
+- [x] **Step 5: Add the scripts to `web/package.json`**
 
 ```json
 "lint": "eslint . --max-warnings 0",
@@ -2346,14 +2346,14 @@ package-lock.json
 - [x] **Step 6: Verify**
 
 Run: `cd web && npm run typecheck && npm run lint`
-Expected: оба PASS. Если lint ругается на несоблюдение правил — поправить точечно (не подавляя правила).
+Expected: both PASS. If lint complains about rule violations, fix them precisely (without suppressing the rules).
 
-- [x] **Step 7: Run prettier один раз для нормализации стиля**
+- [x] **Step 7: Run prettier once to normalize the style**
 
 Run: `cd web && npm run format`
-Expected: некоторые файлы перепишутся.
+Expected: some files are rewritten.
 
-- [x] **Step 8: Verify lint после форматирования**
+- [x] **Step 8: Verify lint after formatting**
 
 Run: `cd web && npm run lint && npm test`
 Expected: PASS.
@@ -2374,7 +2374,7 @@ git commit -m "chore(web): set up ESLint flat config + Prettier and run initial 
 - Create: `web/nginx.conf`
 - Create: `web/.dockerignore`
 
-- [x] **Step 1: Создать `web/Dockerfile`**
+- [x] **Step 1: Create `web/Dockerfile`**
 
 ```dockerfile
 FROM node:24-alpine AS builder
@@ -2390,9 +2390,9 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 ```
 
-- [x] **Step 2: Создать `web/nginx.conf`**
+- [x] **Step 2: Create `web/nginx.conf`**
 
-`resolver 127.0.0.11` + variable-based `proxy_pass` нужны, чтобы nginx стартовал без живого `backend` (иначе падает на startup-резолве upstream). `rewrite` стрипает `/api/` префикс — backend ожидает чистые пути (см. `vite.config.ts`: dev proxy делает то же самое).
+`resolver 127.0.0.11` plus a variable-based `proxy_pass` are needed so nginx starts without a live `backend` (otherwise it dies resolving the upstream at startup). The `rewrite` strips the `/api/` prefix — the backend expects clean paths (see `vite.config.ts`: the dev proxy does the same).
 
 ```
 server {
@@ -2426,7 +2426,7 @@ server {
 }
 ```
 
-- [x] **Step 3: Создать `web/.dockerignore`**
+- [x] **Step 3: Create `web/.dockerignore`**
 
 ```
 node_modules
@@ -2436,16 +2436,16 @@ dist
 .git
 ```
 
-- [x] **Step 4: Verify build (требует docker)**
+- [x] **Step 4: Verify the build (requires docker)**
 
 Run: `cd web && docker build -t linktheca-web:test .`
-Expected: build проходит без ошибок (две стадии, итоговый образ на nginx:alpine).
+Expected: the build passes with no errors (two stages, with the final image on nginx:alpine).
 
-- [x] **Step 5: Smoke run контейнера**
+- [x] **Step 5: A smoke run of the container**
 
 Run: `docker run --rm -d --name linktheca-web-test -p 8090:80 linktheca-web:test`
-Затем: `curl -sI http://localhost:8090/` → ожидаем `200 OK` и `text/html`.
-Затем: `docker rm -f linktheca-web-test`.
+Then: `curl -sI http://localhost:8090/` → expect `200 OK` and `text/html`.
+Then: `docker rm -f linktheca-web-test`.
 
 - [x] **Step 6: Commit**
 
@@ -2459,9 +2459,9 @@ git commit -m "feat(web): add multi-stage Dockerfile and nginx config for SPA + 
 ### Task 22: `compose.prod.yaml`
 
 **Files:**
-- Create: `compose.prod.yaml` (в корне репо)
+- Create: `compose.prod.yaml` (at the repo root)
 
-- [x] **Step 1: Создать `compose.prod.yaml` в корне репо**
+- [x] **Step 1: Create `compose.prod.yaml` at the repo root**
 
 ```yaml
 services:
@@ -2509,12 +2509,12 @@ volumes:
   linktheca_tei_data:
 ```
 
-**Note:** root `Dockerfile` для backend в этом плане не создаётся (это вне scope frontend плана). Если его ещё нет — этот compose-файл будет некорректен до момента, пока backend Dockerfile не появится. Это допустимо — `compose.prod.yaml` фиксирует целевую конфигурацию, а не deployable-as-is состояние.
+**Note:** the root `Dockerfile` for the backend is not created by this plan (that is outside a frontend plan's scope). If it does not exist yet, this compose file is incorrect until the backend Dockerfile appears. That is acceptable — `compose.prod.yaml` pins the target configuration, not a deployable-as-is state.
 
 - [x] **Step 2: Verify compose syntax**
 
 Run: `docker compose -f compose.prod.yaml config`
-Expected: compose валидируется (может ругаться на отсутствие переменных окружения — это OK для проверки синтаксиса; запустить с экспортом фиктивных значений если нужно: `POSTGRES_PASSWORD=p JWT_SECRET=s docker compose -f compose.prod.yaml config`).
+Expected: compose validates (it may complain about missing environment variables — that is fine for a syntax check; run it with dummy values exported if needed: `POSTGRES_PASSWORD=p JWT_SECRET=s docker compose -f compose.prod.yaml config`).
 
 - [x] **Step 3: Commit**
 
@@ -2525,16 +2525,16 @@ git commit -m "feat(deploy): add compose.prod.yaml wiring web + backend + postgr
 
 ---
 
-### Task 23: Расширить CI workflow
+### Task 23: Extend the CI workflow
 
 **Files:**
 - Modify: `.github/workflows/ci.yml`
 
 - [x] **Step 1: Read current `.github/workflows/ci.yml`**
 
-Тебе уже знаком текущий workflow с одним job `backend`. Добавляем второй job `frontend`.
+You already know the current workflow with its single `backend` job. We add a second job, `frontend`.
 
-- [x] **Step 2: Изменить `.github/workflows/ci.yml`**
+- [x] **Step 2: Change `.github/workflows/ci.yml`**
 
 ```yaml
 name: CI
@@ -2600,7 +2600,7 @@ Run:
 ```bash
 cd web && npm ci && npm run lint && npm run typecheck && npm test && npm run build
 ```
-Expected: все шаги PASS — это и есть то, что прогонит CI.
+Expected: every step passes — this is exactly what CI will run.
 
 - [x] **Step 4: Commit**
 
@@ -2611,62 +2611,62 @@ git commit -m "ci: add frontend job (lint, typecheck, test, build) on Node 24"
 
 ---
 
-### Task 24: Финальная sanity-проверка плана
+### Task 24: A final sanity check of the plan
 
-- [x] **Step 1: Проверить весь dev workflow с нуля**
+- [x] **Step 1: Check the whole dev workflow from scratch**
 
 ```bash
-# в одном терминале
+# in one terminal
 make dev-db && make run
 
-# в другом терминале
+# in another terminal
 cd web && npm run dev
 ```
 
-Открыть `http://localhost:5173`:
-- Landing редиректит на `/library`.
-- Sidebar pinned слева на десктопе.
-- Сжать окно до < 1024 — sidebar исчезает, hamburger открывает drawer.
-- `/login`, `/register` — public layout без shell.
-- 404 на несуществующем пути.
-- DevTools Network: `/api/healthz` → 200 ok (через Vite proxy).
+Open `http://localhost:5173`:
+- The landing page redirects to `/library`.
+- The sidebar is pinned on the left on desktop.
+- Narrow the window below 1024 — the sidebar disappears and the hamburger opens the drawer.
+- `/login`, `/register` — the public layout with no shell.
+- A 404 on a nonexistent path.
+- DevTools Network: `/api/healthz` → 200 ok (through the Vite proxy).
 
-- [x] **Step 2: Прогнать всё CI-эквивалентно локально**
+- [x] **Step 2: Run the CI equivalent locally**
 
 ```bash
 cd web && npm run lint && npm run typecheck && npm test && npm run build
 ```
 
-- [x] **Step 3: Если что-то поломано — починить и закоммитить отдельно**
+- [x] **Step 3: If anything is broken, fix it and commit that separately**
 
-Без TDD-ритуала на каждый микро-фикс — это plan-полировка, не feature-step.
+No TDD ritual for each micro-fix — this is plan polish, not a feature step.
 
 ---
 
-## Сводный self-review
+## Consolidated self-review
 
 **Spec coverage check:**
 
 | Spec section | Tasks |
 |---|---|
-| 1. Foundation: setup, структура, токены | T1 (Vite/TS), T2 (Tailwind+tokens), T3 (fonts), T4 (utility classes), T5 (proxy) |
-| 2. AppShell и responsive layout | T8 (PaperGrainOverlay), T9 (Sidebar), T10 (Topbar), T11 (MobileDrawer), T12 (AppShell), T13 (PageHeader), `_public` layout — T7 |
-| 3. API client и auth state | T14 (Query client), T17 (apiFetch+ApiError), T18 (auth store), T19 (Bearer wiring); refresh-flow и bootstrap — следующий план Auth |
-| 4. Routing, Auth screens, Library screens | T7 (route tree + stubs); полные экраны — следующие планы |
-| 5. Тестирование | T15 (Vitest+RTL+MSW), T16 (Sidebar test), T17 (apiFetch tests), T18 (store tests) |
-| 6. Сборка и deploy | T21 (Dockerfile+nginx), T22 (compose.prod.yaml), T23 (CI) |
+| 1. Foundation: setup, structure, tokens | T1 (Vite/TS), T2 (Tailwind+tokens), T3 (fonts), T4 (utility classes), T5 (proxy) |
+| 2. AppShell and responsive layout | T8 (PaperGrainOverlay), T9 (Sidebar), T10 (Topbar), T11 (MobileDrawer), T12 (AppShell), T13 (PageHeader), the `_public` layout — T7 |
+| 3. API client and auth state | T14 (Query client), T17 (apiFetch+ApiError), T18 (auth store), T19 (Bearer wiring); the refresh flow and bootstrap are in the next plan, Auth |
+| 4. Routing, Auth screens, Library screens | T7 (route tree + stubs); the full screens come in the following plans |
+| 5. Testing | T15 (Vitest+RTL+MSW), T16 (Sidebar test), T17 (apiFetch tests), T18 (store tests) |
+| 6. Build and deploy | T21 (Dockerfile+nginx), T22 (compose.prod.yaml), T23 (CI) |
 
-Не покрыто этим планом (по дизайну): refresh-flow в `apiFetch`, ProtectedRoute, bootstrap-on-mount, login/register формы, library list/reader/add-link/edit/delete — это соответственно следующие планы Auth и Library.
+Not covered by this plan (by design): the refresh flow in `apiFetch`, ProtectedRoute, bootstrap-on-mount, the login/register forms, and library list/reader/add-link/edit/delete — those belong to the following Auth and Library plans.
 
-**Placeholder scan:** конкретный код в каждом step, все commit-сообщения и `expected output` указаны явно.
+**Placeholder scan:** concrete code in every step, with all commit messages and `expected output` stated explicitly.
 
-**Type consistency:** `User`, `AuthState`, `AuthStatus`, `ApiError` определены один раз, ссылки в последующих тасках имена не путают.
+**Type consistency:** `User`, `AuthState`, `AuthStatus`, and `ApiError` are defined once, and the later tasks reference those names consistently.
 
 ---
 
-## Следующие шаги
+## Next steps
 
-После прогона всего плана — два следующих плана:
+After this whole plan is executed — two further plans:
 
-1. `2026-05-XX-frontend-auth.md` — refresh-flow в `apiFetch` (singleton Promise), bootstrap-on-mount, ProtectedRoute, login/register формы (RHF+Zod), `/auth/me` интеграция, logout.
-2. `2026-05-XX-frontend-library.md` — `features/library/api.ts`, list (filters/pagination/empty/loading/error), Add Link modal с three-stage progress, Reader view (drop-cap, reading progress, mark-as-read on scroll), edit (state/favorite/note autosave), delete с confirm, optimistic updates, sonner toasts.
+1. `2026-05-XX-frontend-auth.md` — the refresh flow in `apiFetch` (a singleton Promise), bootstrap-on-mount, ProtectedRoute, the login/register forms (RHF+Zod), the `/auth/me` integration, and logout.
+2. `2026-05-XX-frontend-library.md` — `features/library/api.ts`, the list (filters/pagination/empty/loading/error), the Add Link modal with three-stage progress, the Reader view (drop cap, reading progress, mark-as-read on scroll), edit (state/favorite/note autosave), delete with a confirmation, optimistic updates, and sonner toasts.
