@@ -2763,7 +2763,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `useGlobalFeedsQuery`, `useDeleteGlobalFeed` (Task 7), `SourceRow`, `AddFeedDialog`, `EditFeedDialog`, `DeleteFeedConfirm` (Task 9).
 - Produces: a screen with no exported API.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `web/src/routes/admin.sources.test.tsx` modelled on
 `web/src/routes/radar.sources.test.tsx` (a local `QueryClient` with
@@ -2806,12 +2806,12 @@ it("prompts to add the first feed when the catalog is empty", async () => {
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `cd web && npx vitest run src/routes/admin.sources.test.tsx`
 Expected: FAIL — the placeholder renders nothing of the sort.
 
-- [ ] **Step 3: Implement the screen**
+- [x] **Step 3: Implement the screen**
 
 ```tsx
 import { useState } from "react";
@@ -2902,12 +2902,12 @@ export default function AdminSourcesRoute() {
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `cd web && npm test && npm run typecheck && npm run lint`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/routes
