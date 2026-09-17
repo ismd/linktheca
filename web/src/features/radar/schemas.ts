@@ -75,6 +75,7 @@ export const RawTopicsListSchema = z.object({
 
 export const RawRadarStatusSchema = z.object({
   last_sweep_at: z.string().nullable(),
+  max_user_feeds: z.number().int().optional(),
 });
 
 export type RawTopic = z.infer<typeof RawTopicSchema>;
@@ -154,6 +155,7 @@ export function mapMatchList(raw: z.infer<typeof RawMatchListSchema>): MatchList
 export function mapRadarStatus(raw: z.infer<typeof RawRadarStatusSchema>): RadarStatus {
   return {
     lastSweepAt: raw.last_sweep_at ? new Date(raw.last_sweep_at) : null,
+    maxUserFeeds: raw.max_user_feeds ?? null,
   };
 }
 

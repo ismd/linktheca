@@ -3,8 +3,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/shared/layout/PageHeader";
 import { Button } from "@/shared/ui/button";
 import { ApiError } from "@/shared/api/errors";
-import { useAuthStore } from "@/features/auth/store";
-import { useFeedsQuery } from "@/features/radar/use-radar";
+import { useFeedsQuery, useRadarStatusQuery } from "@/features/radar/use-radar";
 import {
   useToggleSubscription,
   useDeleteFeed,
@@ -18,9 +17,9 @@ import type { FeedListItem } from "@/features/radar/types";
 
 export default function SourcesRoute() {
   const feeds = useFeedsQuery();
+  const status = useRadarStatusQuery();
   const toggle = useToggleSubscription();
   const remove = useDeleteFeed();
-  const isAdmin = useAuthStore((s) => s.user?.isAdmin ?? false);
 
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<FeedListItem | null>(null);
@@ -31,7 +30,10 @@ export default function SourcesRoute() {
   }
 
   const items = feeds.data ?? [];
+  const mine = items.filter((f) => f.isOwn);
+  const catalog = items.filter((f) => !f.isOwn);
   const subscribedCount = items.filter((f) => f.subscribed).length;
+  const quota = status.data?.maxUserFeeds;
 
   return (
     <div>
@@ -42,31 +44,48 @@ export default function SourcesRoute() {
             ? `${items.length} feeds · ${subscribedCount} subscribed · changes apply from the next sweep`
             : "Feeds this instance watches"
         }
-        actions={
-          isAdmin ? <Button onClick={() => setAddOpen(true)}>Add feed</Button> : undefined
-        }
+        actions={<Button onClick={() => setAddOpen(true)}>Add source</Button>}
       />
       <div className="px-4 lg:px-8 pb-10">
-        {feeds.isSuccess && items.length === 0 && (
-          <p className="font-body text-muted-foreground pt-8">
-            {isAdmin
-              ? "No sources yet. Add the first feed to start watching."
-              : "No sources yet. Ask the instance admin to add feeds."}
+        <SectionHeader
+          label="My sources"
+          count={quota ? `${mine.length} / ${quota}` : `${mine.length}`}
+        />
+        {mine.length === 0 ? (
+          <p className="font-body text-muted-foreground pb-6">
+            Add your own RSS or Atom feed — only you will see it.
           </p>
+        ) : (
+          mine.map((feed) => (
+            <SourceRow
+              key={feed.id}
+              feed={feed}
+              canManage
+              onToggle={(subscribed) => toggle.mutate({ feedId: feed.id, subscribed })}
+              onEdit={() => setEditing(feed)}
+              onDelete={() => setDeleting(feed)}
+            />
+          ))
         )}
-        {items.map((feed) => (
-          <SourceRow
-            key={feed.id}
-            feed={feed}
-            canManage={isAdmin}
-            onToggle={(subscribed) => toggle.mutate({ feedId: feed.id, subscribed })}
-            onEdit={() => setEditing(feed)}
-            onDelete={() => setDeleting(feed)}
-          />
-        ))}
+
+        <SectionHeader label="Catalog" count={`${catalog.length} feeds`} />
+        {catalog.length === 0 ? (
+          <p className="font-body text-muted-foreground pb-6">
+            No shared sources yet. Ask the instance admin to add feeds.
+          </p>
+        ) : (
+          catalog.map((feed) => (
+            <SourceRow
+              key={feed.id}
+              feed={feed}
+              canManage={false}
+              onToggle={(subscribed) => toggle.mutate({ feedId: feed.id, subscribed })}
+            />
+          ))
+        )}
       </div>
 
-      <AddFeedDialog open={addOpen} scope="global" onOpenChange={setAddOpen} />
+      <AddFeedDialog open={addOpen} scope="personal" onOpenChange={setAddOpen} />
       <EditFeedDialog
         feed={editing}
         onOpenChange={(open) => {
@@ -83,14 +102,25 @@ export default function SourcesRoute() {
           if (!deleting) return;
           try {
             await remove.mutateAsync(deleting.id);
-            toast.success("Feed deleted");
+            toast.success("Source deleted");
           } catch {
-            toast.error("Could not delete the feed");
+            toast.error("Could not delete the source");
           } finally {
             setDeleting(null);
           }
         }}
       />
+    </div>
+  );
+}
+
+// SectionHeader repeats the divider used on the topics list.
+function SectionHeader({ label, count }: { label: string; count: string }) {
+  return (
+    <div className="flex items-center gap-4 pt-8 pb-4">
+      <div className="label-sc-lg text-ink">{label}</div>
+      <div className="flex-1 rule-dotted" />
+      <div className="label-sc text-muted-foreground">{count}</div>
     </div>
   );
 }

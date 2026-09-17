@@ -61,6 +61,7 @@ export type MatchList = {
 
 export type RadarStatus = {
   lastSweepAt: Date | null;
+  maxUserFeeds: number | null;
 };
 
 export type MatchFilters = {

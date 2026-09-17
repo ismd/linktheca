@@ -54,26 +54,23 @@ function signIn(isAdmin: boolean) {
 
 beforeEach(() => {
   signIn(false);
+  // The screen reads the quota off the status endpoint, and msw is configured
+  // to error on unhandled requests.
+  server.use(
+    http.get("/api/radar/status", () =>
+      HttpResponse.json({ last_sweep_at: null, max_user_feeds: 20 }),
+    ),
+  );
 });
 
 describe("SourcesRoute", () => {
-  it("shows a different empty state for admins", async () => {
+  it("explains an empty catalog", async () => {
     server.use(
       http.get("/api/radar/feeds", () => HttpResponse.json({ items: [], total: 0 })),
     );
 
     renderAt("/radar/sources");
     expect(await screen.findByText(/ask the instance admin/i)).toBeInTheDocument();
-  });
-
-  it("prompts an admin to add the first feed", async () => {
-    server.use(
-      http.get("/api/radar/feeds", () => HttpResponse.json({ items: [], total: 0 })),
-    );
-
-    signIn(true);
-    renderAt("/radar/sources");
-    expect(await screen.findByText(/add the first feed/i)).toBeInTheDocument();
   });
 
   it("lists the catalog", async () => {
@@ -91,29 +88,51 @@ describe("SourcesRoute", () => {
     server.use(
       http.get("/api/radar/feeds", () =>
         HttpResponse.json({
-          items: [rawFeed(3, true, { finding_count: 214 })],
+          items: [rawFeed(3, true, { finding_count: 214, is_own: true })],
           total: 1,
         }),
       ),
     );
 
-    signIn(true);
     renderAt("/radar/sources");
 
     await userEvent.click(await screen.findByRole("button", { name: /delete/i }));
     expect(await screen.findByText(/214 findings/i)).toBeInTheDocument();
   });
 
-  it("hides the add-feed button from ordinary users", async () => {
+  it("splits personal sources from the shared catalog", async () => {
     server.use(
       http.get("/api/radar/feeds", () =>
-        HttpResponse.json({ items: [rawFeed(3, true)], total: 1 }),
+        HttpResponse.json({
+          items: [
+            { ...rawFeed(1, true), title: "My Blog", is_own: true },
+            { ...rawFeed(2, false), title: "The Verge", is_own: false },
+          ],
+          total: 2,
+        }),
       ),
     );
 
     renderAt("/radar/sources");
-    await screen.findByRole("checkbox", { name: /feed 3/i });
-    expect(screen.queryByRole("button", { name: /add feed/i })).not.toBeInTheDocument();
+
+    expect(await screen.findByText("My Blog")).toBeInTheDocument();
+    expect(screen.getByText(/my sources/i)).toBeInTheDocument();
+    expect(screen.getByText(/catalog/i)).toBeInTheDocument();
+
+    // Only the personal row is manageable.
+    expect(screen.getAllByRole("button", { name: /edit/i })).toHaveLength(1);
+  });
+
+  it("offers Add source to an ordinary user", async () => {
+    server.use(
+      http.get("/api/radar/feeds", () => HttpResponse.json({ items: [], total: 0 })),
+    );
+
+    renderAt("/radar/sources");
+
+    expect(
+      await screen.findByRole("button", { name: /add source/i }),
+    ).toBeInTheDocument();
   });
 
   it("renders the disabled screen when radar is off", async () => {

@@ -2557,7 +2557,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `useFeedsQuery`, `useRadarStatusQuery` (`web/src/features/radar/use-radar.tsx:98`), `useToggleSubscription`, `useDeleteFeed`, `SourceRow` and the dialogs from Task 9.
 - Produces: a screen with no exported API; its behaviour is pinned by the tests.
 
-- [ ] **Step 1: Write the failing screen tests**
+- [x] **Step 1: Write the failing screen tests**
 
 In `web/src/routes/radar.sources.test.tsx`, add `is_own` to the `rawFeed`
 factory and append:
@@ -2602,12 +2602,12 @@ it("offers Add source to an ordinary user", async () => {
 Delete the existing "hides the add-feed button from ordinary users" test — that
 behaviour is gone.
 
-- [ ] **Step 2: Run them and confirm they fail**
+- [x] **Step 2: Run them and confirm they fail**
 
 Run: `cd web && npx vitest run src/routes/radar.sources.test.tsx`
 Expected: FAIL — there are no sections, and the button is hidden from non-admins.
 
-- [ ] **Step 3: Sections and dialog entry points**
+- [x] **Step 3: Sections and dialog entry points**
 
 Replace the body of `SourcesRoute`:
 
@@ -2726,7 +2726,7 @@ function SectionHeader({ label, count }: { label: string; count: string }) {
 Drop the `useAuthStore` import — it is no longer needed — and add the
 `useRadarStatusQuery` import from `@/features/radar/use-radar`.
 
-- [ ] **Step 4: Thread `maxUserFeeds` through the status**
+- [x] **Step 4: Thread `maxUserFeeds` through the status**
 
 In `web/src/features/radar/schemas.ts`, add
 `max_user_feeds: z.number().int().optional(),` to `RawRadarStatusSchema`, and
@@ -2737,12 +2737,12 @@ In `web/src/features/radar/schemas.ts`, add
 The field is optional in the schema so that existing msw status fixtures in
 other tests do not start failing.
 
-- [ ] **Step 5: Run the tests**
+- [x] **Step 5: Run the tests**
 
 Run: `cd web && npm test && npm run typecheck && npm run lint`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src
