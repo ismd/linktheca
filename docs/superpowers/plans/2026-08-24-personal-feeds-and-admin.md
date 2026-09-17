@@ -1768,7 +1768,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: the JSON from Task 6.
 - Produces: `FeedListItem` with `isOwn: boolean`; `addFeed(input: AddFeedInput): Promise<{ created: boolean }>`; in `features/admin/api.ts` — `listGlobalFeeds(): Promise<FeedListItem[]>`, `addGlobalFeed(input: AddFeedInput): Promise<void>`, `updateGlobalFeed(id: number, input: UpdateFeedInput): Promise<void>`, `deleteGlobalFeed(id: number): Promise<void>`; in `use-admin-feeds.tsx` — `adminKeys.feeds`, `useGlobalFeedsQuery()`, `useAddGlobalFeed()`, `useUpdateGlobalFeed()`, `useDeleteGlobalFeed()`.
 
-- [ ] **Step 1: Write the failing API test**
+- [x] **Step 1: Write the failing API test**
 
 In `web/src/features/radar/api.test.ts`:
 
@@ -1813,12 +1813,12 @@ it("maps is_own and reports whether a feed was created", async () => {
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `cd web && npx vitest run src/features/radar/api.test.ts`
 Expected: FAIL — `feeds[0].isOwn` is `undefined`.
 
-- [ ] **Step 3: Type and schemas**
+- [x] **Step 3: Type and schemas**
 
 In `web/src/features/radar/types.ts`, add to `FeedListItem`:
 
@@ -1843,7 +1843,7 @@ export const RawAddFeedResultSchema = z.object({
 
 and add `isOwn: raw.is_own,` to `mapFeedListItem`.
 
-- [ ] **Step 4: `addFeed` returns the flag**
+- [x] **Step 4: `addFeed` returns the flag**
 
 In `web/src/features/radar/api.ts`, replace `addFeed`:
 
@@ -1865,7 +1865,7 @@ export async function addFeed(input: AddFeedInput): Promise<{ created: boolean }
 
 Add `RawAddFeedResultSchema` to the import from `./schemas`.
 
-- [ ] **Step 5: Test for the admin hooks**
+- [x] **Step 5: Test for the admin hooks**
 
 Create `web/src/features/admin/use-admin-feeds.test.tsx`:
 
@@ -1914,12 +1914,12 @@ describe("useGlobalFeedsQuery", () => {
 });
 ```
 
-- [ ] **Step 6: Run it and confirm it fails**
+- [x] **Step 6: Run it and confirm it fails**
 
 Run: `cd web && npx vitest run src/features/admin/use-admin-feeds.test.tsx`
 Expected: FAIL — module `./use-admin-feeds` not found.
 
-- [ ] **Step 7: Implement `features/admin/api.ts`**
+- [x] **Step 7: Implement `features/admin/api.ts`**
 
 ```ts
 import { apiFetch } from "@/shared/api/client";
@@ -1966,7 +1966,7 @@ export async function deleteGlobalFeed(id: number): Promise<void> {
 `parseInDev` (`web/src/features/radar/api.ts:30`) is currently not exported —
 add `export` to it.
 
-- [ ] **Step 8: Implement `features/admin/use-admin-feeds.tsx`**
+- [x] **Step 8: Implement `features/admin/use-admin-feeds.tsx`**
 
 ```tsx
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -2023,12 +2023,12 @@ paused global feed must disappear from the Radar screen too. Add to each
 
 importing `radarKeys` from `@/features/radar/use-radar`.
 
-- [ ] **Step 9: Run the tests**
+- [x] **Step 9: Run the tests**
 
 Run: `cd web && npm test && npm run typecheck && npm run lint`
 Expected: PASS.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add web/src/features

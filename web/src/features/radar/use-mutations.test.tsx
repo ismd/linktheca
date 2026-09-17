@@ -194,7 +194,7 @@ const rawFeed = (id: number, subscribed: boolean) => ({
   id, url: `https://f${id}.example/rss`, kind: "rss", title: `Feed ${id}`,
   fetch_interval_seconds: 3600, is_active: true,
   last_fetched_at: null, last_error: null, created_at: "2026-08-01T10:00:00Z",
-  subscribed, finding_count: 0,
+  subscribed, finding_count: 0, is_own: false,
 });
 
 describe("useToggleSubscription", () => {

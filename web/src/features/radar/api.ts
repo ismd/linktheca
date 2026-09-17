@@ -8,6 +8,7 @@ import {
   RawRadarStatusSchema,
   RawTopicPreviewSchema,
   RawFeedListSchema,
+  RawAddFeedResultSchema,
   mapFeedListItem,
   mapTopic,
   mapTopicWithStats,
@@ -27,7 +28,7 @@ import type {
   FeedListItem,
 } from "./types";
 
-function parseInDev<T>(schema: { parse: (x: unknown) => T }, data: unknown): T {
+export function parseInDev<T>(schema: { parse: (x: unknown) => T }, data: unknown): T {
   if (import.meta.env.DEV || import.meta.env.MODE === "test") {
     return schema.parse(data);
   }
@@ -166,14 +167,18 @@ export async function unsubscribeFeed(feedId: number): Promise<void> {
 
 export type AddFeedInput = { url: string; fetchIntervalSeconds: number };
 
-export async function addFeed(input: AddFeedInput): Promise<void> {
-  await apiFetch<void>(`/radar/feeds`, {
+// The server answers 201 for a new personal feed and 200 when the URL was
+// already in the shared catalog and the caller was merely subscribed. The API
+// client does not surface status codes, so the flag rides in the body.
+export async function addFeed(input: AddFeedInput): Promise<{ created: boolean }> {
+  const raw = await apiFetch<unknown>(`/radar/feeds`, {
     method: "POST",
     body: JSON.stringify({
       url: input.url,
       fetch_interval_seconds: input.fetchIntervalSeconds,
     }),
   });
+  return { created: parseInDev(RawAddFeedResultSchema, raw).created };
 }
 
 export type UpdateFeedInput = {

@@ -24,6 +24,7 @@ const rawFeed = (
   created_at: "2026-08-01T10:00:00Z",
   subscribed,
   finding_count: 0,
+  is_own: false,
   ...over,
 });
 

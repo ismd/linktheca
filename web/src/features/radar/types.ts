@@ -89,4 +89,5 @@ export type FeedListItem = {
   createdAt: Date;
   subscribed: boolean;
   findingCount: number;
+  isOwn: boolean;
 };

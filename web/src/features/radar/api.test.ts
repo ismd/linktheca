@@ -15,6 +15,7 @@ import {
   previewTopic,
   listFeeds,
   updateFeed,
+  addFeed,
 } from "./api";
 
 const rawTopic = (overrides: Record<string, unknown> = {}) => ({
@@ -219,7 +220,7 @@ describe("radar feeds api", () => {
               fetch_interval_seconds: 3600, is_active: true,
               last_fetched_at: "2026-08-15T10:00:00Z", last_error: null,
               created_at: "2026-08-01T10:00:00Z",
-              subscribed: true, finding_count: 214,
+              subscribed: true, finding_count: 214, is_own: false,
             },
           ],
           total: 1,
@@ -231,6 +232,46 @@ describe("radar feeds api", () => {
     expect(feeds[0]!.subscribed).toBe(true);
     expect(feeds[0]!.findingCount).toBe(214);
     expect(feeds[0]!.lastFetchedAt).toBeInstanceOf(Date);
+  });
+
+  it("maps is_own and reports whether a feed was created", async () => {
+    server.use(
+      http.get("/api/radar/feeds", () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: 3, url: "https://mine.example/rss", kind: "rss", title: "Mine",
+              fetch_interval_seconds: 3600, is_active: true,
+              last_fetched_at: null, last_error: null,
+              created_at: "2026-08-01T10:00:00Z",
+              subscribed: true, finding_count: 4, is_own: true,
+            },
+          ],
+          total: 1,
+        })),
+      http.post("/api/radar/feeds", () =>
+        HttpResponse.json(
+          {
+            feed: {
+              id: 9, url: "https://shared.example/rss", kind: "rss", title: null,
+              fetch_interval_seconds: 3600, is_active: true,
+              last_fetched_at: null, last_error: null,
+              created_at: "2026-08-01T10:00:00Z",
+            },
+            created: false,
+          },
+          { status: 200 },
+        )),
+    );
+
+    const feeds = await listFeeds();
+    expect(feeds[0]!.isOwn).toBe(true);
+
+    const result = await addFeed({
+      url: "https://shared.example/rss",
+      fetchIntervalSeconds: 3600,
+    });
+    expect(result.created).toBe(false);
   });
 
   it("sends an empty title to clear it", async () => {

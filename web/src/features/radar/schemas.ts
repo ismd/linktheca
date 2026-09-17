@@ -172,6 +172,12 @@ export const RawFeedSchema = z.object({
 export const RawFeedListItemSchema = RawFeedSchema.extend({
   subscribed: z.boolean(),
   finding_count: z.number().int(),
+  is_own: z.boolean(),
+});
+
+export const RawAddFeedResultSchema = z.object({
+  feed: RawFeedSchema,
+  created: z.boolean(),
 });
 
 export const RawFeedListSchema = z.object({
@@ -194,5 +200,6 @@ export function mapFeedListItem(
     createdAt: new Date(raw.created_at),
     subscribed: raw.subscribed,
     findingCount: raw.finding_count,
+    isOwn: raw.is_own,
   };
 }
