@@ -58,7 +58,7 @@ export default function SourcesRoute() {
           <SourceRow
             key={feed.id}
             feed={feed}
-            isAdmin={isAdmin}
+            canManage={isAdmin}
             onToggle={(subscribed) => toggle.mutate({ feedId: feed.id, subscribed })}
             onEdit={() => setEditing(feed)}
             onDelete={() => setDeleting(feed)}
@@ -66,7 +66,7 @@ export default function SourcesRoute() {
         ))}
       </div>
 
-      <AddFeedDialog open={addOpen} onOpenChange={setAddOpen} />
+      <AddFeedDialog open={addOpen} scope="global" onOpenChange={setAddOpen} />
       <EditFeedDialog
         feed={editing}
         onOpenChange={(open) => {

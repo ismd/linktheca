@@ -27,6 +27,12 @@ function hostOf(url: string): string {
 
 export function DeleteFeedConfirm({ feed, pending, onOpenChange, onConfirm }: Props) {
   const name = feed ? (feed.title ?? hostOf(feed.url)) : "";
+  // A personal feed goes away for its owner alone; a catalog feed for everyone.
+  const consequence = !feed
+    ? ""
+    : feed.isOwn
+      ? `${feed.findingCount} findings and their matches will be removed.`
+      : `${feed.findingCount} findings and their matches will be removed for all users.`;
 
   return (
     <AlertDialog open={feed !== null} onOpenChange={onOpenChange}>
@@ -38,8 +44,7 @@ export function DeleteFeedConfirm({ feed, pending, onOpenChange, onConfirm }: Pr
                 Delete &ldquo;{name}&rdquo;?
               </AlertDialogTitle>
               <AlertDialogDescription className="font-body text-muted-foreground">
-                {feed.findingCount} findings and their matches will be removed for all
-                users. This cannot be undone.
+                {consequence} This cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

@@ -16,35 +16,39 @@ const feed = (over: Partial<FeedListItem> = {}): FeedListItem => ({
   createdAt: new Date("2026-08-01T10:00:00Z"),
   subscribed: false,
   findingCount: 214,
+  isOwn: false,
   ...over,
 });
 
 describe("SourceRow", () => {
-  it("hides admin actions from ordinary users", () => {
+  it("hides the management actions when the row is not manageable", () => {
+    render(<SourceRow feed={feed()} canManage={false} onToggle={() => {}} />);
+    expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
+  });
+
+  it("shows them when it is", () => {
     render(
       <SourceRow
-        feed={feed()}
-        isAdmin={false}
+        feed={feed({ isOwn: true })}
+        canManage
         onToggle={() => {}}
         onEdit={() => {}}
         onDelete={() => {}}
       />,
     );
-    expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
+  });
+
+  it("omits the checkbox when subscription is not offered", () => {
+    render(<SourceRow feed={feed()} canManage onEdit={() => {}} onDelete={() => {}} />);
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.getByText("The Verge")).toBeInTheDocument();
   });
 
   it("toggles the subscription", async () => {
     const onToggle = vi.fn();
-    render(
-      <SourceRow
-        feed={feed()}
-        isAdmin={false}
-        onToggle={onToggle}
-        onEdit={() => {}}
-        onDelete={() => {}}
-      />,
-    );
+    render(<SourceRow feed={feed()} canManage={false} onToggle={onToggle} />);
     await userEvent.click(screen.getByRole("checkbox", { name: /the verge/i }));
     expect(onToggle).toHaveBeenCalledWith(true);
   });
@@ -53,7 +57,7 @@ describe("SourceRow", () => {
     render(
       <SourceRow
         feed={feed({ title: null, lastError: "404 Not Found", lastFetchedAt: new Date() })}
-        isAdmin
+        canManage
         onToggle={() => {}}
         onEdit={() => {}}
         onDelete={() => {}}
@@ -67,7 +71,7 @@ describe("SourceRow", () => {
     render(
       <SourceRow
         feed={feed({ isActive: false })}
-        isAdmin
+        canManage
         onToggle={() => {}}
         onEdit={() => {}}
         onDelete={() => {}}

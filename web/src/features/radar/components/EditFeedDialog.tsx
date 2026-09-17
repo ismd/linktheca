@@ -15,6 +15,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Button } from "@/shared/ui/button";
 import { useUpdateFeed } from "../use-mutations";
+import { useUpdateGlobalFeed } from "@/features/admin/use-admin-feeds";
 import { INTERVAL_OPTIONS, mapFeedError } from "./AddFeedDialog";
 import type { FeedListItem } from "../types";
 
@@ -27,7 +28,10 @@ type FormInput = z.input<typeof schema>;
 type FormValues = z.output<typeof schema>;
 
 function EditFeedForm({ feed, onClose }: { feed: FeedListItem; onClose: () => void }) {
-  const update = useUpdateFeed();
+  const personal = useUpdateFeed();
+  const global = useUpdateGlobalFeed();
+  // A row is manageable on exactly one screen, so its ownership picks the scope.
+  const update = feed.isOwn ? personal : global;
   const {
     register,
     handleSubmit,

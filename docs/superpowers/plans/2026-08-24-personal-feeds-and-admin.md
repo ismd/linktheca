@@ -2282,7 +2282,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `useAddFeed`/`useUpdateFeed`/`useDeleteFeed` (`features/radar/use-mutations`), `useAddGlobalFeed`/`useUpdateGlobalFeed`/`useDeleteGlobalFeed` (Task 7), `FeedListItem.isOwn` (Task 7).
 - Produces: `SourceRow` with props `{ feed: FeedListItem; canManage: boolean; onToggle?: (subscribed: boolean) => void; onEdit?: () => void; onDelete?: () => void }`; `AddFeedDialog` with a `scope: "personal" | "global"` prop; `EditFeedDialog` and `DeleteFeedConfirm` pick their scope from `feed.isOwn`.
 
-- [ ] **Step 1: Rewrite the row test**
+- [x] **Step 1: Rewrite the row test**
 
 In `web/src/features/radar/components/SourceRow.test.tsx`, add `isOwn: false,`
 to the `feed()` factory and replace the tests with:
@@ -2324,12 +2324,12 @@ to the `feed()` factory and replace the tests with:
 Adjust the existing "falls back to the hostname…" and "marks a paused feed"
 tests to the new props (`canManage` instead of `isAdmin`, optional callbacks).
 
-- [ ] **Step 2: Run them and confirm they fail**
+- [x] **Step 2: Run them and confirm they fail**
 
 Run: `cd web && npx vitest run src/features/radar/components/SourceRow.test.tsx`
 Expected: FAIL — prop types do not match, and the checkbox always renders.
 
-- [ ] **Step 3: Rewrite `SourceRow`**
+- [x] **Step 3: Rewrite `SourceRow`**
 
 Replace the props block and the markup:
 
@@ -2399,7 +2399,7 @@ export function SourceRow({ feed, canManage, onToggle, onEdit, onDelete }: Props
 }
 ```
 
-- [ ] **Step 4: `AddFeedDialog` test for the quota**
+- [x] **Step 4: `AddFeedDialog` test for the quota**
 
 Append to `web/src/features/radar/components/AddFeedDialog.test.tsx`:
 
@@ -2424,7 +2424,7 @@ it("shows the quota error inline", async () => {
 
 Check the file's existing render helper and pass the new `scope` prop through it.
 
-- [ ] **Step 5: Scope and errors in `AddFeedDialog`**
+- [x] **Step 5: Scope and errors in `AddFeedDialog`**
 
 Replace `mapFeedError`:
 
@@ -2508,7 +2508,7 @@ export function AddFeedDialog({ open, scope, onOpenChange }: Props) {
 Label the submit button `{add.isPending ? "Adding…" : isGlobal ? "Add feed" : "Add source"}` —
 `scope` is already threaded into the form for that.
 
-- [ ] **Step 6: Scope in `EditFeedDialog` and `DeleteFeedConfirm`**
+- [x] **Step 6: Scope in `EditFeedDialog` and `DeleteFeedConfirm`**
 
 `EditFeedDialog` receives the feed, so the scope follows from it and no new prop
 is needed. In `EditFeedForm`:
@@ -2531,12 +2531,12 @@ mutation. That contract stays; only the consequence text changes:
     : `${feed.findingCount} findings and their matches will be removed for all users.`;
 ```
 
-- [ ] **Step 7: Run the tests**
+- [x] **Step 7: Run the tests**
 
 Run: `cd web && npm test && npm run typecheck && npm run lint`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add web/src/features/radar

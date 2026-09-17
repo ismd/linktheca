@@ -16,6 +16,7 @@ import { Label } from "@/shared/ui/label";
 import { Button } from "@/shared/ui/button";
 import { ApiError } from "@/shared/api/errors";
 import { useAddFeed } from "../use-mutations";
+import { useAddGlobalFeed } from "@/features/admin/use-admin-feeds";
 
 const schema = z.object({
   url: z.string().url("Enter a valid http(s) URL"),
@@ -37,15 +38,25 @@ export const INTERVAL_OPTIONS = [
 
 export function mapFeedError(err: unknown): string {
   if (err instanceof ApiError) {
-    if (err.status === 409) return "This feed is already in the catalog";
+    if (err.code === "quota_exceeded") {
+      return "You've reached your limit of personal sources. Remove one first.";
+    }
+    if (err.status === 409) return "This feed is already in your sources";
     if (err.status === 400) return err.message || "Invalid input";
-    if (err.status === 403) return "Only an instance admin can add feeds";
+    if (err.status === 403) return "You are not allowed to add this feed";
   }
   return "Could not save — please try again";
 }
 
-function AddFeedForm({ onClose }: { onClose: () => void }) {
-  const add = useAddFeed();
+type Scope = "personal" | "global";
+
+function AddFeedForm({ scope, onClose }: { scope: Scope; onClose: () => void }) {
+  // Both hooks are called unconditionally — they are plain useMutation objects,
+  // so the rules of hooks hold and only the picked one is ever fired.
+  const personal = useAddFeed();
+  const global = useAddGlobalFeed();
+  const add = scope === "global" ? global : personal;
+  const isGlobal = scope === "global";
   const {
     register,
     handleSubmit,
@@ -59,8 +70,15 @@ function AddFeedForm({ onClose }: { onClose: () => void }) {
   const onSubmit = handleSubmit(async ({ url, fetchIntervalSeconds }) => {
     setTopError(null);
     try {
-      await add.mutateAsync({ url, fetchIntervalSeconds });
-      toast.success("Feed added");
+      if (scope === "global") {
+        await global.mutateAsync({ url, fetchIntervalSeconds });
+        toast.success("Feed added to the catalog");
+      } else {
+        const { created } = await personal.mutateAsync({ url, fetchIntervalSeconds });
+        toast.success(
+          created ? "Source added" : "Already in the shared catalog — subscribed",
+        );
+      }
       onClose();
     } catch (err) {
       setTopError(mapFeedError(err));
@@ -121,7 +139,7 @@ function AddFeedForm({ onClose }: { onClose: () => void }) {
           Cancel
         </Button>
         <Button type="submit" disabled={add.isPending}>
-          {add.isPending ? "Adding…" : "Add feed"}
+          {add.isPending ? "Adding…" : isGlobal ? "Add feed" : "Add source"}
         </Button>
       </DialogFooter>
     </form>
@@ -130,20 +148,27 @@ function AddFeedForm({ onClose }: { onClose: () => void }) {
 
 type Props = {
   open: boolean;
+  scope: Scope;
   onOpenChange: (open: boolean) => void;
 };
 
-export function AddFeedDialog({ open, onOpenChange }: Props) {
+export function AddFeedDialog({ open, scope, onOpenChange }: Props) {
+  const isGlobal = scope === "global";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="paper-surface max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="display-tight text-3xl">Add feed</DialogTitle>
+          <DialogTitle className="display-tight text-3xl">
+            {isGlobal ? "Add feed" : "Add source"}
+          </DialogTitle>
           <DialogDescription className="label-sc text-muted-foreground">
-            Everyone on this instance can subscribe to it.
+            {isGlobal
+              ? "Everyone on this instance can subscribe to it."
+              : "Only you will see it."}
           </DialogDescription>
         </DialogHeader>
-        {open && <AddFeedForm onClose={() => onOpenChange(false)} />}
+        {open && <AddFeedForm scope={scope} onClose={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>
   );

@@ -17,6 +17,13 @@ function makeWrapper() {
   return { qc, wrapper };
 }
 
+function renderDialog({ scope }: { scope: "personal" | "global" }) {
+  const { wrapper } = makeWrapper();
+  return render(<AddFeedDialog open scope={scope} onOpenChange={() => {}} />, {
+    wrapper,
+  });
+}
+
 beforeEach(() => {
   useAuthStore.getState().setSession("t", {
     id: 1,
@@ -29,7 +36,7 @@ beforeEach(() => {
 describe("AddFeedDialog", () => {
   it("shows the duplicate error inline", async () => {
     server.use(
-      http.post("/api/radar/feeds", () =>
+      http.post("/api/admin/radar/feeds", () =>
         HttpResponse.json(
           { error: "duplicate", message: "resource already exists" },
           { status: 409 },
@@ -37,8 +44,7 @@ describe("AddFeedDialog", () => {
       ),
     );
 
-    const { wrapper } = makeWrapper();
-    render(<AddFeedDialog open onOpenChange={() => {}} />, { wrapper });
+    renderDialog({ scope: "global" });
 
     await userEvent.type(
       screen.getByLabelText(/feed url/i),
@@ -47,21 +53,20 @@ describe("AddFeedDialog", () => {
     await userEvent.click(screen.getByRole("button", { name: /add feed/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      /already in the catalog/i,
+      /already in your sources/i,
     );
   });
 
   it("sends the url and the chosen interval", async () => {
     let captured: unknown = null;
     server.use(
-      http.post("/api/radar/feeds", async ({ request }) => {
+      http.post("/api/admin/radar/feeds", async ({ request }) => {
         captured = await request.json();
         return new HttpResponse(null, { status: 201 });
       }),
     );
 
-    const { wrapper } = makeWrapper();
-    render(<AddFeedDialog open onOpenChange={() => {}} />, { wrapper });
+    renderDialog({ scope: "global" });
 
     await userEvent.type(
       screen.getByLabelText(/feed url/i),
@@ -78,12 +83,28 @@ describe("AddFeedDialog", () => {
   });
 
   it("rejects a non-url before hitting the network", async () => {
-    const { wrapper } = makeWrapper();
-    render(<AddFeedDialog open onOpenChange={() => {}} />, { wrapper });
+    renderDialog({ scope: "global" });
 
     await userEvent.type(screen.getByLabelText(/feed url/i), "not-a-url");
     await userEvent.click(screen.getByRole("button", { name: /add feed/i }));
 
     expect(await screen.findByText(/valid http\(s\) url/i)).toBeInTheDocument();
+  });
+
+  it("shows the quota error inline", async () => {
+    server.use(
+      http.post("/api/radar/feeds", () =>
+        HttpResponse.json(
+          { error: "quota_exceeded", message: "at most 20 personal feeds" },
+          { status: 409 },
+        ),
+      ),
+    );
+
+    renderDialog({ scope: "personal" });
+    await userEvent.type(screen.getByLabelText(/url/i), "https://x.example/rss");
+    await userEvent.click(screen.getByRole("button", { name: /add source/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/limit/i);
   });
 });

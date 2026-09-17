@@ -3,10 +3,12 @@ import type { FeedListItem } from "../types";
 
 type Props = {
   feed: FeedListItem;
-  isAdmin: boolean;
-  onToggle: (subscribed: boolean) => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  canManage: boolean;
+  // Absent on the admin screen: curating the catalog is a different job from
+  // subscribing to it.
+  onToggle?: (subscribed: boolean) => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 };
 
 function host(url: string): string {
@@ -44,7 +46,7 @@ function meta(feed: FeedListItem): string[] {
   return parts;
 }
 
-export function SourceRow({ feed, isAdmin, onToggle, onEdit, onDelete }: Props) {
+export function SourceRow({ feed, canManage, onToggle, onEdit, onDelete }: Props) {
   const name = feed.title ?? host(feed.url);
   const inputId = `feed-${feed.id}`;
 
@@ -55,25 +57,31 @@ export function SourceRow({ feed, isAdmin, onToggle, onEdit, onDelete }: Props) 
       }`}
     >
       <div className="flex items-start gap-3">
-        <input
-          id={inputId}
-          type="checkbox"
-          checked={feed.subscribed}
-          onChange={(e) => onToggle(e.target.checked)}
-          className="mt-1 h-4 w-4 accent-vermillion"
-        />
+        {onToggle && (
+          <input
+            id={inputId}
+            type="checkbox"
+            checked={feed.subscribed}
+            onChange={(e) => onToggle(e.target.checked)}
+            className="mt-1 h-4 w-4 accent-vermillion"
+          />
+        )}
         <div>
-          <label
-            htmlFor={inputId}
-            className="font-display text-xl text-ink cursor-pointer"
-          >
-            {name}
-          </label>
+          {onToggle ? (
+            <label
+              htmlFor={inputId}
+              className="font-display text-xl text-ink cursor-pointer"
+            >
+              {name}
+            </label>
+          ) : (
+            <p className="font-display text-xl text-ink">{name}</p>
+          )}
           <p className="label-sc mt-1 text-muted-foreground">{meta(feed).join(" · ")}</p>
         </div>
       </div>
 
-      {isAdmin && (
+      {canManage && (
         <div className="flex items-center gap-3 shrink-0">
           <button
             type="button"
