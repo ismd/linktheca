@@ -1,9 +1,10 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/shared/api/query-client";
 import { useBootstrap } from "@/features/auth/use-bootstrap";
 import { ProtectedRoute } from "@/shared/layout/ProtectedRoute";
+import { AdminRoute } from "@/shared/layout/AdminRoute";
 import { Toaster } from "@/shared/ui/sonner";
 import RootLayout from "./routes/__root";
 import PublicLayout from "./routes/_public";
@@ -20,6 +21,7 @@ import TopicsListRoute from "./routes/radar.topics._index";
 import SourcesRoute from "./routes/radar.sources";
 import TopicRoute from "./routes/radar.topics.$topicId";
 import MatchRoute from "./routes/radar.matches.$matchId";
+import AdminSourcesRoute from "./routes/admin.sources";
 
 const router = createBrowserRouter([
   {
@@ -47,6 +49,13 @@ const router = createBrowserRouter([
               { path: "radar/topics/:topicId", element: <TopicRoute /> },
               { path: "radar/matches/:matchId", element: <MatchRoute /> },
               { path: "settings", element: <SettingsRoute /> },
+              {
+                element: <AdminRoute />,
+                children: [
+                  { path: "admin", element: <Navigate to="/admin/sources" replace /> },
+                  { path: "admin/sources", element: <AdminSourcesRoute /> },
+                ],
+              },
             ],
           },
         ],

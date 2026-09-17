@@ -2051,7 +2051,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `useAuthStore` (`web/src/features/auth/store.ts`), `FullPageSpinner`.
 - Produces: an `AdminRoute` component (a layout route with no props); the routes `admin` → redirect to `admin/sources` and `admin/sources`; `Sidebar` renders the `Admin` item only for an admin.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `web/src/shared/layout/AdminRoute.test.tsx`:
 
@@ -2135,12 +2135,12 @@ In `web/src/shared/layout/Sidebar.test.tsx`, replace the second test with:
 Add the `useAuthStore` import to the test file. Check the `setSession` signature
 against `web/src/routes/radar.sources.test.tsx`, which already has such a helper.
 
-- [ ] **Step 2: Run them and confirm they fail**
+- [x] **Step 2: Run them and confirm they fail**
 
 Run: `cd web && npx vitest run src/shared/layout`
 Expected: FAIL — module `./AdminRoute` not found; the Sidebar does not render Admin.
 
-- [ ] **Step 3: Implement `AdminRoute`**
+- [x] **Step 3: Implement `AdminRoute`**
 
 `web/src/shared/layout/AdminRoute.tsx`:
 
@@ -2166,7 +2166,7 @@ export function AdminRoute() {
 }
 ```
 
-- [ ] **Step 4: A role-aware `Sidebar`**
+- [x] **Step 4: A role-aware `Sidebar`**
 
 In `web/src/shared/layout/Sidebar.tsx`, replace the constant and read the store:
 
@@ -2215,7 +2215,7 @@ In the `map`, replace the `item.number` reference with a computed number:
           ))}
 ```
 
-- [ ] **Step 5: A placeholder screen and the routes**
+- [x] **Step 5: A placeholder screen and the routes**
 
 Create `web/src/routes/admin.sources.tsx` — a temporary minimum; the full screen
 arrives in Task 11:
@@ -2255,12 +2255,12 @@ and inside `AppLayout`'s `children`, after `settings`:
               },
 ```
 
-- [ ] **Step 6: Run the tests**
+- [x] **Step 6: Run the tests**
 
 Run: `cd web && npm test && npm run typecheck && npm run lint`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add web/src
