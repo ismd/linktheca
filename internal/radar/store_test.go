@@ -1187,3 +1187,35 @@ func TestStore_UpdateDeleteFeed_ScopedToOwner(t *testing.T) {
 	require.NoError(t, store.DeleteFeed(ctx, mine.ID, &userA))
 	require.NoError(t, store.DeleteFeed(ctx, global.ID, nil))
 }
+
+func TestStore_GetGlobalFeedByURL_And_CountUserFeeds(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	owner := seedUser(t, pool)
+	stamp := time.Now().UnixNano()
+	personalURL := fmt.Sprintf("https://count-p.example/%d.xml", stamp)
+	globalURL := fmt.Sprintf("https://count-g.example/%d.xml", stamp)
+
+	_, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: personalURL, Kind: "rss", FetchIntervalSeconds: 3600, OwnerUserID: &owner,
+	})
+	require.NoError(t, err)
+
+	// A personal-only URL is not a catalog feed.
+	_, err = store.GetGlobalFeedByURL(ctx, personalURL)
+	require.ErrorIs(t, err, radar.ErrNotFound)
+
+	global, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: globalURL, Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+	found, err := store.GetGlobalFeedByURL(ctx, globalURL)
+	require.NoError(t, err)
+	require.Equal(t, global.ID, found.ID)
+
+	n, err := store.CountUserFeeds(ctx, owner)
+	require.NoError(t, err)
+	require.Equal(t, 1, n, "catalog feeds do not count against a user's quota")
+}

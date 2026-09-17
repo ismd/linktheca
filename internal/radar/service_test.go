@@ -134,6 +134,26 @@ func (m *mockStore) AddFeed(_ context.Context, p radar.AddFeedParams) (*radar.Fe
 	return f, nil
 }
 
+func (m *mockStore) GetGlobalFeedByURL(_ context.Context, url string) (*radar.Feed, error) {
+	if f, ok := m.feedsByURL[feedKey(url, nil)]; ok {
+		return f, nil
+	}
+
+	return nil, radar.ErrNotFound
+}
+
+func (m *mockStore) CountUserFeeds(_ context.Context, userID int64) (int, error) {
+	n := 0
+
+	for _, owner := range m.feedOwners {
+		if owner != nil && *owner == userID {
+			n++
+		}
+	}
+
+	return n, nil
+}
+
 // feedKey mirrors the partial unique indexes: one global row per URL, one
 // personal row per (URL, owner).
 func feedKey(url string, owner *int64) string {
@@ -160,6 +180,11 @@ func (m *mockStore) Subscribe(_ context.Context, userID, feedID int64) (*radar.S
 }
 
 func keyOf(u, f int64) string { return string(rune(u)) + ":" + string(rune(f)) }
+
+func (m *mockStore) hasSubscription(userID, feedID int64) bool {
+	_, ok := m.subs[keyOf(userID, feedID)]
+	return ok
+}
 
 // Compile-time check.
 var _ radar.StoreAPI = (*mockStore)(nil)
@@ -255,12 +280,12 @@ func (e *errEmbedder) Embed(_ context.Context, _ string) ([]float32, error) {
 	return nil, e.err
 }
 
-func TestService_AddFeed_Defaults(t *testing.T) {
+func TestService_AddGlobalFeed_Defaults(t *testing.T) {
 	store := newMockStore()
 	emb := &embeddings.FakeEmbedder{Dim: 1024}
 	svc := radar.NewService(store, emb)
 
-	feed, err := svc.AddFeed(context.Background(), radar.AddFeedRequest{
+	feed, err := svc.AddGlobalFeed(context.Background(), radar.AddFeedRequest{
 		URL: "https://example.com/feed.xml",
 	})
 	require.NoError(t, err)
@@ -268,43 +293,99 @@ func TestService_AddFeed_Defaults(t *testing.T) {
 	require.Equal(t, 3600, feed.FetchIntervalSeconds)
 }
 
-func TestService_AddFeed_Validation(t *testing.T) {
+func TestService_AddGlobalFeed_Validation(t *testing.T) {
 	store := newMockStore()
 	emb := &embeddings.FakeEmbedder{Dim: 1024}
 	svc := radar.NewService(store, emb)
 
-	_, err := svc.AddFeed(context.Background(), radar.AddFeedRequest{URL: ""})
+	_, err := svc.AddGlobalFeed(context.Background(), radar.AddFeedRequest{URL: ""})
 	require.ErrorIs(t, err, radar.ErrInvalidInput)
 
-	_, err = svc.AddFeed(context.Background(), radar.AddFeedRequest{URL: "not-a-url"})
+	_, err = svc.AddGlobalFeed(context.Background(), radar.AddFeedRequest{URL: "not-a-url"})
 	require.ErrorIs(t, err, radar.ErrInvalidInput)
 
 	bad := "weird"
-	_, err = svc.AddFeed(context.Background(), radar.AddFeedRequest{
+	_, err = svc.AddGlobalFeed(context.Background(), radar.AddFeedRequest{
 		URL: "https://x.example/f", Kind: &bad,
 	})
 	require.ErrorIs(t, err, radar.ErrInvalidInput)
 
 	tooFast := 60
-	_, err = svc.AddFeed(context.Background(), radar.AddFeedRequest{
+	_, err = svc.AddGlobalFeed(context.Background(), radar.AddFeedRequest{
 		URL: "https://x.example/f", FetchIntervalSeconds: &tooFast,
 	})
 	require.ErrorIs(t, err, radar.ErrInvalidInput)
 }
 
-func TestService_AddFeed_Duplicate(t *testing.T) {
+func TestService_AddGlobalFeed_Duplicate(t *testing.T) {
 	store := newMockStore()
 	emb := &embeddings.FakeEmbedder{Dim: 1024}
 	svc := radar.NewService(store, emb)
 
-	_, err := svc.AddFeed(context.Background(), radar.AddFeedRequest{
+	_, err := svc.AddGlobalFeed(context.Background(), radar.AddFeedRequest{
 		URL: "https://x.example/dup",
 	})
 	require.NoError(t, err)
-	_, err = svc.AddFeed(context.Background(), radar.AddFeedRequest{
+	_, err = svc.AddGlobalFeed(context.Background(), radar.AddFeedRequest{
 		URL: "https://x.example/dup",
 	})
 	require.ErrorIs(t, err, radar.ErrDuplicate)
+}
+
+func TestService_AddUserFeed_ReusesCatalogFeed(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	ctx := context.Background()
+
+	// A catalog feed already covers this URL.
+	catalog, err := svc.AddGlobalFeed(ctx, radar.AddFeedRequest{URL: "https://shared.example/rss"})
+	require.NoError(t, err)
+
+	res, err := svc.AddUserFeed(ctx, 42, radar.AddFeedRequest{URL: "https://shared.example/rss"})
+	require.NoError(t, err)
+	require.False(t, res.Created, "no personal row is created for a catalog URL")
+	require.Equal(t, catalog.ID, res.Feed.ID)
+	require.True(t, store.hasSubscription(42, catalog.ID))
+}
+
+func TestService_AddUserFeed_CreatesAndSubscribes(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	res, err := svc.AddUserFeed(context.Background(), 42,
+		radar.AddFeedRequest{URL: "https://mine.example/rss"})
+	require.NoError(t, err)
+	require.True(t, res.Created)
+	require.True(t, store.hasSubscription(42, res.Feed.ID))
+}
+
+func TestService_AddUserFeed_QuotaExceeded(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024},
+		radar.WithMaxUserFeeds(1))
+	ctx := context.Background()
+
+	_, err := svc.AddUserFeed(ctx, 42, radar.AddFeedRequest{URL: "https://a.example/rss"})
+	require.NoError(t, err)
+
+	_, err = svc.AddUserFeed(ctx, 42, radar.AddFeedRequest{URL: "https://b.example/rss"})
+	require.ErrorIs(t, err, radar.ErrQuotaExceeded)
+}
+
+func TestService_UserFeedWritesCarryOwner(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	ctx := context.Background()
+
+	title := "Renamed"
+	_, err := svc.UpdateUserFeed(ctx, 42, 1, radar.UpdateFeedRequest{Title: &title})
+	require.NoError(t, err)
+	require.NotNil(t, store.updateFeedOwner)
+	require.Equal(t, int64(42), *store.updateFeedOwner)
+
+	_, err = svc.UpdateGlobalFeed(ctx, 1, radar.UpdateFeedRequest{Title: &title})
+	require.NoError(t, err)
+	require.Nil(t, store.updateFeedOwner, "the admin scope addresses catalog rows")
 }
 
 func TestService_Subscribe_Success(t *testing.T) {
@@ -312,7 +393,7 @@ func TestService_Subscribe_Success(t *testing.T) {
 	emb := &embeddings.FakeEmbedder{Dim: 1024}
 	svc := radar.NewService(store, emb)
 
-	feed, err := svc.AddFeed(context.Background(), radar.AddFeedRequest{
+	feed, err := svc.AddGlobalFeed(context.Background(), radar.AddFeedRequest{
 		URL: "https://x.example/sub",
 	})
 	require.NoError(t, err)
@@ -328,7 +409,7 @@ func TestService_Subscribe_Idempotent(t *testing.T) {
 	emb := &embeddings.FakeEmbedder{Dim: 1024}
 	svc := radar.NewService(store, emb)
 
-	feed, _ := svc.AddFeed(context.Background(), radar.AddFeedRequest{URL: "https://x.example/i"})
+	feed, _ := svc.AddGlobalFeed(context.Background(), radar.AddFeedRequest{URL: "https://x.example/i"})
 
 	sub1, _ := svc.Subscribe(context.Background(), 1, radar.SubscribeRequest{FeedID: feed.ID})
 	sub2, err := svc.Subscribe(context.Background(), 1, radar.SubscribeRequest{FeedID: feed.ID})
@@ -814,25 +895,25 @@ func (m *mockStore) SeedSubscriptions(_ context.Context, userID int64) (int, err
 	return n, nil
 }
 
-func TestService_UpdateFeed_Validation(t *testing.T) {
+func TestService_UpdateGlobalFeed_Validation(t *testing.T) {
 	store := newMockStore()
 	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
 	ctx := context.Background()
 
-	_, err := svc.UpdateFeed(ctx, 1, radar.UpdateFeedRequest{})
+	_, err := svc.UpdateGlobalFeed(ctx, 1, radar.UpdateFeedRequest{})
 	require.ErrorIs(t, err, radar.ErrInvalidInput)
 
 	tooFast := 60
-	_, err = svc.UpdateFeed(ctx, 1, radar.UpdateFeedRequest{FetchIntervalSeconds: &tooFast})
+	_, err = svc.UpdateGlobalFeed(ctx, 1, radar.UpdateFeedRequest{FetchIntervalSeconds: &tooFast})
 	require.ErrorIs(t, err, radar.ErrInvalidInput)
 
 	tooSlow := 999999
-	_, err = svc.UpdateFeed(ctx, 1, radar.UpdateFeedRequest{FetchIntervalSeconds: &tooSlow})
+	_, err = svc.UpdateGlobalFeed(ctx, 1, radar.UpdateFeedRequest{FetchIntervalSeconds: &tooSlow})
 	require.ErrorIs(t, err, radar.ErrInvalidInput)
 
 	ok := 1800
 	paused := false
-	_, err = svc.UpdateFeed(ctx, 1, radar.UpdateFeedRequest{
+	_, err = svc.UpdateGlobalFeed(ctx, 1, radar.UpdateFeedRequest{
 		FetchIntervalSeconds: &ok, IsActive: &paused,
 	})
 	require.NoError(t, err)

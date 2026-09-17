@@ -365,7 +365,7 @@ func TestIntegrationDeleteFeedCascades(t *testing.T) {
 	findingID := matchFinding(t, ctx, store, vec, feed.ID, "cascade-1")
 	require.Equal(t, 1, countMatches(t, pool, topic.ID))
 
-	require.NoError(t, svc.DeleteFeed(ctx, feed.ID))
+	require.NoError(t, svc.DeleteGlobalFeed(ctx, feed.ID))
 
 	require.Equal(t, 0, countMatches(t, pool, topic.ID))
 
@@ -374,7 +374,7 @@ func TestIntegrationDeleteFeedCascades(t *testing.T) {
 		`SELECT count(*) FROM radar_findings WHERE id = $1`, findingID).Scan(&findings))
 	require.Equal(t, 0, findings)
 
-	require.ErrorIs(t, svc.DeleteFeed(ctx, feed.ID), radar.ErrNotFound)
+	require.ErrorIs(t, svc.DeleteGlobalFeed(ctx, feed.ID), radar.ErrNotFound)
 }
 
 // matchFinding upserts a finding with the given embedding, runs the matcher and

@@ -48,6 +48,8 @@ type StoreAPI interface {
 	UpdateMatchState(ctx context.Context, userID, matchID int64, state string) error
 	LastSweepAt(ctx context.Context, userID int64) (*time.Time, error)
 	ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) ([]FeedListItem, int, error)
+	GetGlobalFeedByURL(ctx context.Context, url string) (*Feed, error)
+	CountUserFeeds(ctx context.Context, userID int64) (int, error)
 	PreviewFindings(ctx context.Context, userID int64, vec pgvector.Vector, limit int) ([]PreviewMatch, error)
 	Unsubscribe(ctx context.Context, userID, feedID int64) error
 	UpdateFeed(ctx context.Context, feedID int64, owner *int64, p UpdateFeedParams) (*Feed, error)
@@ -55,13 +57,36 @@ type StoreAPI interface {
 	SeedSubscriptions(ctx context.Context, userID int64) (int, error)
 }
 
+// defaultMaxUserFeeds caps personal feeds per account. An open write endpoint
+// with no ceiling is a DoS vector for the crawler and for TEI.
+const defaultMaxUserFeeds = 20
+
 type Service struct {
-	store    StoreAPI
-	embedder embeddings.Client
+	store        StoreAPI
+	embedder     embeddings.Client
+	maxUserFeeds int
 }
 
-func NewService(store StoreAPI, embedder embeddings.Client) *Service {
-	return &Service{store: store, embedder: embedder}
+// ServiceOption tunes optional Service behaviour.
+type ServiceOption func(*Service)
+
+// WithMaxUserFeeds caps how many personal feeds one account may own. Values
+// below 1 are ignored so a missing config cannot lock everyone out.
+func WithMaxUserFeeds(n int) ServiceOption {
+	return func(s *Service) {
+		if n > 0 {
+			s.maxUserFeeds = n
+		}
+	}
+}
+
+func NewService(store StoreAPI, embedder embeddings.Client, opts ...ServiceOption) *Service {
+	s := &Service{store: store, embedder: embedder, maxUserFeeds: defaultMaxUserFeeds}
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
 }
 
 // CreateTopic validates the request, persists the topic, and synchronously
@@ -116,41 +141,94 @@ const (
 	maxFetchIntervalSeconds     = 86400
 )
 
-func (s *Service) AddFeed(ctx context.Context, req AddFeedRequest) (*Feed, error) {
-	url := strings.TrimSpace(req.URL)
+// validateAddFeed normalises and checks the shared part of both add paths.
+func validateAddFeed(req AddFeedRequest) (url, kind string, interval int, err error) {
+	url = strings.TrimSpace(req.URL)
 
 	if url == "" || len(url) > 2000 {
-		return nil, fmt.Errorf("%w: url must be 1..2000 chars", ErrInvalidInput)
+		return "", "", 0, fmt.Errorf("%w: url must be 1..2000 chars", ErrInvalidInput)
 	}
 
 	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
-		return nil, fmt.Errorf("%w: url must be http(s)", ErrInvalidInput)
+		return "", "", 0, fmt.Errorf("%w: url must be http(s)", ErrInvalidInput)
 	}
 
-	kind := "rss"
+	kind = "rss"
 	if req.Kind != nil {
 		kind = *req.Kind
 		if kind != "rss" && kind != "atom" {
-			return nil, fmt.Errorf("%w: kind must be rss|atom", ErrInvalidInput)
+			return "", "", 0, fmt.Errorf("%w: kind must be rss|atom", ErrInvalidInput)
 		}
 	}
 
-	interval := defaultFetchIntervalSeconds
+	interval = defaultFetchIntervalSeconds
 	if req.FetchIntervalSeconds != nil {
 		interval = *req.FetchIntervalSeconds
 		if err := validateFetchInterval(interval); err != nil {
-			return nil, err
+			return "", "", 0, err
 		}
 	}
 
-	feed, err := s.store.AddFeed(ctx, AddFeedParams{
+	return url, kind, interval, nil
+}
+
+// AddGlobalFeed creates a catalog feed everyone may subscribe to. Admin scope;
+// the /admin/radar route enforces it. Existing users are not auto-subscribed.
+func (s *Service) AddGlobalFeed(ctx context.Context, req AddFeedRequest) (*Feed, error) {
+	url, kind, interval, err := validateAddFeed(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.store.AddFeed(ctx, AddFeedParams{
 		URL: url, Kind: kind, FetchIntervalSeconds: interval,
+	})
+}
+
+// AddUserFeed creates a personal feed for the caller and subscribes them to it.
+// If the URL is already in the shared catalog no row is created: the caller is
+// simply subscribed to the catalog feed, so a popular feed is not duplicated
+// once per account.
+func (s *Service) AddUserFeed(ctx context.Context, userID int64, req AddFeedRequest) (*AddFeedResult, error) {
+	url, kind, interval, err := validateAddFeed(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch existing, err := s.store.GetGlobalFeedByURL(ctx, url); {
+	case err == nil:
+		if _, err := s.store.Subscribe(ctx, userID, existing.ID); err != nil {
+			return nil, err
+		}
+
+		return &AddFeedResult{Feed: existing, Created: false}, nil
+	case !errors.Is(err, ErrNotFound):
+		return nil, err
+	}
+
+	// Best-effort ceiling: two concurrent adds can land one feed over the
+	// limit. A transaction here would buy nothing worth its cost.
+	n, err := s.store.CountUserFeeds(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if n >= s.maxUserFeeds {
+		return nil, fmt.Errorf("%w: at most %d personal feeds", ErrQuotaExceeded, s.maxUserFeeds)
+	}
+
+	feed, err := s.store.AddFeed(ctx, AddFeedParams{
+		URL: url, Kind: kind, FetchIntervalSeconds: interval, OwnerUserID: &userID,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return feed, nil
+	if _, err := s.store.Subscribe(ctx, userID, feed.ID); err != nil {
+		return nil, err
+	}
+
+	return &AddFeedResult{Feed: feed, Created: true}, nil
 }
 
 func (s *Service) Subscribe(ctx context.Context, userID int64, req SubscribeRequest) (*Subscription, error) {
@@ -336,8 +414,10 @@ func validateFetchInterval(seconds int) error {
 	return nil
 }
 
-// UpdateFeed patches a catalog feed. Admin scope; middleware enforces.
-func (s *Service) UpdateFeed(ctx context.Context, feedID int64, req UpdateFeedRequest) (*Feed, error) {
+// updateFeed patches one feed inside a single ownership scope. Callers pick the
+// scope by choosing UpdateUserFeed or UpdateGlobalFeed, so a handler cannot
+// reach outside the namespace it is mounted on.
+func (s *Service) updateFeed(ctx context.Context, owner *int64, feedID int64, req UpdateFeedRequest) (*Feed, error) {
 	if feedID <= 0 {
 		return nil, fmt.Errorf("%w: feed id must be positive", ErrInvalidInput)
 	}
@@ -357,20 +437,39 @@ func (s *Service) UpdateFeed(ctx context.Context, feedID int64, req UpdateFeedRe
 		req.Title = &trimmed
 	}
 
-	return s.store.UpdateFeed(ctx, feedID, nil, UpdateFeedParams{
+	return s.store.UpdateFeed(ctx, feedID, owner, UpdateFeedParams{
 		Title:                req.Title,
 		FetchIntervalSeconds: req.FetchIntervalSeconds,
 		IsActive:             req.IsActive,
 	})
 }
 
-// DeleteFeed removes a feed from the catalog. Admin scope; middleware enforces.
-func (s *Service) DeleteFeed(ctx context.Context, feedID int64) error {
+// UpdateUserFeed patches one of the caller's own personal feeds.
+func (s *Service) UpdateUserFeed(ctx context.Context, userID, feedID int64, req UpdateFeedRequest) (*Feed, error) {
+	return s.updateFeed(ctx, &userID, feedID, req)
+}
+
+// UpdateGlobalFeed patches a catalog feed. Admin scope.
+func (s *Service) UpdateGlobalFeed(ctx context.Context, feedID int64, req UpdateFeedRequest) (*Feed, error) {
+	return s.updateFeed(ctx, nil, feedID, req)
+}
+
+func (s *Service) deleteFeed(ctx context.Context, owner *int64, feedID int64) error {
 	if feedID <= 0 {
 		return fmt.Errorf("%w: feed id must be positive", ErrInvalidInput)
 	}
 
-	return s.store.DeleteFeed(ctx, feedID, nil)
+	return s.store.DeleteFeed(ctx, feedID, owner)
+}
+
+// DeleteUserFeed removes one of the caller's own personal feeds.
+func (s *Service) DeleteUserFeed(ctx context.Context, userID, feedID int64) error {
+	return s.deleteFeed(ctx, &userID, feedID)
+}
+
+// DeleteGlobalFeed removes a catalog feed for everyone. Admin scope.
+func (s *Service) DeleteGlobalFeed(ctx context.Context, feedID int64) error {
+	return s.deleteFeed(ctx, nil, feedID)
 }
 
 // SeedSubscriptions is called from the auth module's OnUserCreated hook.

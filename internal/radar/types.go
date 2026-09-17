@@ -14,6 +14,7 @@ var (
 	ErrFeedNotFound        = errors.New("feed not found")
 	ErrInvalidInput        = errors.New("invalid input")
 	ErrEmbedderUnavailable = errors.New("embedder unavailable")
+	ErrQuotaExceeded       = errors.New("quota exceeded")
 )
 
 type Topic struct {
@@ -80,6 +81,14 @@ type AddFeedRequest struct {
 	URL                  string  `json:"url"`
 	Kind                 *string `json:"kind,omitempty"`
 	FetchIntervalSeconds *int    `json:"fetch_interval_seconds,omitempty"`
+}
+
+// AddFeedResult reports whether a row was created or an existing catalog feed
+// was reused, in which case the caller was only subscribed to it. The flag
+// travels in the body because the API client does not surface status codes.
+type AddFeedResult struct {
+	Feed    *Feed `json:"feed"`
+	Created bool  `json:"created"`
 }
 
 type SubscribeRequest struct {

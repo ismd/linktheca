@@ -868,7 +868,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `Store.AddFeed` (Task 1), `Store.Subscribe` (Task 3), `Store.UpdateFeed`/`DeleteFeed` with `owner` (Task 4).
 - Produces: `radar.ErrQuotaExceeded`; `AddFeedResult{Feed *Feed \`json:"feed"\`; Created bool \`json:"created"\`}`; `Store.GetGlobalFeedByURL(ctx, url string) (*Feed, error)`; `Store.CountUserFeeds(ctx, userID int64) (int, error)`; `ServiceOption` and `WithMaxUserFeeds(n int) ServiceOption`; `NewService(store StoreAPI, embedder embeddings.Client, opts ...ServiceOption) *Service`; the methods `Service.AddUserFeed(ctx, userID int64, req AddFeedRequest) (*AddFeedResult, error)`, `Service.AddGlobalFeed(ctx, req AddFeedRequest) (*Feed, error)`, `Service.UpdateUserFeed(ctx, userID, feedID int64, req UpdateFeedRequest) (*Feed, error)`, `Service.UpdateGlobalFeed(ctx, feedID int64, req UpdateFeedRequest) (*Feed, error)`, `Service.DeleteUserFeed(ctx, userID, feedID int64) error`, `Service.DeleteGlobalFeed(ctx, feedID int64) error`. The old `Service.AddFeed`/`UpdateFeed`/`DeleteFeed` are removed.
 
-- [ ] **Step 1: Write the failing service tests**
+- [x] **Step 1: Write the failing service tests**
 
 In `internal/radar/service_test.go`:
 
@@ -939,12 +939,12 @@ func (m *mockStore) hasSubscription(userID, feedID int64) bool {
 }
 ```
 
-- [ ] **Step 2: Run them and confirm they fail**
+- [x] **Step 2: Run them and confirm they fail**
 
 Run: `go test ./internal/radar/ -run 'TestService_AddUserFeed|TestService_UserFeedWrites' -count=1`
 Expected: FAIL — `svc.AddGlobalFeed undefined`, `radar.WithMaxUserFeeds undefined`.
 
-- [ ] **Step 3: Sentinel and DTO in `types.go`**
+- [x] **Step 3: Sentinel and DTO in `types.go`**
 
 Add to the `var (...)` block:
 
@@ -964,7 +964,7 @@ type AddFeedResult struct {
 }
 ```
 
-- [ ] **Step 4: New store methods**
+- [x] **Step 4: New store methods**
 
 In `internal/radar/store.go`:
 
@@ -1000,7 +1000,7 @@ func (s *Store) CountUserFeeds(ctx context.Context, userID int64) (int, error) {
 }
 ```
 
-- [ ] **Step 5: Store test for the new methods**
+- [x] **Step 5: Store test for the new methods**
 
 In `internal/radar/store_test.go`:
 
@@ -1038,7 +1038,7 @@ func TestStore_GetGlobalFeedByURL_And_CountUserFeeds(t *testing.T) {
 }
 ```
 
-- [ ] **Step 6: The option and the quota on `Service`**
+- [x] **Step 6: The option and the quota on `Service`**
 
 In `internal/radar/service.go`, extend `StoreAPI` with two lines:
 
@@ -1082,7 +1082,7 @@ func NewService(store StoreAPI, embedder embeddings.Client, opts ...ServiceOptio
 }
 ```
 
-- [ ] **Step 7: Replace `AddFeed` with the pair**
+- [x] **Step 7: Replace `AddFeed` with the pair**
 
 Delete `Service.AddFeed` (`~line 119`) and write in its place:
 
@@ -1175,7 +1175,7 @@ func (s *Service) AddUserFeed(ctx context.Context, userID int64, req AddFeedRequ
 }
 ```
 
-- [ ] **Step 8: Replace `UpdateFeed`/`DeleteFeed` with pairs**
+- [x] **Step 8: Replace `UpdateFeed`/`DeleteFeed` with pairs**
 
 Delete `Service.UpdateFeed` and `Service.DeleteFeed` and write:
 
@@ -1238,7 +1238,7 @@ func (s *Service) DeleteGlobalFeed(ctx context.Context, feedID int64) error {
 }
 ```
 
-- [ ] **Step 9: Finish `mockStore`**
+- [x] **Step 9: Finish `mockStore`**
 
 ```go
 func (m *mockStore) GetGlobalFeedByURL(_ context.Context, url string) (*radar.Feed, error) {
@@ -1265,12 +1265,12 @@ to the new names: admin call sites become `*Global*`, user ones `*User*`.
 `TestService_AddFeed_Validation` (`service_test.go:255`) becomes
 `TestService_AddGlobalFeed_Validation`.
 
-- [ ] **Step 10: Run the tests**
+- [x] **Step 10: Run the tests**
 
 Run: `make test-unit && go test ./internal/radar/ -count=1`
 Expected: PASS.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add internal/radar

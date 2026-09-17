@@ -90,6 +90,38 @@ func (s *Store) AddFeed(ctx context.Context, p AddFeedParams) (*Feed, error) {
 	return &f, nil
 }
 
+// GetGlobalFeedByURL finds a catalog feed by URL. Personal feeds are never
+// returned: a user adding a URL that only another account holds privately must
+// get their own row, not a subscription to someone else's feed.
+func (s *Store) GetGlobalFeedByURL(ctx context.Context, url string) (*Feed, error) {
+	row := s.db.QueryRow(ctx, `
+		SELECT id, url, kind, title, fetch_interval_seconds, is_active,
+		       last_fetched_at, last_error, created_at
+		FROM radar_feeds
+		WHERE url = $1 AND owner_user_id IS NULL
+	`, url)
+
+	var f Feed
+	if err := row.Scan(&f.ID, &f.URL, &f.Kind, &f.Title,
+		&f.FetchIntervalSeconds, &f.IsActive,
+		&f.LastFetchedAt, &f.LastError, &f.CreatedAt); err != nil {
+		return nil, wrapPgError(err)
+	}
+
+	return &f, nil
+}
+
+// CountUserFeeds counts the personal feeds one account owns, for the quota.
+func (s *Store) CountUserFeeds(ctx context.Context, userID int64) (int, error) {
+	var n int
+	if err := s.db.QueryRow(ctx,
+		`SELECT count(*) FROM radar_feeds WHERE owner_user_id = $1`, userID).Scan(&n); err != nil {
+		return 0, fmt.Errorf("count user feeds: %w", err)
+	}
+
+	return n, nil
+}
+
 func (s *Store) Subscribe(ctx context.Context, userID, feedID int64) (*Subscription, error) {
 	row := s.db.QueryRow(ctx, `
 		INSERT INTO radar_feed_subscriptions (user_id, feed_id)

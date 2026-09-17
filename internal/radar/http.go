@@ -97,7 +97,7 @@ func (h *HTTP) addFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	feed, err := h.svc.AddFeed(r.Context(), req)
+	feed, err := h.svc.AddGlobalFeed(r.Context(), req)
 	if err != nil {
 		writeRadarError(w, err)
 		return
@@ -363,7 +363,7 @@ func (h *HTTP) updateFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	feed, err := h.svc.UpdateFeed(r.Context(), feedID, req)
+	feed, err := h.svc.UpdateGlobalFeed(r.Context(), feedID, req)
 	if err != nil {
 		writeRadarError(w, err)
 		return
@@ -384,7 +384,7 @@ func (h *HTTP) deleteFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.svc.DeleteFeed(r.Context(), feedID); err != nil {
+	if err := h.svc.DeleteGlobalFeed(r.Context(), feedID); err != nil {
 		writeRadarError(w, err)
 		return
 	}

@@ -142,7 +142,7 @@ func TestHTTP_Subscribe_201(t *testing.T) {
 	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
 	h := radar.NewHTTP(svc)
 
-	feed, _ := svc.AddFeed(context.Background(), radar.AddFeedRequest{URL: "https://s.example/f"})
+	feed, _ := svc.AddGlobalFeed(context.Background(), radar.AddFeedRequest{URL: "https://s.example/f"})
 
 	body, _ := json.Marshal(radar.SubscribeRequest{FeedID: feed.ID})
 	req := httptest.NewRequest(http.MethodPost, "/radar/subscriptions", bytes.NewReader(body))
