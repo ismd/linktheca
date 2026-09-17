@@ -131,7 +131,8 @@ func New(deps Deps) *http.Server {
 
 	if cfg.RadarEnabled && deps.Radar != nil {
 		radarStore := radar.NewStore(deps.DB)
-		radarSvc := radar.NewService(radarStore, deps.Radar.Embedder)
+		radarSvc := radar.NewService(radarStore, deps.Radar.Embedder,
+			radar.WithMaxUserFeeds(cfg.RadarMaxUserFeeds))
 		radarHTTP := radar.NewHTTP(radarSvc)
 
 		onUserCreated = func(ctx context.Context, userID int64) {
@@ -151,6 +152,9 @@ func New(deps Deps) *http.Server {
 			r.Delete("/topics/{id}", radarHTTP.DeleteTopicHandler())
 
 			r.Get("/feeds", radarHTTP.ListFeedsHandler())
+			r.Post("/feeds", radarHTTP.AddUserFeedHandler())
+			r.Patch("/feeds/{id}", radarHTTP.UpdateUserFeedHandler())
+			r.Delete("/feeds/{id}", radarHTTP.DeleteUserFeedHandler())
 			r.Post("/subscriptions", radarHTTP.SubscribeHandler())
 			r.Delete("/subscriptions/{feedId}", radarHTTP.UnsubscribeHandler())
 
@@ -159,17 +163,24 @@ func New(deps Deps) *http.Server {
 			r.Patch("/matches/{id}", radarHTTP.UpdateMatchHandler())
 
 			r.Get("/status", radarHTTP.StatusHandler())
+		})
 
-			r.Group(func(r chi.Router) {
-				r.Use(coreauth.RequireAdmin)
-				r.Post("/feeds", radarHTTP.AddFeedHandler())
-				r.Patch("/feeds/{id}", radarHTTP.UpdateFeedHandler())
-				r.Delete("/feeds/{id}", radarHTTP.DeleteFeedHandler())
-			})
+		// The admin catalog lives on its own namespace so the route, not a
+		// branch inside a shared handler, decides which rows may be written.
+		r.Route("/admin/radar", func(r chi.Router) {
+			r.Use(coreauth.RequireUser(issuer))
+			r.Use(coreauth.RequireAdmin)
+
+			r.Get("/feeds", radarHTTP.ListGlobalFeedsHandler())
+			r.Post("/feeds", radarHTTP.AddGlobalFeedHandler())
+			r.Patch("/feeds/{id}", radarHTTP.UpdateGlobalFeedHandler())
+			r.Delete("/feeds/{id}", radarHTTP.DeleteGlobalFeedHandler())
 		})
 	} else {
 		r.HandleFunc("/radar", radar.DisabledHandler)
 		r.HandleFunc("/radar/*", radar.DisabledHandler)
+		r.HandleFunc("/admin/radar", radar.DisabledHandler)
+		r.HandleFunc("/admin/radar/*", radar.DisabledHandler)
 	}
 
 	srv := &http.Server{

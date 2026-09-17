@@ -100,7 +100,7 @@ func TestHTTP_DisabledHandler_403(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "radar_disabled")
 }
 
-func TestHTTP_AddFeed_201(t *testing.T) {
+func TestHTTP_AddGlobalFeed_201(t *testing.T) {
 	store := newMockStore()
 	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
 	h := radar.NewHTTP(svc)
@@ -109,7 +109,7 @@ func TestHTTP_AddFeed_201(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/radar/feeds", bytes.NewReader(body))
 	req = req.WithContext(userOnlyContext(req.Context(), 1, true))
 	rec := httptest.NewRecorder()
-	h.AddFeedHandler()(rec, req)
+	h.AddGlobalFeedHandler()(rec, req)
 	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
 
 	var got radar.Feed
@@ -118,7 +118,7 @@ func TestHTTP_AddFeed_201(t *testing.T) {
 	require.True(t, got.IsActive)
 }
 
-func TestHTTP_AddFeed_409_Duplicate(t *testing.T) {
+func TestHTTP_AddGlobalFeed_409_Duplicate(t *testing.T) {
 	store := newMockStore()
 	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
 	h := radar.NewHTTP(svc)
@@ -128,7 +128,7 @@ func TestHTTP_AddFeed_409_Duplicate(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/radar/feeds", bytes.NewReader(body))
 		req = req.WithContext(userOnlyContext(req.Context(), 1, true))
 		rec := httptest.NewRecorder()
-		h.AddFeedHandler()(rec, req)
+		h.AddGlobalFeedHandler()(rec, req)
 		if i == 0 {
 			require.Equal(t, http.StatusCreated, rec.Code)
 		} else {
@@ -596,7 +596,7 @@ func TestHTTP_Unsubscribe_204Twice(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, call())
 }
 
-func TestHTTP_UpdateFeed_EmptyPatch400(t *testing.T) {
+func TestHTTP_UpdateGlobalFeed_EmptyPatch400(t *testing.T) {
 	store := newMockStore()
 	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
 	h := radar.NewHTTP(svc)
@@ -604,13 +604,13 @@ func TestHTTP_UpdateFeed_EmptyPatch400(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPatch, "/radar/feeds/1", strings.NewReader(`{}`))
 	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 1, true), "1"))
 	rec := httptest.NewRecorder()
-	h.UpdateFeedHandler()(rec, req)
+	h.UpdateGlobalFeedHandler()(rec, req)
 
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	require.False(t, store.updateFeedCalled)
 }
 
-func TestHTTP_DeleteFeed_404(t *testing.T) {
+func TestHTTP_DeleteGlobalFeed_404(t *testing.T) {
 	store := newMockStore()
 	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
 	h := radar.NewHTTP(svc)
@@ -618,7 +618,7 @@ func TestHTTP_DeleteFeed_404(t *testing.T) {
 	req := httptest.NewRequest(http.MethodDelete, "/radar/feeds/77", nil)
 	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 1, true), "77"))
 	rec := httptest.NewRecorder()
-	h.DeleteFeedHandler()(rec, req)
+	h.DeleteGlobalFeedHandler()(rec, req)
 
 	require.Equal(t, http.StatusNotFound, rec.Code)
 }
@@ -641,4 +641,59 @@ func TestHTTP_ListFeeds_ExposesIsOwn(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, radar.FeedScopeVisible, store.listFeedsParams.Scope)
 	require.Contains(t, rec.Body.String(), `"is_own":true`)
+}
+
+func TestHTTP_AddUserFeed_201AndQuota409(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024},
+		radar.WithMaxUserFeeds(1))
+	h := radar.NewHTTP(svc)
+
+	post := func(url string) *httptest.ResponseRecorder {
+		body, _ := json.Marshal(radar.AddFeedRequest{URL: url})
+		req := httptest.NewRequest(http.MethodPost, "/radar/feeds", bytes.NewReader(body))
+		req = req.WithContext(userOnlyContext(req.Context(), 42, false))
+		rec := httptest.NewRecorder()
+		h.AddUserFeedHandler()(rec, req)
+		return rec
+	}
+
+	first := post("https://a.example/rss")
+	require.Equal(t, http.StatusCreated, first.Code)
+	require.Contains(t, first.Body.String(), `"created":true`)
+
+	second := post("https://b.example/rss")
+	require.Equal(t, http.StatusConflict, second.Code)
+	require.Contains(t, second.Body.String(), `"quota_exceeded"`)
+}
+
+func TestHTTP_UpdateUserFeed_PassesCallerID(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodPatch, "/radar/feeds/5",
+		strings.NewReader(`{"is_active":false}`))
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 42, false), "5"))
+	rec := httptest.NewRecorder()
+	h.UpdateUserFeedHandler()(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NotNil(t, store.updateFeedOwner)
+	require.Equal(t, int64(42), *store.updateFeedOwner)
+}
+
+func TestHTTP_ListGlobalFeeds_UsesGlobalScope(t *testing.T) {
+	store := newMockStore()
+	store.listFeedsResult = []radar.FeedListItem{}
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/radar/feeds?limit=10", nil)
+	req = req.WithContext(userOnlyContext(req.Context(), 1, true))
+	rec := httptest.NewRecorder()
+	h.ListGlobalFeedsHandler()(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, radar.FeedScopeGlobal, store.listFeedsParams.Scope)
 }

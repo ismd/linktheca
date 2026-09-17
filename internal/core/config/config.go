@@ -33,6 +33,7 @@ type Config struct {
 	RadarEnabled           bool          `env:"LINKTHECA_RADAR_ENABLED" envDefault:"true"`
 	RadarSchedulerInterval time.Duration `env:"LINKTHECA_RADAR_SCHEDULER_INTERVAL" envDefault:"5m"`
 	RadarMaxWorkers        int           `env:"LINKTHECA_RADAR_MAX_WORKERS" envDefault:"5"`
+	RadarMaxUserFeeds      int           `env:"LINKTHECA_RADAR_MAX_USER_FEEDS" envDefault:"20"`
 }
 
 func Load() (*Config, error) {

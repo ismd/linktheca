@@ -255,10 +255,12 @@ type UpdateMatchRequest struct {
 
 // RadarStatus is the response for GET /radar/status.
 type RadarStatus struct {
-	LastSweepAt *time.Time `json:"last_sweep_at"`
+	LastSweepAt  *time.Time `json:"last_sweep_at"`
+	MaxUserFeeds int        `json:"max_user_feeds"`
 }
 
-// UpdateFeedRequest is the payload for PATCH /radar/feeds/{id} (admin).
+// UpdateFeedRequest is the payload for PATCH /radar/feeds/{id} and
+// PATCH /admin/radar/feeds/{id}.
 // All fields are optional; only non-nil fields are updated. An empty title
 // clears the manual override and lets the crawler fill it in again.
 type UpdateFeedRequest struct {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,13 +21,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// seedUserSeq keeps the generated addresses distinct: a test that seeds two
+// accounts would otherwise collide on users.email.
+var seedUserSeq atomic.Int64
+
 func seedRadarUser(t *testing.T, pool *pgxpool.Pool, isAdmin bool) int64 {
 	t.Helper()
 	var id int64
+	email := fmt.Sprintf("u+%s-%d@example.com", t.Name(), seedUserSeq.Add(1))
 	err := pool.QueryRow(context.Background(),
 		`INSERT INTO users (email, password_hash, display_name, is_admin)
 		 VALUES ($1, $2, $3, $4) RETURNING id`,
-		"u+"+t.Name()+"@example.com", "x", "Tester", isAdmin).Scan(&id)
+		email, "x", "Tester", isAdmin).Scan(&id)
 	require.NoError(t, err)
 	return id
 }
@@ -55,7 +61,7 @@ func TestIntegrationRadarFlow(t *testing.T) {
 		r.Post("/subscriptions", h.SubscribeHandler())
 		r.Group(func(r chi.Router) {
 			r.Use(coreauth.RequireAdmin)
-			r.Post("/feeds", h.AddFeedHandler())
+			r.Post("/feeds", h.AddGlobalFeedHandler())
 		})
 	})
 
@@ -105,7 +111,7 @@ func TestIntegrationRadarFlow(t *testing.T) {
 	require.Equal(t, 1, nSub)
 }
 
-func TestIntegrationAddFeedRequiresAdmin(t *testing.T) {
+func TestIntegrationUserMayAddPersonalFeed(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -122,14 +128,45 @@ func TestIntegrationAddFeedRequiresAdmin(t *testing.T) {
 	r := chi.NewRouter()
 	r.Route("/radar", func(r chi.Router) {
 		r.Use(coreauth.RequireUser(issuer))
-		r.Group(func(r chi.Router) {
-			r.Use(coreauth.RequireAdmin)
-			r.Post("/feeds", h.AddFeedHandler())
-		})
+		r.Post("/feeds", h.AddUserFeedHandler())
+	})
+
+	body, _ := json.Marshal(radar.AddFeedRequest{URL: "https://personal.example/f"})
+	req := httptest.NewRequest(http.MethodPost, "/radar/feeds", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+
+	var owned int
+	require.NoError(t, pool.QueryRow(context.Background(),
+		`SELECT count(*) FROM radar_feeds WHERE owner_user_id = $1`, userID).Scan(&owned))
+	require.Equal(t, 1, owned)
+}
+
+func TestIntegrationGlobalFeedsRequireAdmin(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	userID := seedRadarUser(t, pool, false) // not admin
+	issuer := coreauth.NewJWTIssuer("test-secret-at-least-32-bytes-long-for-hmac", 15*time.Minute)
+	token, _ := issuer.Issue(userID, false)
+
+	r := chi.NewRouter()
+	r.Route("/admin/radar", func(r chi.Router) {
+		r.Use(coreauth.RequireUser(issuer))
+		r.Use(coreauth.RequireAdmin)
+		r.Post("/feeds", h.AddGlobalFeedHandler())
 	})
 
 	body, _ := json.Marshal(radar.AddFeedRequest{URL: "https://x.example/f"})
-	req := httptest.NewRequest(http.MethodPost, "/radar/feeds", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/admin/radar/feeds", bytes.NewReader(body))
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
@@ -168,7 +205,7 @@ func TestIntegrationRadarReadAPI(t *testing.T) {
 		r.Get("/status", h.StatusHandler())
 		r.Group(func(r chi.Router) {
 			r.Use(coreauth.RequireAdmin)
-			r.Post("/feeds", h.AddFeedHandler())
+			r.Post("/feeds", h.AddGlobalFeedHandler())
 			r.Get("/feeds", h.ListFeedsHandler())
 		})
 	})
@@ -401,4 +438,46 @@ func countMatches(t *testing.T, pool *pgxpool.Pool, topicID int64) int {
 	require.NoError(t, pool.QueryRow(context.Background(),
 		`SELECT count(*) FROM radar_topic_matches WHERE topic_id = $1`, topicID).Scan(&n))
 	return n
+}
+
+func TestIntegrationPersonalFeedMatchesOnlyItsOwner(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+	ctx := context.Background()
+
+	owner := seedRadarUser(t, pool, false)
+	other := seedRadarUser(t, pool, false)
+
+	const topicDesc = "rust language news and releases"
+
+	ownerTopic, err := svc.CreateTopic(ctx, owner, radar.CreateTopicRequest{
+		Name: "Rust", Description: topicDesc,
+	})
+	require.NoError(t, err)
+	otherTopic, err := svc.CreateTopic(ctx, other, radar.CreateTopicRequest{
+		Name: "Rust", Description: topicDesc,
+	})
+	require.NoError(t, err)
+
+	res, err := svc.AddUserFeed(ctx, owner, radar.AddFeedRequest{
+		URL: "https://personal.example/only.xml",
+	})
+	require.NoError(t, err)
+	require.True(t, res.Created)
+
+	// The finding carries the topics' own vector, so similarity is 1 for both:
+	// only the subscription decides who gets a match.
+	vec, err := emb.Embed(ctx, "Rust: "+topicDesc)
+	require.NoError(t, err)
+	matchFinding(t, ctx, store, vec, res.Feed.ID, "personal-1")
+
+	require.Equal(t, 1, countMatches(t, pool, ownerTopic.ID))
+	require.Equal(t, 0, countMatches(t, pool, otherTopic.ID),
+		"a personal feed must not reach another account's topics")
 }

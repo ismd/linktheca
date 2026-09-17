@@ -1294,7 +1294,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: the service methods from Task 5.
 - Produces: `HTTP.AddUserFeedHandler()`, `HTTP.UpdateUserFeedHandler()`, `HTTP.DeleteUserFeedHandler()`, `HTTP.ListGlobalFeedsHandler()`, `HTTP.AddGlobalFeedHandler()`, `HTTP.UpdateGlobalFeedHandler()`, `HTTP.DeleteGlobalFeedHandler()`; `RadarStatus{LastSweepAt *time.Time; MaxUserFeeds int}`; `config.Config.RadarMaxUserFeeds`; the `/radar/feeds` (user) and `/admin/radar/feeds` (admin) routes.
 
-- [ ] **Step 1: Write the failing handler tests**
+- [x] **Step 1: Write the failing handler tests**
 
 In `internal/radar/http_test.go`:
 
@@ -1342,12 +1342,12 @@ func TestHTTP_UpdateUserFeed_PassesCallerID(t *testing.T) {
 
 Add the `bytes` and `encoding/json` imports if the file lacks them.
 
-- [ ] **Step 2: Run them and confirm they fail**
+- [x] **Step 2: Run them and confirm they fail**
 
 Run: `go test ./internal/radar/ -run 'TestHTTP_AddUserFeed|TestHTTP_UpdateUserFeed' -count=1`
 Expected: FAIL — `h.AddUserFeedHandler undefined`.
 
-- [ ] **Step 3: The quota branch in `writeRadarError`**
+- [x] **Step 3: The quota branch in `writeRadarError`**
 
 In `internal/radar/http.go`, add a case **before** `ErrNotFound`:
 
@@ -1358,7 +1358,7 @@ In `internal/radar/http.go`, add a case **before** `ErrNotFound`:
 
 Same status as `duplicate`; the client tells them apart by code, not status.
 
-- [ ] **Step 4: The user handlers**
+- [x] **Step 4: The user handlers**
 
 Replace `func (h *HTTP) AddFeedHandler()` and `h.addFeed` with two pairs:
 
@@ -1410,7 +1410,7 @@ func (h *HTTP) addGlobalFeed(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 5: Pairs for PATCH, DELETE, and the admin listing**
+- [x] **Step 5: Pairs for PATCH, DELETE, and the admin listing**
 
 Replace `UpdateFeedHandler`/`updateFeed` and `DeleteFeedHandler`/`deleteFeed`
 with:
@@ -1502,7 +1502,7 @@ Turn the existing `listFeeds` into `listFeedsScoped(w, r, scope FeedScope)`,
 which sets `ListFeedsParams{Scope: scope}`, and keep `ListFeedsHandler` as a
 wrapper passing `FeedScopeVisible`.
 
-- [ ] **Step 6: The quota on `/radar/status`**
+- [x] **Step 6: The quota on `/radar/status`**
 
 In `internal/radar/types.go`:
 
@@ -1529,7 +1529,7 @@ In `internal/radar/http.go`, inside `status`, replace the response write with:
 	})
 ```
 
-- [ ] **Step 7: Config**
+- [x] **Step 7: Config**
 
 In `internal/core/config/config.go`, next to `RadarMaxWorkers`:
 
@@ -1558,7 +1558,7 @@ and to the `t.Setenv` test, the override:
 	require.Equal(t, 5, cfg.RadarMaxUserFeeds)
 ```
 
-- [ ] **Step 8: Routes**
+- [x] **Step 8: Routes**
 
 In `internal/server/server.go`, inside the `r.Route("/radar", …)` block, replace
 the `r.Get("/feeds", …)` line and delete the inner admin group:
@@ -1607,7 +1607,7 @@ branch, beside `r.Route("/radar", …)` rather than nested within it. When
 `/admin/users` arrives it will mount as a separate `r.Route("/admin/users", …)`
 outside that branch — the prefixes do not overlap, so `chi` will not conflict.
 
-- [ ] **Step 9: Rewrite the admin-gate integration test**
+- [x] **Step 9: Rewrite the admin-gate integration test**
 
 In `internal/radar/integration_test.go`, replace
 `TestIntegrationAddFeedRequiresAdmin` with:
@@ -1676,7 +1676,7 @@ func TestIntegrationGlobalFeedsRequireAdmin(t *testing.T) {
 }
 ```
 
-- [ ] **Step 10: Integration test for match isolation**
+- [x] **Step 10: Integration test for match isolation**
 
 Append to `internal/radar/integration_test.go`:
 
@@ -1741,12 +1741,12 @@ func seedRadarUser(t *testing.T, pool *pgxpool.Pool, isAdmin bool) int64 {
 Add the `fmt` and `sync/atomic` imports. `matchFinding` and `countMatches`
 already exist in the file.
 
-- [ ] **Step 11: Run everything**
+- [x] **Step 11: Run everything**
 
 Run: `make test-unit && make test`
 Expected: PASS.
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add internal .env.example

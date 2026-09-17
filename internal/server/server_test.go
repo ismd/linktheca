@@ -152,7 +152,10 @@ func TestRadarDisabled_Returns403OnAnyRoute(t *testing.T) {
 	srv := server.New(deps)
 	defer srv.Close()
 
-	for _, path := range []string{"/radar/topics", "/radar/feeds", "/radar/subscriptions", "/radar/anything"} {
+	for _, path := range []string{
+		"/radar/topics", "/radar/feeds", "/radar/subscriptions", "/radar/anything",
+		"/admin/radar/feeds", "/admin/radar/anything",
+	} {
 		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader("{}"))
 		rec := httptest.NewRecorder()
 		srv.Handler.ServeHTTP(rec, req)

@@ -77,6 +77,8 @@ func writeRadarError(w http.ResponseWriter, err error) {
 			"embedding service is unavailable, try again later")
 	case errors.Is(err, ErrDuplicate):
 		httpx.WriteError(w, http.StatusConflict, "duplicate", "resource already exists")
+	case errors.Is(err, ErrQuotaExceeded):
+		httpx.WriteError(w, http.StatusConflict, "quota_exceeded", err.Error())
 	case errors.Is(err, ErrFeedNotFound):
 		httpx.WriteError(w, http.StatusNotFound, "not_found", "feed not found")
 	case errors.Is(err, ErrNotFound):
@@ -86,10 +88,41 @@ func writeRadarError(w http.ResponseWriter, err error) {
 	}
 }
 
-func (h *HTTP) AddFeedHandler() http.HandlerFunc   { return h.addFeed }
 func (h *HTTP) SubscribeHandler() http.HandlerFunc { return h.subscribe }
 
-func (h *HTTP) addFeed(w http.ResponseWriter, r *http.Request) {
+// AddUserFeedHandler returns the http.HandlerFunc for POST /radar/feeds:
+// the caller's own personal feed.
+func (h *HTTP) AddUserFeedHandler() http.HandlerFunc { return h.addUserFeed }
+
+func (h *HTTP) addUserFeed(w http.ResponseWriter, r *http.Request) {
+	var req AddFeedRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid json body")
+		return
+	}
+
+	userID := coreauth.UserID(r.Context())
+
+	res, err := h.svc.AddUserFeed(r.Context(), userID, req)
+	if err != nil {
+		writeRadarError(w, err)
+		return
+	}
+
+	status := http.StatusOK // an existing catalog feed was reused
+	if res.Created {
+		status = http.StatusCreated
+	}
+
+	httpx.WriteJSON(w, status, res)
+}
+
+// AddGlobalFeedHandler returns the http.HandlerFunc for
+// POST /admin/radar/feeds (admin).
+func (h *HTTP) AddGlobalFeedHandler() http.HandlerFunc { return h.addGlobalFeed }
+
+func (h *HTTP) addGlobalFeed(w http.ResponseWriter, r *http.Request) {
 	var req AddFeedRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -232,8 +265,21 @@ func (h *HTTP) UpdateMatchHandler() http.HandlerFunc { return h.updateMatch }
 // StatusHandler returns the http.HandlerFunc for GET /radar/status.
 func (h *HTTP) StatusHandler() http.HandlerFunc { return h.status }
 
-// ListFeedsHandler returns the http.HandlerFunc for GET /radar/feeds (admin).
-func (h *HTTP) ListFeedsHandler() http.HandlerFunc { return h.listFeeds }
+// ListFeedsHandler returns the http.HandlerFunc for GET /radar/feeds: the
+// shared catalog plus the caller's own personal feeds.
+func (h *HTTP) ListFeedsHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		h.listFeedsScoped(w, r, FeedScopeVisible)
+	}
+}
+
+// ListGlobalFeedsHandler returns the http.HandlerFunc for
+// GET /admin/radar/feeds (admin): the shared catalog alone.
+func (h *HTTP) ListGlobalFeedsHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		h.listFeedsScoped(w, r, FeedScopeGlobal)
+	}
+}
 
 func (h *HTTP) listMatches(w http.ResponseWriter, r *http.Request) {
 	userID := coreauth.UserID(r.Context())
@@ -299,12 +345,14 @@ func (h *HTTP) status(w http.ResponseWriter, r *http.Request) {
 		writeRadarError(w, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, RadarStatus{LastSweepAt: last})
+	httpx.WriteJSON(w, http.StatusOK, RadarStatus{
+		LastSweepAt: last, MaxUserFeeds: h.svc.MaxUserFeeds(),
+	})
 }
 
-func (h *HTTP) listFeeds(w http.ResponseWriter, r *http.Request) {
+func (h *HTTP) listFeedsScoped(w http.ResponseWriter, r *http.Request, scope FeedScope) {
 	q := r.URL.Query()
-	params := ListFeedsParams{Scope: FeedScopeVisible}
+	params := ListFeedsParams{Scope: scope}
 	if l, err := strconv.Atoi(q.Get("limit")); err == nil {
 		params.Limit = l
 	}
@@ -345,49 +393,75 @@ func (h *HTTP) unsubscribe(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// UpdateFeedHandler returns the http.HandlerFunc for PATCH /radar/feeds/{id} (admin).
-func (h *HTTP) UpdateFeedHandler() http.HandlerFunc {
-	return h.updateFeed
+// UpdateUserFeedHandler returns the http.HandlerFunc for PATCH /radar/feeds/{id}.
+func (h *HTTP) UpdateUserFeedHandler() http.HandlerFunc {
+	return h.patchFeed(func(r *http.Request, id int64, req UpdateFeedRequest) (*Feed, error) {
+		return h.svc.UpdateUserFeed(r.Context(), coreauth.UserID(r.Context()), id, req)
+	})
 }
 
-func (h *HTTP) updateFeed(w http.ResponseWriter, r *http.Request) {
-	feedID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid feed id")
-		return
-	}
-
-	var req UpdateFeedRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid json body")
-		return
-	}
-
-	feed, err := h.svc.UpdateGlobalFeed(r.Context(), feedID, req)
-	if err != nil {
-		writeRadarError(w, err)
-		return
-	}
-
-	httpx.WriteJSON(w, http.StatusOK, feed)
+// UpdateGlobalFeedHandler returns the http.HandlerFunc for
+// PATCH /admin/radar/feeds/{id} (admin).
+func (h *HTTP) UpdateGlobalFeedHandler() http.HandlerFunc {
+	return h.patchFeed(func(r *http.Request, id int64, req UpdateFeedRequest) (*Feed, error) {
+		return h.svc.UpdateGlobalFeed(r.Context(), id, req)
+	})
 }
 
-// DeleteFeedHandler returns the http.HandlerFunc for DELETE /radar/feeds/{id} (admin).
-func (h *HTTP) DeleteFeedHandler() http.HandlerFunc {
-	return h.deleteFeed
+// patchFeed shares the id parsing and body decoding; the scope comes from the
+// closure the route was mounted with.
+func (h *HTTP) patchFeed(apply func(*http.Request, int64, UpdateFeedRequest) (*Feed, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		feedID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+		if err != nil {
+			httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid feed id")
+			return
+		}
+
+		var req UpdateFeedRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid json body")
+			return
+		}
+
+		feed, err := apply(r, feedID, req)
+		if err != nil {
+			writeRadarError(w, err)
+			return
+		}
+
+		httpx.WriteJSON(w, http.StatusOK, feed)
+	}
 }
 
-func (h *HTTP) deleteFeed(w http.ResponseWriter, r *http.Request) {
-	feedID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid feed id")
-		return
-	}
+// DeleteUserFeedHandler returns the http.HandlerFunc for DELETE /radar/feeds/{id}.
+func (h *HTTP) DeleteUserFeedHandler() http.HandlerFunc {
+	return h.removeFeed(func(r *http.Request, id int64) error {
+		return h.svc.DeleteUserFeed(r.Context(), coreauth.UserID(r.Context()), id)
+	})
+}
 
-	if err := h.svc.DeleteGlobalFeed(r.Context(), feedID); err != nil {
-		writeRadarError(w, err)
-		return
-	}
+// DeleteGlobalFeedHandler returns the http.HandlerFunc for
+// DELETE /admin/radar/feeds/{id} (admin).
+func (h *HTTP) DeleteGlobalFeedHandler() http.HandlerFunc {
+	return h.removeFeed(func(r *http.Request, id int64) error {
+		return h.svc.DeleteGlobalFeed(r.Context(), id)
+	})
+}
 
-	w.WriteHeader(http.StatusNoContent)
+func (h *HTTP) removeFeed(apply func(*http.Request, int64) error) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		feedID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+		if err != nil {
+			httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid feed id")
+			return
+		}
+
+		if err := apply(r, feedID); err != nil {
+			writeRadarError(w, err)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	}
 }

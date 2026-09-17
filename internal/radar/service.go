@@ -89,6 +89,9 @@ func NewService(store StoreAPI, embedder embeddings.Client, opts ...ServiceOptio
 	return s
 }
 
+// MaxUserFeeds exposes the personal-feed quota so the UI can show "n / max".
+func (s *Service) MaxUserFeeds() int { return s.maxUserFeeds }
+
 // CreateTopic validates the request, persists the topic, and synchronously
 // computes its embedding. If the embedder is unavailable the topic stays in
 // the database without an embedding and is silently skipped by MatchFindingJob.
