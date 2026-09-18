@@ -1,4 +1,5 @@
 import { relativeFromNow } from "@/features/library/time";
+import { Button } from "@/shared/ui/button";
 import type { FeedListItem } from "../types";
 
 type Props = {
@@ -82,21 +83,13 @@ export function SourceRow({ feed, canManage, onToggle, onEdit, onDelete }: Props
       </div>
 
       {canManage && (
-        <div className="flex items-center gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={onEdit}
-            className="label-sc text-muted-foreground hover:text-vermillion"
-          >
+        <div className="flex items-center gap-1 shrink-0">
+          <Button variant="ghost" size="sm" onClick={onEdit}>
             Edit
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="label-sc text-muted-foreground hover:text-vermillion"
-          >
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onDelete}>
             Delete
-          </button>
+          </Button>
         </div>
       )}
     </div>

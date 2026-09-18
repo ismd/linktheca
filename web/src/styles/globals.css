@@ -155,7 +155,7 @@ select:focus {
   outline: none;
 }
 
-.nav-chip:focus-visible,
+.btn:focus-visible,
 .back-link:focus-visible,
 .filter-chip:focus-visible,
 .feed-card:focus-visible,
@@ -276,34 +276,149 @@ select:focus {
     background: var(--color-graphite);
   }
 
-  /* Secondary page navigation — a real, hittable control, not a caption.
-     Shares the 38px box of .icon-btn in the topbar. */
-  .nav-chip {
+  /* ------------------------------------------------------------------
+     Buttons. One scale (28 / 36 / 44) and one voice for everything you
+     click. Newsreader is the reading voice — titles, body, article prose —
+     so chrome speaks in mono, the same as every other label in the UI.
+     shared/ui/button.tsx maps its cva variants onto these classes.
+     ------------------------------------------------------------------ */
+  .btn {
     display: inline-flex;
     align-items: center;
-    height: 38px;
-    padding: 0 0.9rem;
-    border: 1px solid var(--color-rule);
+    justify-content: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    border: 1px solid transparent;
     background: transparent;
     font-family: var(--font-mono);
-    font-size: 0.7rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
     font-weight: 500;
-    color: var(--color-ink-2);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
     white-space: nowrap;
     transition:
       background-color 0.2s ease,
       color 0.2s ease,
-      border-color 0.2s ease;
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      transform 0.2s ease;
   }
-  .nav-chip:hover {
+  .btn:disabled,
+  .btn[data-disabled] {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .btn svg {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    pointer-events: none;
+  }
+
+  .btn-sm {
+    height: 28px;
+    padding: 0 0.6rem;
+    gap: 0.35rem;
+    font-size: 0.62rem;
+  }
+  .btn-md {
+    height: 36px;
+    padding: 0 0.9rem;
+    font-size: 0.7rem;
+  }
+  .btn-lg {
+    height: 44px;
+    padding: 0 1.25rem;
+    font-size: 0.78rem;
+  }
+  .btn-icon-xs {
+    height: 24px;
+    width: 24px;
+    padding: 0;
+  }
+  .btn-icon-sm {
+    height: 28px;
+    width: 28px;
+    padding: 0;
+  }
+  .btn-icon-md {
+    height: 36px;
+    width: 36px;
+    padding: 0;
+  }
+  .btn-icon-lg {
+    height: 44px;
+    width: 44px;
+    padding: 0;
+  }
+
+  /* The hard offset shadow is this product's hover signature — the same
+     gesture .topic-card makes. Primary actions get it in vermillion. */
+  .btn-primary {
     background: var(--color-ink);
     border-color: var(--color-ink);
     color: var(--color-paper);
   }
+  .btn-primary:hover {
+    box-shadow: 2px 2px 0 var(--color-vermillion);
+    transform: translate(-1px, -1px);
+  }
+  .btn-destructive {
+    background: var(--color-vermillion-dark);
+    border-color: var(--color-vermillion-dark);
+    color: var(--color-paper);
+  }
+  .btn-destructive:hover {
+    box-shadow: 2px 2px 0 var(--color-ink);
+    transform: translate(-1px, -1px);
+  }
+  .btn-outline {
+    border-color: var(--color-rule);
+    color: var(--color-ink-2);
+  }
+  .btn-outline:hover {
+    background: var(--color-ink);
+    border-color: var(--color-ink);
+    color: var(--color-paper);
+  }
+  .btn-secondary {
+    background: var(--color-paper-2);
+    border-color: var(--color-paper-2);
+    color: var(--color-ink);
+  }
+  .btn-secondary:hover {
+    background: var(--color-paper-3);
+    border-color: var(--color-paper-3);
+  }
+  .btn-ghost {
+    color: var(--color-ink-3);
+  }
+  .btn-ghost:hover {
+    background: var(--color-paper-2);
+    color: var(--color-ink);
+  }
+  .btn-link {
+    height: auto;
+    padding: 0;
+    color: var(--color-ink-3);
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 4px;
+  }
+  .btn-link:hover {
+    color: var(--color-vermillion);
+  }
 
-  /* Return to the parent screen. Quieter than .nav-chip — the arrow carries it. */
+  @media (prefers-reduced-motion: reduce) {
+    .btn {
+      transition: none;
+    }
+    .btn-primary:hover,
+    .btn-destructive:hover {
+      transform: none;
+    }
+  }
+
+  /* Return to the parent screen. Quieter than a .btn — the arrow carries it. */
   .back-link {
     font-family: var(--font-mono);
     font-size: 0.65rem;
@@ -323,12 +438,12 @@ select:focus {
     border: 1px solid var(--color-rule);
   }
   .segmented > button {
-    height: 34px;
-    padding: 0 0.95rem;
+    height: 36px;
+    padding: 0 0.9rem;
     background: transparent;
     font-family: var(--font-mono);
-    font-size: 0.65rem;
-    letter-spacing: 0.14em;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     font-weight: 500;
     color: var(--color-ink-3);
@@ -356,13 +471,13 @@ select:focus {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    height: 34px;
+    height: 36px;
     padding: 0 0.75rem;
     border: 1px solid transparent;
     background: transparent;
     font-family: var(--font-mono);
-    font-size: 0.65rem;
-    letter-spacing: 0.14em;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     font-weight: 500;
     color: var(--color-ink-3);
@@ -408,26 +523,6 @@ select:focus {
     background: var(--color-ink);
     color: var(--color-paper);
     border-color: var(--color-ink);
-  }
-
-  /* Icon button */
-  .icon-btn {
-    width: 38px;
-    height: 38px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--color-rule);
-    color: var(--color-ink-3);
-    transition: all 0.2s ease;
-    cursor: pointer;
-    background: transparent;
-    flex-shrink: 0;
-  }
-  .icon-btn:hover {
-    background: var(--color-paper-2);
-    color: var(--color-ink);
-    border-color: var(--color-ink-3);
   }
 
   /* Feed card — the frame is set per card; this only carries the hover/focus

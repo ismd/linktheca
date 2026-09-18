@@ -23,7 +23,7 @@ export function EmptyState({ filtered }: Props) {
     <div className="text-center py-24">
       <h2 className="display-tight text-4xl text-ink mb-3">Nothing here yet</h2>
       <p className="label-sc text-muted-foreground mb-8">Save your first link →</p>
-      <Button onClick={open}>+ Add link</Button>
+      <Button size="lg" onClick={open}>+ Add link</Button>
     </div>
   );
 }

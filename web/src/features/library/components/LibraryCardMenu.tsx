@@ -30,7 +30,7 @@ export function LibraryCardMenu({ item }: Props) {
       <DropdownMenu>
         <DropdownMenuTrigger
           aria-label="Article actions"
-          className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:bg-paper-2 hover:text-ink outline-none focus-visible:ring-2 focus-visible:ring-ink-3"
+          className="btn btn-ghost btn-icon-sm"
         >
           <MoreHorizontal className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
         </DropdownMenuTrigger>

@@ -21,9 +21,9 @@ export function UserMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Open user menu"
-        className="h-9 w-9 rounded-none border border-rule bg-paper flex items-center justify-center hover:bg-paper-2 outline-none focus-visible:ring-2 focus-visible:ring-ink-3"
+        className="btn btn-outline btn-icon-md"
       >
-        <span className="font-display text-lg text-ink">{initial}</span>
+        <span className="font-display text-lg normal-case tracking-normal">{initial}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>

@@ -11,7 +11,7 @@ export function EmptyTopicList({ onAdd }: Props) {
       <p className="font-body italic text-muted-foreground mb-8">
         Add your first topic to start watching for new signals.
       </p>
-      <Button onClick={onAdd}>+ New topic</Button>
+      <Button size="lg" onClick={onAdd}>+ New topic</Button>
     </div>
   );
 }
