@@ -4,6 +4,8 @@ import {
   RawMatchViewSchema,
   RawMatchListSchema,
   RawRadarStatusSchema,
+  RawFeedListItemSchema,
+  mapFeedListItem,
   mapTopicWithStats,
   mapMatchView,
   mapMatchList,
@@ -90,5 +92,26 @@ describe("radar schemas", () => {
       last_sweep_at: "2026-05-18T10:00:00Z",
     }));
     expect(filled.lastSweepAt).toBeInstanceOf(Date);
+  });
+});
+
+describe("RawFeedListItemSchema", () => {
+  it("accepts a feed whose title the server omitted", () => {
+    // Go tags Feed.Title as `json:"title,omitempty"`, so an untitled feed
+    // arrives with no title key at all — not with title: null.
+    const raw = {
+      id: 1,
+      url: "https://coding-overhead.ru/posts/index.xml",
+      kind: "rss",
+      fetch_interval_seconds: 3600,
+      is_active: true,
+      last_error: "404 Not Found",
+      created_at: "2026-08-01T10:00:00Z",
+      subscribed: true,
+      finding_count: 0,
+      is_own: false,
+    };
+
+    expect(mapFeedListItem(RawFeedListItemSchema.parse(raw)).title).toBeNull();
   });
 });
