@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/layout/PageHeader";
+import { PageBackLink } from "@/shared/layout/PageBackLink";
 import { Button } from "@/shared/ui/button";
 import { ApiError } from "@/shared/api/errors";
 import { useFeedsQuery, useRadarStatusQuery } from "@/features/radar/use-radar";
@@ -44,7 +45,12 @@ export default function SourcesRoute() {
             ? `${items.length} feeds · ${subscribedCount} subscribed · changes apply from the next sweep`
             : "Feeds this instance watches"
         }
-        actions={<Button onClick={() => setAddOpen(true)}>Add source</Button>}
+        actions={
+          <>
+            <PageBackLink to="/radar">Back to inbox</PageBackLink>
+            <Button onClick={() => setAddOpen(true)}>Add source</Button>
+          </>
+        }
       />
       <div className="px-4 lg:px-8 pb-10">
         <SectionHeader

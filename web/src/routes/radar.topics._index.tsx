@@ -1,7 +1,6 @@
-import { Link } from "react-router";
 import { ApiError } from "@/shared/api/errors";
 import { PageHeader } from "@/shared/layout/PageHeader";
-import { PageNavLink } from "@/shared/layout/PageNavLink";
+import { PageBackLink } from "@/shared/layout/PageBackLink";
 import { Button } from "@/shared/ui/button";
 import { useTopicsQuery } from "@/features/radar/use-radar";
 import { useNewTopicStore } from "@/features/radar/use-new-topic-store";
@@ -37,22 +36,14 @@ export default function TopicsListRoute() {
       <PageHeader
         title="Topics"
         subtitle="Everything on your radar"
-        actions={<PageNavLink to="/radar/sources">Sources</PageNavLink>}
+        actions={
+          <>
+            <PageBackLink to="/radar">Back to inbox</PageBackLink>
+            <Button onClick={openNewTopic}>+ New topic</Button>
+          </>
+        }
       />
-      <div className="px-4 lg:px-8 pb-6 pt-6">
-        <Link
-          to="/radar"
-          className="back-link inline-block mb-6"
-        >
-          ← Back to inbox
-        </Link>
-        <div className="hidden md:flex justify-end mb-6">
-          <Button onClick={openNewTopic}>+ New topic</Button>
-        </div>
-        <div className="md:hidden mb-8">
-          <Button className="w-full" onClick={openNewTopic}>+ New topic</Button>
-        </div>
-
+      <div className="px-4 lg:px-8 pt-8 pb-10">
         {topics.isLoading && <LoadingGrid />}
 
         {topics.isSuccess && topics.data.length === 0 && (
