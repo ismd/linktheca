@@ -36,6 +36,9 @@
 
   --primary: var(--color-ink);
   --primary-foreground: var(--color-paper);
+  /* Hover fill for ink-filled buttons. Sits between ink-2, which is too close
+     to ink to register, and ink-3, which goes a shade too light. */
+  --primary-hover: #413c32;
 
   --secondary: var(--color-paper-2);
   --secondary-foreground: var(--color-ink);
@@ -171,7 +174,7 @@ select:focus {
 [data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
   font-family: var(--font-body);
   font-size: 0.95rem;
-  box-shadow: 4px 4px 0 rgba(26, 24, 20, 0.1);
+  box-shadow: none;
 }
 [data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-title] {
   font-weight: 500;
@@ -331,9 +334,7 @@ select:focus {
     transition:
       background-color 0.2s ease,
       color 0.2s ease,
-      border-color 0.2s ease,
-      box-shadow 0.2s ease,
-      transform 0.2s ease;
+      border-color 0.2s ease;
   }
   .btn:disabled,
   .btn[data-disabled] {
@@ -384,16 +385,17 @@ select:focus {
     padding: 0;
   }
 
-  /* The hard offset shadow is this product's hover signature — the same
-     gesture .topic-card makes. Primary actions get it in vermillion. */
+  /* Hover is a flat change of fill everywhere in this UI, so the filled
+     variants simply lighten — nothing lifts off the page. */
   .btn-primary {
     background: var(--color-ink);
     border-color: var(--color-ink);
     color: var(--color-paper);
   }
+  /* Filled buttons just lighten — nothing else changes. */
   .btn-primary:hover {
-    box-shadow: 2px 2px 0 var(--color-vermillion);
-    transform: translate(-1px, -1px);
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
   }
   .btn-destructive {
     background: var(--color-vermillion-dark);
@@ -401,8 +403,8 @@ select:focus {
     color: var(--color-paper);
   }
   .btn-destructive:hover {
-    box-shadow: 2px 2px 0 var(--color-ink);
-    transform: translate(-1px, -1px);
+    background: var(--color-vermillion);
+    border-color: var(--color-vermillion);
   }
   .btn-outline {
     border-color: var(--color-rule);
@@ -444,10 +446,6 @@ select:focus {
   @media (prefers-reduced-motion: reduce) {
     .btn {
       transition: none;
-    }
-    .btn-primary:hover,
-    .btn-destructive:hover {
-      transform: none;
     }
   }
 
@@ -561,7 +559,8 @@ select:focus {
   /* Feed card — the frame is set per card; this only carries the hover/focus
      response, so a card reacts when it is about to be opened. Ported from
      prototype/index.html. */
-  .feed-card .card-title {
+  .feed-card .card-title,
+  .topic-card .card-title {
     transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .feed-card:hover .card-title,
@@ -576,14 +575,17 @@ select:focus {
     border: 1px solid var(--color-rule);
     transition:
       border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-      transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-      box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
+  /* Flat, like every other hover here: the frame darkens and the title picks up
+     the accent. Nothing lifts off the page. */
   .topic-card:hover,
   .topic-card:focus-visible {
     border-color: var(--color-ink);
-    transform: translateY(-1px);
-    box-shadow: 3px 3px 0 var(--color-ink);
+  }
+  .topic-card:hover .card-title,
+  .topic-card:focus-visible .card-title {
+    color: var(--color-vermillion);
   }
   /* Watching/paused, as a marker in the card's corner. The "Paused" label in
      the card carries the same state for anyone not reading colour. */
@@ -606,18 +608,13 @@ select:focus {
   }
   .topic-card-blank:hover {
     border-color: var(--color-rule);
-    transform: none;
-    box-shadow: none;
   }
 
   @media (prefers-reduced-motion: reduce) {
     .topic-card,
+    .topic-card .card-title,
     .feed-card .card-title {
       transition: none;
-    }
-    .topic-card:hover,
-    .topic-card:focus-visible {
-      transform: none;
     }
   }
 

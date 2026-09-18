@@ -23,7 +23,7 @@ export function TopicCard({ topic }: Props) {
           <div className="label-sc text-muted-foreground">—</div>
         )}
       </div>
-      <h3 className="display-tight text-2xl text-ink leading-tight mb-3">
+      <h3 className="card-title display-tight text-2xl text-ink leading-tight mb-3">
         {topic.name}
       </h3>
       <p className="font-body text-base text-muted-foreground leading-relaxed mb-5 line-clamp-2">
