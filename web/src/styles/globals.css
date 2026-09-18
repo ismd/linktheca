@@ -165,6 +165,39 @@ select:focus {
   outline-offset: 2px;
 }
 
+/* Toasts. Sonner's stylesheet is unlayered, so these rules have to be unlayered
+   too, and outrank its [data-sonner-toast][data-styled='true'] (0,2,0).
+   The colours come from the variables set in shared/ui/sonner.tsx. */
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  box-shadow: 4px 4px 0 rgba(26, 24, 20, 0.1);
+}
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-title] {
+  font-weight: 500;
+}
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-description] {
+  color: var(--color-ink-3);
+}
+/* Sonner's own icons carry no fill, so they land as black blobs whatever the
+   toast says. Hand them the palette instead — the glyph shape alone is a weak
+   signal for an error. */
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-icon] svg {
+  fill: currentColor;
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] [data-icon] {
+  color: var(--color-sage);
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="error"] [data-icon] {
+  color: var(--color-vermillion-dark);
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="warning"] [data-icon] {
+  color: var(--color-ochre);
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="info"] [data-icon] {
+  color: var(--color-ink-3);
+}
+
 @layer base {
   button:not(:disabled),
   [role="button"]:not(:disabled) {
