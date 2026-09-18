@@ -155,6 +155,16 @@ select:focus {
   outline: none;
 }
 
+.nav-chip:focus-visible,
+.back-link:focus-visible,
+.filter-chip:focus-visible,
+.feed-card:focus-visible,
+.topic-card:focus-visible,
+.segmented > button:focus-visible {
+  outline: 2px solid var(--color-vermillion);
+  outline-offset: 2px;
+}
+
 @layer base {
   button:not(:disabled),
   [role="button"]:not(:disabled) {
@@ -266,6 +276,118 @@ select:focus {
     background: var(--color-graphite);
   }
 
+  /* Secondary page navigation — a real, hittable control, not a caption.
+     Shares the 38px box of .icon-btn in the topbar. */
+  .nav-chip {
+    display: inline-flex;
+    align-items: center;
+    height: 38px;
+    padding: 0 0.9rem;
+    border: 1px solid var(--color-rule);
+    background: transparent;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--color-ink-2);
+    white-space: nowrap;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease,
+      border-color 0.2s ease;
+  }
+  .nav-chip:hover {
+    background: var(--color-ink);
+    border-color: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  /* Return to the parent screen. Quieter than .nav-chip — the arrow carries it. */
+  .back-link {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--color-ink-3);
+    transition: color 0.2s ease;
+  }
+  .back-link:hover {
+    color: var(--color-vermillion);
+  }
+
+  /* Segmented control — one bordered box, for mutually exclusive options. */
+  .segmented {
+    display: inline-flex;
+    border: 1px solid var(--color-rule);
+  }
+  .segmented > button {
+    height: 34px;
+    padding: 0 0.95rem;
+    background: transparent;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--color-ink-3);
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
+  }
+  .segmented > button + button {
+    border-left: 1px solid var(--color-rule);
+  }
+  .segmented > button:not([aria-pressed="true"]):hover {
+    background: var(--color-paper-2);
+    color: var(--color-ink);
+  }
+  .segmented > button[aria-pressed="true"] {
+    background: var(--color-ink);
+    color: var(--color-paper);
+    cursor: default;
+  }
+
+  /* Filter chip — borderless until chosen, so a row of them reads as a list of
+     names rather than a second switch next to the .segmented one. The box
+     appears on hover (affordance) and stays on the current selection. */
+  .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    height: 34px;
+    padding: 0 0.75rem;
+    border: 1px solid transparent;
+    background: transparent;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--color-ink-3);
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease,
+      border-color 0.2s ease;
+  }
+  .filter-chip:not([aria-pressed="true"]):hover {
+    background: var(--color-paper-2);
+    border-color: var(--color-paper-2);
+    color: var(--color-ink);
+  }
+  .filter-chip[aria-pressed="true"] {
+    background: var(--color-ink);
+    border-color: var(--color-ink);
+    color: var(--color-paper);
+  }
+  /* Favourites reads as a marker, not a scope — ochre, with ink text for contrast. */
+  .filter-chip-fav[aria-pressed="true"] {
+    background: var(--color-ochre);
+    border-color: var(--color-ochre);
+    color: var(--color-ink);
+  }
+
   /* Tag pill */
   .tag-pill {
     display: inline-flex;
@@ -306,6 +428,69 @@ select:focus {
     background: var(--color-paper-2);
     color: var(--color-ink);
     border-color: var(--color-ink-3);
+  }
+
+  /* Feed card — the frame is set per card; this only carries the hover/focus
+     response, so a card reacts when it is about to be opened. Ported from
+     prototype/index.html. */
+  .feed-card .card-title {
+    transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .feed-card:hover .card-title,
+  .feed-card:focus-within .card-title {
+    color: var(--color-vermillion);
+  }
+
+  /* Topic card — a printed index card. Ported from prototype/index.html. */
+  .topic-card {
+    position: relative;
+    background: var(--color-paper);
+    border: 1px solid var(--color-rule);
+    transition:
+      border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .topic-card:hover,
+  .topic-card:focus-visible {
+    border-color: var(--color-ink);
+    transform: translateY(-1px);
+    box-shadow: 3px 3px 0 var(--color-ink);
+  }
+  /* Watching/paused, as a marker in the card's corner. The "Paused" label in
+     the card carries the same state for anyone not reading colour. */
+  .topic-card::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-vermillion);
+  }
+  .topic-card.inactive::before {
+    background: var(--color-rule);
+  }
+  /* Loading placeholders wear the frame but neither the marker nor the hover. */
+  .topic-card-blank::before {
+    content: none;
+  }
+  .topic-card-blank:hover {
+    border-color: var(--color-rule);
+    transform: none;
+    box-shadow: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .topic-card,
+    .feed-card .card-title {
+      transition: none;
+    }
+    .topic-card:hover,
+    .topic-card:focus-visible {
+      transform: none;
+    }
   }
 
   /* Skeleton loading */

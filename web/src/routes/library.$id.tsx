@@ -63,7 +63,7 @@ export default function LibraryItemRoute() {
             <h1 className="display-tight text-4xl text-ink mb-3">
               Article not found
             </h1>
-            <Link to="/library" className="label-sc text-vermillion">
+            <Link to="/library" className="back-link">
               ← Back to library
             </Link>
           </div>
@@ -86,7 +86,7 @@ export default function LibraryItemRoute() {
       <article className="max-w-[720px] mx-auto px-4 pt-8 pb-20">
         <Link
           to="/library"
-          className="label-sc text-muted-foreground hover:text-vermillion inline-block mb-10"
+          className="back-link inline-block mb-10"
         >
           ← Back to library
         </Link>

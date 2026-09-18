@@ -22,7 +22,7 @@ function r(n: React.ReactElement) {
 
 describe("MatchCard", () => {
   it("renders title, source, new-stamp, and link", () => {
-    r(<MatchCard match={match} index={0} />);
+    r(<MatchCard match={match} />);
     expect(screen.getByText("Local-First Software")).toBeInTheDocument();
     expect(screen.getByText(/Ink & Switch/)).toBeInTheDocument();
     expect(screen.getByText("new")).toBeInTheDocument();
@@ -31,22 +31,22 @@ describe("MatchCard", () => {
   });
 
   it("hides new-stamp when state is seen", () => {
-    r(<MatchCard match={{ ...match, state: "seen" }} index={0} />);
+    r(<MatchCard match={{ ...match, state: "seen" }} />);
     expect(screen.queryByText("new")).toBeNull();
   });
 
   it("falls back to URL when finding.title is null", () => {
-    r(<MatchCard match={{ ...match, finding: { ...match.finding, title: null } }} index={0} />);
+    r(<MatchCard match={{ ...match, finding: { ...match.finding, title: null } }} />);
     expect(screen.getByText(/inkandswitch.com/)).toBeInTheDocument();
   });
 
   it("renders the topic name when showTopic is set", () => {
-    r(<MatchCard match={match} index={0} showTopic />);
+    r(<MatchCard match={match} showTopic />);
     expect(screen.getByText("Local-first")).toBeInTheDocument();
   });
 
   it("omits the topic name by default", () => {
-    r(<MatchCard match={match} index={0} />);
+    r(<MatchCard match={match} />);
     expect(screen.queryByText("Local-first")).toBeNull();
   });
 });

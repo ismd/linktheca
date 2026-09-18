@@ -1,6 +1,6 @@
 export function SkeletonCard() {
   return (
-    <div className="topic-card block p-6 animate-pulse">
+    <div className="topic-card topic-card-blank block p-6 animate-pulse">
       <div className="flex items-start justify-between mb-3">
         <div className="skeleton h-3 w-20" />
         <div className="skeleton h-3 w-12" />

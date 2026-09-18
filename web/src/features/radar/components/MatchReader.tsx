@@ -48,7 +48,7 @@ export function MatchReader({ matchId }: Props) {
         {notFound ? (
           <>
             <h1 className="display-tight text-3xl text-ink mb-3">Match not found</h1>
-            <Link to="/radar" className="label-sc text-vermillion">← Back to radar</Link>
+            <Link to="/radar" className="back-link">← Back to radar</Link>
           </>
         ) : (
           <p className="font-body text-muted-foreground">Couldn&rsquo;t load this match.</p>
@@ -83,7 +83,7 @@ export function MatchReader({ matchId }: Props) {
     <article className="max-w-[720px] mx-auto px-4 pt-8 pb-20">
       <Link
         to={`/radar/topics/${m.topicId}`}
-        className="label-sc text-muted-foreground hover:text-vermillion inline-block mb-10"
+        className="back-link inline-block mb-10"
       >
         ← Back to {m.topicName}
       </Link>

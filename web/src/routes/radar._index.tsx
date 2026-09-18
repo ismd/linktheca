@@ -1,6 +1,7 @@
-import { Link, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { ApiError } from "@/shared/api/errors";
 import { PageHeader } from "@/shared/layout/PageHeader";
+import { PageNavLink } from "@/shared/layout/PageNavLink";
 import { Button } from "@/shared/ui/button";
 import {
   useTopicsQuery,
@@ -64,18 +65,8 @@ export default function RadarInboxRoute() {
         subtitle={fmtSweep(status.data?.lastSweepAt ?? null)}
         actions={
           <>
-            <Link
-              to="/radar/topics"
-              className="label-sc text-muted-foreground hover:text-vermillion"
-            >
-              Topics →
-            </Link>
-            <Link
-              to="/radar/sources"
-              className="label-sc text-muted-foreground hover:text-vermillion"
-            >
-              Sources →
-            </Link>
+            <PageNavLink to="/radar/topics">Topics</PageNavLink>
+            <PageNavLink to="/radar/sources">Sources</PageNavLink>
           </>
         }
       />

@@ -12,9 +12,6 @@ const STATES: { label: string; value: InboxState }[] = [
   { label: "All", value: "all" },
 ];
 
-const CHIP_ACTIVE = "px-3 py-1.5 label-sc bg-ink text-paper inline-flex items-center gap-2";
-const CHIP_IDLE = "px-3 py-1.5 label-sc text-ink-3 hover:bg-paper-2 inline-flex items-center gap-2";
-
 // Active topics are always offered. A paused topic only earns a chip while it
 // still has unread matches — or while it is the current filter, so a selection
 // arriving from the URL is never invisible.
@@ -27,37 +24,34 @@ export function visibleTopics(
   );
 }
 
+// Both filters live on one line: read/unread is a two-way switch, so it is a
+// joined segmented control; topic is a scope, so it is a row of separate chips.
+// The rule between them keeps the two from reading as one confused strip.
 export function InboxFilterBar({ state, topicId, topics, onChange }: Props) {
   const chips = visibleTopics(topics, topicId);
   return (
-    <div className="py-4 border-b border-rule">
-      <div className="flex flex-wrap gap-1" role="group" aria-label="State filter">
-        {STATES.map((opt) => {
-          const active = state === opt.value;
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              aria-pressed={active}
-              onClick={() => onChange({ state: opt.value, topicId })}
-              className={
-                active
-                  ? "px-3 py-1.5 label-sc bg-ink text-paper cursor-auto"
-                  : "px-3 py-1.5 label-sc text-ink-3 hover:bg-paper-2"
-              }
-            >
-              {opt.label}
-            </button>
-          );
-        })}
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-3 py-4 border-b border-rule">
+      <div className="segmented" role="group" aria-label="State filter">
+        {STATES.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            aria-pressed={state === opt.value}
+            onClick={() => onChange({ state: opt.value, topicId })}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
-      <div className="flex flex-wrap gap-1 mt-3" role="group" aria-label="Topic filter">
+      <span aria-hidden="true" className="hidden sm:block h-5 w-px bg-rule mx-1" />
+
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Topic filter">
         <button
           type="button"
+          className="filter-chip"
           aria-pressed={topicId === undefined}
           onClick={() => onChange({ state, topicId: undefined })}
-          className={topicId === undefined ? CHIP_ACTIVE : CHIP_IDLE}
         >
           All topics
         </button>
@@ -68,13 +62,13 @@ export function InboxFilterBar({ state, topicId, topics, onChange }: Props) {
             <button
               key={t.id}
               type="button"
+              className="filter-chip"
               aria-pressed={active}
               onClick={() => onChange({ state, topicId: active ? undefined : t.id })}
-              className={active ? CHIP_ACTIVE : CHIP_IDLE}
             >
               {t.name}
               {count > 0 && (
-                <span className={active ? "text-paper" : "text-vermillion"}>
+                <span className={active ? "text-paper/70" : "text-vermillion"}>
                   {count}
                 </span>
               )}

@@ -43,7 +43,7 @@ export default function TopicRoute() {
         {notFound ? (
           <div className="text-center py-20">
             <h1 className="display-tight text-3xl text-ink mb-3">Topic not found</h1>
-            <Link to="/radar" className="label-sc text-vermillion">← Back to radar</Link>
+            <Link to="/radar" className="back-link">← Back to radar</Link>
           </div>
         ) : (
           <p className="font-body text-muted-foreground">Couldn&rsquo;t load this topic.</p>
@@ -77,7 +77,7 @@ export default function TopicRoute() {
     <div className="px-4 lg:px-8 pt-8 pb-20">
       <Link
         to="/radar"
-        className="label-sc text-muted-foreground hover:text-vermillion inline-block mb-10"
+        className="back-link inline-block mb-10"
       >
         ← Back to radar
       </Link>

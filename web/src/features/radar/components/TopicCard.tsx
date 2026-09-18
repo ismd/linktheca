@@ -4,19 +4,18 @@ import type { TopicWithStats } from "../types";
 
 type Props = {
   topic: TopicWithStats;
-  index: number;
 };
 
-export function TopicCard({ topic, index }: Props) {
+export function TopicCard({ topic }: Props) {
   const newCount = topic.stats.newCount;
   return (
     <Link
       to={`/radar/topics/${topic.id}`}
       className={`topic-card block p-6 ${topic.isActive ? "" : "inactive"} animate-fade-in`}
     >
-      <div className="flex items-start justify-between mb-3">
+      <div className="flex items-start justify-between gap-3 mb-3">
         <div className="label-sc text-muted-foreground">
-          Topic · {String(index + 1).padStart(2, "0")}
+          {topic.isActive ? null : "Paused"}
         </div>
         {newCount > 0 ? (
           <div className="label-sc text-vermillion">{newCount} new</div>

@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { ApiError } from "@/shared/api/errors";
 import { PageHeader } from "@/shared/layout/PageHeader";
+import { PageNavLink } from "@/shared/layout/PageNavLink";
 import { Button } from "@/shared/ui/button";
 import { useTopicsQuery } from "@/features/radar/use-radar";
 import { useNewTopicStore } from "@/features/radar/use-new-topic-store";
@@ -36,19 +37,12 @@ export default function TopicsListRoute() {
       <PageHeader
         title="Topics"
         subtitle="Everything on your radar"
-        actions={
-          <Link
-            to="/radar/sources"
-            className="label-sc text-muted-foreground hover:text-vermillion"
-          >
-            Sources →
-          </Link>
-        }
+        actions={<PageNavLink to="/radar/sources">Sources</PageNavLink>}
       />
       <div className="px-4 lg:px-8 pb-6 pt-6">
         <Link
           to="/radar"
-          className="label-sc text-muted-foreground hover:text-vermillion inline-block mb-6"
+          className="back-link inline-block mb-6"
         >
           ← Back to inbox
         </Link>

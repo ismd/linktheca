@@ -17,7 +17,7 @@ function r(node: React.ReactElement) {
 
 describe("TopicCard", () => {
   it("renders name, description, stats and link", () => {
-    r(<TopicCard topic={topic} index={0} />);
+    r(<TopicCard topic={topic} />);
     expect(screen.getByText("Local-first software")).toBeInTheDocument();
     expect(screen.getByText(/CRDTs and beyond/)).toBeInTheDocument();
     expect(screen.getByText("3 new")).toBeInTheDocument();
@@ -28,7 +28,7 @@ describe("TopicCard", () => {
   });
 
   it("renders dash when newCount is 0", () => {
-    r(<TopicCard topic={{ ...topic, stats: { ...topic.stats, newCount: 0 } }} index={1} />);
+    r(<TopicCard topic={{ ...topic, stats: { ...topic.stats, newCount: 0 } }} />);
     expect(screen.queryByText("0 new")).toBeNull();
     expect(screen.getByText("—")).toBeInTheDocument();
   });

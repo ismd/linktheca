@@ -12,11 +12,10 @@ function host(u: string): string {
 
 type Props = {
   match: MatchView;
-  index: number;
   showTopic?: boolean;
 };
 
-export function MatchCard({ match, index, showTopic = false }: Props) {
+export function MatchCard({ match, showTopic = false }: Props) {
   const f = match.finding;
   const title = f.title ?? host(f.url);
   const source = f.feedTitle ?? host(f.url);
@@ -25,24 +24,16 @@ export function MatchCard({ match, index, showTopic = false }: Props) {
   return (
     <Link to={`/radar/matches/${match.id}`} className="feed-card group block">
       <article className="flex flex-col h-full p-5 border border-rule">
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <div className="flex items-center gap-x-3 gap-y-1.5 mb-3 flex-wrap">
           {stamp && <span className="stamp text-vermillion stamp-flat">new</span>}
           {showTopic && (
-            <>
-              <span className="label-sc text-ink">{match.topicName}</span>
-              <span className="label-sc text-muted-foreground">·</span>
-            </>
+            <span className="label-sc text-ink">{match.topicName}</span>
           )}
-          <span className="label-sc text-muted-foreground">{source}</span>
-          <span className="label-sc text-muted-foreground">·</span>
           <span className="label-sc text-muted-foreground">
-            {relativeFromNow(when)}
-          </span>
-          <span className="label-sc text-muted-foreground ml-auto">
-            {String(index + 1).padStart(2, "0")}
+            {source} · {relativeFromNow(when)}
           </span>
         </div>
-        <h2 className="display-tight text-xl text-ink leading-tight mb-3 line-clamp-2">
+        <h2 className="card-title display-tight text-xl text-ink leading-tight mb-3 line-clamp-2">
           {title}
         </h2>
         {f.summary && (
