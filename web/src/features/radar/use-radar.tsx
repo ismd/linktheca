@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
   listTopics,
   getTopic,
@@ -67,6 +67,10 @@ export function useMatchesQuery(filters: MatchFilters) {
       const loaded = all.reduce((s, p) => s + p.items.length, 0);
       return loaded < last.total ? loaded : undefined;
     },
+    // Switching a filter mints a new query key, which would otherwise blank the
+    // list and flash a loader. Holding the previous page keeps the grid on
+    // screen until the new one lands; isPlaceholderData says it is still stale.
+    placeholderData: keepPreviousData,
   });
 
   const items = (query.data?.pages ?? []).flatMap((p) => p.items);
@@ -78,6 +82,7 @@ export function useMatchesQuery(filters: MatchFilters) {
     total,
     hasMore,
     isLoading: query.isLoading,
+    isPlaceholderData: query.isPlaceholderData,
     isSuccess: query.isSuccess,
     isError: query.isError,
     error: query.error,

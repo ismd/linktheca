@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { listLibrary, getLibraryDetail, getLibraryItem } from "./api";
 import {
   PAGE_SIZE,
@@ -31,6 +31,9 @@ export function useLibraryQuery(filters: FilterParams) {
       const loaded = all.reduce((s, p) => s + p.items.length, 0);
       return loaded < last.total ? loaded : undefined;
     },
+    // See useMatchesQuery: keeps the current cards on screen across a filter
+    // change instead of dropping to a skeleton grid.
+    placeholderData: keepPreviousData,
   });
 
   const items = (query.data?.pages ?? []).flatMap((p) => p.items);
@@ -42,6 +45,7 @@ export function useLibraryQuery(filters: FilterParams) {
     total,
     hasMore,
     isLoading: query.isLoading,
+    isPlaceholderData: query.isPlaceholderData,
     isSuccess: query.isSuccess,
     isError: query.isError,
     error: query.error,

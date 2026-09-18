@@ -125,3 +125,43 @@ describe("useRadarStatusQuery", () => {
     expect(result.current.data?.lastSweepAt).toBeInstanceOf(Date);
   });
 });
+
+describe("useMatchesQuery filter switching", () => {
+  function matchesByTopic() {
+    return http.get("/api/radar/matches", ({ request }) => {
+      const topic = new URL(request.url).searchParams.get("topic_id");
+      const id = topic === "2" ? 9 : 1;
+      return HttpResponse.json({ items: [rawMatch(id)], total: 1 });
+    });
+  }
+
+  it("keeps the previous filter's matches while the next filter loads", async () => {
+    server.use(matchesByTopic());
+    const { result, rerender } = renderHook(
+      ({ topicId }: { topicId: number }) => useMatchesQuery({ topicId }),
+      { wrapper: wrapper(), initialProps: { topicId: 1 } },
+    );
+    await waitFor(() => expect(result.current.items).toHaveLength(1));
+    expect(result.current.items[0].id).toBe(1);
+
+    rerender({ topicId: 2 });
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.items[0].id).toBe(1);
+  });
+
+  it("flags the carried-over matches as placeholder data until the new ones arrive", async () => {
+    server.use(matchesByTopic());
+    const { result, rerender } = renderHook(
+      ({ topicId }: { topicId: number }) => useMatchesQuery({ topicId }),
+      { wrapper: wrapper(), initialProps: { topicId: 1 } },
+    );
+    await waitFor(() => expect(result.current.items).toHaveLength(1));
+
+    rerender({ topicId: 2 });
+    expect(result.current.isPlaceholderData).toBe(true);
+
+    await waitFor(() => expect(result.current.items[0].id).toBe(9));
+    expect(result.current.isPlaceholderData).toBe(false);
+  });
+});

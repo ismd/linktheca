@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { server } from "@/test/setup";
 import { useAuthStore } from "@/features/auth/store";
 import { LibraryGrid } from "./LibraryGrid";
@@ -116,5 +116,54 @@ describe("LibraryGrid", () => {
     render(<LibraryGrid filters={{}} />, { wrapper: wrapper() });
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument();
+  });
+});
+
+describe("LibraryGrid while a filter change is in flight", () => {
+  function stubSlowArchived() {
+    server.use(
+      http.get("/api/library", async ({ request }) => {
+        const state = new URL(request.url).searchParams.get("state");
+        if (state === "archived") {
+          await delay(80);
+          return HttpResponse.json({ items: [rawItem(2)], total: 1 });
+        }
+        return HttpResponse.json({ items: [rawItem(1)], total: 1 });
+      }),
+    );
+  }
+
+  it("keeps the current cards on screen instead of flashing skeletons", async () => {
+    stubSlowArchived();
+    const { rerender } = render(<LibraryGrid filters={{}} />, {
+      wrapper: wrapper(),
+    });
+    await screen.findByText("Title 1");
+
+    rerender(<LibraryGrid filters={{ state: "archived" }} />);
+
+    expect(screen.getByText("Title 1")).toBeInTheDocument();
+    expect(screen.queryAllByTestId("library-skeleton-card")).toHaveLength(0);
+    expect(await screen.findByText("Title 2")).toBeInTheDocument();
+  });
+
+  it("marks the grid busy until the new cards arrive", async () => {
+    stubSlowArchived();
+    const { rerender } = render(<LibraryGrid filters={{}} />, {
+      wrapper: wrapper(),
+    });
+    await screen.findByText("Title 1");
+
+    rerender(<LibraryGrid filters={{ state: "archived" }} />);
+    expect(screen.getByTestId("pending-region")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+
+    await screen.findByText("Title 2");
+    expect(screen.getByTestId("pending-region")).toHaveAttribute(
+      "aria-busy",
+      "false",
+    );
   });
 });

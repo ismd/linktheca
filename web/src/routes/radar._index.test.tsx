@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { server } from "@/test/setup";
 import { useAuthStore } from "@/features/auth/store";
@@ -192,5 +193,108 @@ describe("RadarInboxRoute", () => {
       "href",
       "/radar/topics",
     );
+  });
+});
+
+// The "New" tab sends state=new; the "All" tab sends no state at all. Answering
+// the All request slowly is what makes the in-between render observable.
+function stubSlowAll(total = 1) {
+  server.use(
+    http.get("/api/radar/status", () =>
+      HttpResponse.json({ last_sweep_at: "2026-05-18T11:00:00Z" }),
+    ),
+    http.get("/api/radar/topics", () =>
+      HttpResponse.json({ items: [rawTopic(1, "Rust", 1)] }),
+    ),
+    http.get("/api/radar/matches", async ({ request }) => {
+      const state = new URL(request.url).searchParams.get("state");
+      if (state === null) {
+        await delay(80);
+        return HttpResponse.json({ items: [rawMatch(2, "Rust")], total: 1 });
+      }
+      return HttpResponse.json({ items: [rawMatch(1, "Rust")], total });
+    }),
+  );
+}
+
+describe("RadarInboxRoute while a filter change is in flight", () => {
+  it("keeps the current matches on screen instead of flashing a loader", async () => {
+    stubSlowAll();
+    renderAt("/radar");
+    await screen.findByText("Title 1");
+
+    await userEvent.click(screen.getByRole("button", { name: "All" }));
+
+    expect(screen.getByText("Title 1")).toBeInTheDocument();
+    expect(screen.queryByText("Loading…")).toBeNull();
+    expect(await screen.findByText("Title 2")).toBeInTheDocument();
+  });
+
+  it("marks the match list busy until the new matches arrive", async () => {
+    stubSlowAll();
+    renderAt("/radar");
+    await screen.findByText("Title 1");
+
+    await userEvent.click(screen.getByRole("button", { name: "All" }));
+    expect(screen.getByTestId("pending-region")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+
+    await screen.findByText("Title 2");
+    expect(screen.getByTestId("pending-region")).toHaveAttribute(
+      "aria-busy",
+      "false",
+    );
+  });
+
+  it("hides Load more, whose page count still belongs to the old filter", async () => {
+    stubSlowAll(50);
+    renderAt("/radar");
+    await screen.findByText("Title 1");
+    expect(screen.getByRole("button", { name: /load more/i })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "All" }));
+    expect(screen.queryByRole("button", { name: /load more/i })).toBeNull();
+  });
+});
+
+describe("RadarInboxRoute first load", () => {
+  it("holds the grid open with skeleton cards", async () => {
+    server.use(
+      http.get("/api/radar/status", () =>
+        HttpResponse.json({ last_sweep_at: null }),
+      ),
+      http.get("/api/radar/topics", () =>
+        HttpResponse.json({ items: [rawTopic(1, "Rust", 1)] }),
+      ),
+      http.get("/api/radar/matches", async () => {
+        await delay("infinite");
+        return HttpResponse.json({ items: [], total: 0 });
+      }),
+    );
+    renderAt("/radar");
+
+    const cards = await screen.findAllByTestId("match-skeleton-card");
+    expect(cards.length).toBeGreaterThan(0);
+    expect(screen.queryByText("Loading…")).toBeNull();
+  });
+
+  it("reports a failed match request instead of claiming inbox zero", async () => {
+    server.use(
+      http.get("/api/radar/status", () =>
+        HttpResponse.json({ last_sweep_at: null }),
+      ),
+      http.get("/api/radar/topics", () =>
+        HttpResponse.json({ items: [rawTopic(1, "Rust", 1)] }),
+      ),
+      http.get("/api/radar/matches", () =>
+        HttpResponse.json({ error: "internal", message: "boom" }, { status: 500 }),
+      ),
+    );
+    renderAt("/radar");
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.queryByText("Inbox zero")).toBeNull();
   });
 });

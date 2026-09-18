@@ -5,7 +5,7 @@ import { useUpdateItem } from "@/features/library/use-mutations";
 import { ReadingProgress } from "@/features/library/components/ReadingProgress";
 import { ReaderHeader } from "@/features/library/components/ReaderHeader";
 import { ReaderActions } from "@/features/library/components/ReaderActions";
-import { ErrorPanel } from "@/features/library/components/ErrorPanel";
+import { ErrorPanel } from "@/shared/ui/ErrorPanel";
 import { useMarkReadOnScroll } from "@/features/library/components/useMarkReadOnScroll";
 import { ReaderHero } from "@/features/library/components/ReaderHero";
 import { ApiError } from "@/shared/api/errors";

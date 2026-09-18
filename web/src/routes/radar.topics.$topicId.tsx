@@ -8,9 +8,11 @@ import { useUpdateTopic, useDeleteTopic } from "@/features/radar/use-mutations";
 import { TopicHeader } from "@/features/radar/components/TopicHeader";
 import { StatsLine } from "@/features/radar/components/StatsLine";
 import { MatchGrid } from "@/features/radar/components/MatchGrid";
+import { MatchGridSkeleton } from "@/features/radar/components/MatchGridSkeleton";
 import { EmptyTopicMatches } from "@/features/radar/components/EmptyTopicMatches";
 import { EditTopicDialog } from "@/features/radar/components/EditTopicDialog";
 import { DeleteTopicConfirm } from "@/features/radar/components/DeleteTopicConfirm";
+import { ErrorPanel } from "@/shared/ui/ErrorPanel";
 
 export default function TopicRoute() {
   const { topicId } = useParams();
@@ -102,7 +104,16 @@ export default function TopicRoute() {
       </div>
 
       {matches.isLoading ? (
-        <p className="font-body italic text-muted-foreground">Loading…</p>
+        <MatchGridSkeleton count={3} />
+      ) : matches.isError ? (
+        <ErrorPanel
+          message={
+            matches.error instanceof Error
+              ? matches.error.message
+              : "Failed to load matches"
+          }
+          onRetry={() => matches.refetch()}
+        />
       ) : matches.items.length === 0 ? (
         <EmptyTopicMatches />
       ) : (

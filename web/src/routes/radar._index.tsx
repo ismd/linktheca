@@ -12,10 +12,13 @@ import { useNewTopicStore } from "@/features/radar/use-new-topic-store";
 import { fmtSweep } from "@/features/radar/time";
 import { InboxFilterBar } from "@/features/radar/components/InboxFilterBar";
 import { MatchGrid } from "@/features/radar/components/MatchGrid";
+import { MatchGridSkeleton } from "@/features/radar/components/MatchGridSkeleton";
 import { EmptyInbox } from "@/features/radar/components/EmptyInbox";
 import { EmptyTopicList } from "@/features/radar/components/EmptyTopicList";
 import { EmptyTopicMatches } from "@/features/radar/components/EmptyTopicMatches";
 import { RadarDisabled } from "@/features/radar/components/RadarDisabled";
+import { ErrorPanel } from "@/shared/ui/ErrorPanel";
+import { PendingRegion } from "@/shared/ui/PendingRegion";
 import type { InboxFilters } from "@/features/radar/types";
 
 function parseFilters(params: URLSearchParams): InboxFilters {
@@ -87,7 +90,16 @@ export default function RadarInboxRoute() {
             />
             <div className="pt-8">
               {matches.isLoading ? (
-                <p className="font-body italic text-muted-foreground">Loading…</p>
+                <MatchGridSkeleton />
+              ) : matches.isError ? (
+                <ErrorPanel
+                  message={
+                    matches.error instanceof Error
+                      ? matches.error.message
+                      : "Failed to load matches"
+                  }
+                  onRetry={() => matches.refetch()}
+                />
               ) : matches.items.length === 0 ? (
                 filters.state === "new" ? (
                   <EmptyInbox />
@@ -95,7 +107,7 @@ export default function RadarInboxRoute() {
                   <EmptyTopicMatches />
                 )
               ) : (
-                <>
+                <PendingRegion pending={matches.isPlaceholderData}>
                   <MatchGrid matches={matches.items} showTopic />
                   {matches.hasMore && (
                     <div className="flex justify-center mt-10">
@@ -108,7 +120,7 @@ export default function RadarInboxRoute() {
                       </Button>
                     </div>
                   )}
-                </>
+                </PendingRegion>
               )}
             </div>
           </>

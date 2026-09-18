@@ -5,6 +5,7 @@ import { http, HttpResponse } from "msw";
 import { server } from "@/test/setup";
 import { useAuthStore } from "@/features/auth/store";
 import { useLibraryQuery, useLibraryItemDetailQuery } from "./use-library";
+import type { LibraryFilterState } from "./types";
 
 function wrapper() {
   const qc = new QueryClient({
@@ -115,5 +116,45 @@ describe("useLibraryItemDetailQuery", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.content.html).toBe("<p>body</p>");
+  });
+});
+
+describe("useLibraryQuery filter switching", () => {
+  function libraryByState() {
+    return http.get("/api/library", ({ request }) => {
+      const state = new URL(request.url).searchParams.get("state");
+      const id = state === "archived" ? 9 : 1;
+      return HttpResponse.json({ items: [rawItem(id)], total: 1 });
+    });
+  }
+
+  it("keeps the previous filter's items while the next filter loads", async () => {
+    server.use(libraryByState());
+    const { result, rerender } = renderHook(
+      ({ state }: { state: LibraryFilterState }) => useLibraryQuery({ state }),
+      { wrapper: wrapper(), initialProps: { state: "read" as LibraryFilterState } },
+    );
+    await waitFor(() => expect(result.current.items).toHaveLength(1));
+    expect(result.current.items[0].id).toBe(1);
+
+    rerender({ state: "archived" });
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.items[0].id).toBe(1);
+  });
+
+  it("flags the carried-over items as placeholder data until the new ones arrive", async () => {
+    server.use(libraryByState());
+    const { result, rerender } = renderHook(
+      ({ state }: { state: LibraryFilterState }) => useLibraryQuery({ state }),
+      { wrapper: wrapper(), initialProps: { state: "read" as LibraryFilterState } },
+    );
+    await waitFor(() => expect(result.current.items).toHaveLength(1));
+
+    rerender({ state: "archived" });
+    expect(result.current.isPlaceholderData).toBe(true);
+
+    await waitFor(() => expect(result.current.items[0].id).toBe(9));
+    expect(result.current.isPlaceholderData).toBe(false);
   });
 });

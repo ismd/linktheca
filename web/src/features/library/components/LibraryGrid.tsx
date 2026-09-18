@@ -3,8 +3,9 @@ import type { FilterParams } from "../types";
 import { LibraryCard } from "./LibraryCard";
 import { SkeletonCard } from "./SkeletonCard";
 import { EmptyState } from "./EmptyState";
-import { ErrorPanel } from "./ErrorPanel";
+import { ErrorPanel } from "@/shared/ui/ErrorPanel";
 import { Button } from "@/shared/ui/button";
+import { PendingRegion } from "@/shared/ui/PendingRegion";
 
 type Props = {
   filters: FilterParams;
@@ -44,24 +45,26 @@ export function LibraryGrid({ filters }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-10">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {q.items.map((item) => (
-          <LibraryCard key={item.id} item={item} />
-        ))}
-      </div>
-
-      {q.hasMore && (
-        <div className="flex justify-center">
-          <Button
-            variant="outline"
-            onClick={() => q.fetchNextPage()}
-            disabled={q.isFetchingNextPage}
-          >
-            {q.isFetchingNextPage ? "Loading…" : "Load more"}
-          </Button>
+    <PendingRegion pending={q.isPlaceholderData}>
+      <div className="flex flex-col gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {q.items.map((item) => (
+            <LibraryCard key={item.id} item={item} />
+          ))}
         </div>
-      )}
-    </div>
+
+        {q.hasMore && (
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              onClick={() => q.fetchNextPage()}
+              disabled={q.isFetchingNextPage}
+            >
+              {q.isFetchingNextPage ? "Loading…" : "Load more"}
+            </Button>
+          </div>
+        )}
+      </div>
+    </PendingRegion>
   );
 }
