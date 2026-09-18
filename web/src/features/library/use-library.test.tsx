@@ -119,6 +119,9 @@ describe("useLibraryItemDetailQuery", () => {
   });
 });
 
+// noUncheckedIndexedAccess makes items[0] optional; compare the whole list instead.
+const ids = (items: { id: number }[]) => items.map((i) => i.id);
+
 describe("useLibraryQuery filter switching", () => {
   function libraryByState() {
     return http.get("/api/library", ({ request }) => {
@@ -135,12 +138,12 @@ describe("useLibraryQuery filter switching", () => {
       { wrapper: wrapper(), initialProps: { state: "read" as LibraryFilterState } },
     );
     await waitFor(() => expect(result.current.items).toHaveLength(1));
-    expect(result.current.items[0].id).toBe(1);
+    expect(ids(result.current.items)).toEqual([1]);
 
     rerender({ state: "archived" });
 
     expect(result.current.isLoading).toBe(false);
-    expect(result.current.items[0].id).toBe(1);
+    expect(ids(result.current.items)).toEqual([1]);
   });
 
   it("flags the carried-over items as placeholder data until the new ones arrive", async () => {
@@ -154,7 +157,7 @@ describe("useLibraryQuery filter switching", () => {
     rerender({ state: "archived" });
     expect(result.current.isPlaceholderData).toBe(true);
 
-    await waitFor(() => expect(result.current.items[0].id).toBe(9));
+    await waitFor(() => expect(ids(result.current.items)).toEqual([9]));
     expect(result.current.isPlaceholderData).toBe(false);
   });
 });

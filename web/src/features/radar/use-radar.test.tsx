@@ -126,6 +126,9 @@ describe("useRadarStatusQuery", () => {
   });
 });
 
+// noUncheckedIndexedAccess makes items[0] optional; compare the whole list instead.
+const ids = (items: { id: number }[]) => items.map((i) => i.id);
+
 describe("useMatchesQuery filter switching", () => {
   function matchesByTopic() {
     return http.get("/api/radar/matches", ({ request }) => {
@@ -142,12 +145,12 @@ describe("useMatchesQuery filter switching", () => {
       { wrapper: wrapper(), initialProps: { topicId: 1 } },
     );
     await waitFor(() => expect(result.current.items).toHaveLength(1));
-    expect(result.current.items[0].id).toBe(1);
+    expect(ids(result.current.items)).toEqual([1]);
 
     rerender({ topicId: 2 });
 
     expect(result.current.isLoading).toBe(false);
-    expect(result.current.items[0].id).toBe(1);
+    expect(ids(result.current.items)).toEqual([1]);
   });
 
   it("flags the carried-over matches as placeholder data until the new ones arrive", async () => {
@@ -161,7 +164,7 @@ describe("useMatchesQuery filter switching", () => {
     rerender({ topicId: 2 });
     expect(result.current.isPlaceholderData).toBe(true);
 
-    await waitFor(() => expect(result.current.items[0].id).toBe(9));
+    await waitFor(() => expect(ids(result.current.items)).toEqual([9]));
     expect(result.current.isPlaceholderData).toBe(false);
   });
 });
