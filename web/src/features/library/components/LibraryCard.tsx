@@ -39,7 +39,7 @@ export function LibraryCard({ item }: Props) {
                 loading="lazy"
                 decoding="async"
                 onError={() => setImageFailed(true)}
-                className="absolute inset-0 h-full w-full object-cover"
+                className="absolute inset-0 h-full w-full"
               />
               {/* The gradients are dark by design; a real photo may not be, so
                   the reading-time label needs its own footing. */}
