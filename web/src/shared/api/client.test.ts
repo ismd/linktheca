@@ -37,6 +37,18 @@ describe("apiFetch", () => {
     await expect(apiFetch("/server-error")).rejects.toBeInstanceOf(ApiError);
   });
 
+  it("bypasses the browser HTTP cache", async () => {
+    let cacheMode: RequestCache | undefined;
+    server.use(
+      http.get("/api/cache-mode", ({ request }) => {
+        cacheMode = request.cache;
+        return HttpResponse.json({});
+      }),
+    );
+    await apiFetch("/cache-mode");
+    expect(cacheMode).toBe("no-store");
+  });
+
   it("throws ApiError with synthetic code for non-JSON error", async () => {
     await expect(apiFetch("/no-json")).rejects.toMatchObject({
       status: 502,
@@ -179,6 +191,22 @@ describe("apiFetch refresh-on-401", () => {
     await expect(apiFetch("/protected")).rejects.toMatchObject({ status: 401 });
     expect(useAuthStore.getState().status).toBe("anonymous");
     expect(readRefreshToken()).toBeNull();
+  });
+
+  it("on refresh 5xx: clears session but keeps the refresh token", async () => {
+    writeRefreshToken("r-keep");
+    server.use(
+      http.post("/api/auth/refresh", () =>
+        HttpResponse.json({ error: "internal", message: "boom" }, { status: 503 }),
+      ),
+      http.get("/api/protected", () =>
+        HttpResponse.json({ error: "unauthorized", message: "no" }, { status: 401 }),
+      ),
+    );
+
+    await expect(apiFetch("/protected")).rejects.toMatchObject({ status: 401 });
+    expect(useAuthStore.getState().status).toBe("anonymous");
+    expect(readRefreshToken()).toBe("r-keep");
   });
 
   it("does NOT refresh on 401 from /auth/refresh itself", async () => {

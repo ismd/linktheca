@@ -20,8 +20,11 @@ describe("useBootstrap", () => {
     });
   });
 
-  it("becomes authed after successful refresh + me", async () => {
+  it("becomes authed from refresh alone, even if /auth/me would answer without a token", async () => {
+    // The browser used to replay a stored /auth/me 200 to the tokenless
+    // bootstrap request, so it never refreshed and stayed on the spinner
     writeRefreshToken("r-good");
+    let meHits = 0;
     server.use(
       http.post("/api/auth/refresh", () =>
         HttpResponse.json({
@@ -36,18 +39,16 @@ describe("useBootstrap", () => {
           tokens: { access_token: "a-new", refresh_token: "r-new" },
         }),
       ),
-      http.get("/api/auth/me", ({ request }) => {
-        if (request.headers.get("Authorization") === "Bearer a-new") {
-          return HttpResponse.json({
-            id: 1,
-            email: "a@b.c",
-            display_name: "A",
-            is_admin: false,
-            created_at: "2026-01-01T00:00:00Z",
-            updated_at: "2026-01-01T00:00:00Z",
-          });
-        }
-        return HttpResponse.json({ error: "u", message: "u" }, { status: 401 });
+      http.get("/api/auth/me", () => {
+        meHits++;
+        return HttpResponse.json({
+          id: 1,
+          email: "a@b.c",
+          display_name: "A",
+          is_admin: false,
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        });
       }),
     );
 
@@ -57,6 +58,9 @@ describe("useBootstrap", () => {
       expect(useAuthStore.getState().status).toBe("authed");
     });
     expect(useAuthStore.getState().accessToken).toBe("a-new");
+    expect(useAuthStore.getState().user?.displayName).toBe("A");
+    expect(readRefreshToken()).toBe("r-new");
+    expect(meHits).toBe(0);
   });
 
   it("becomes anonymous and clears refresh token when refresh fails", async () => {
@@ -64,9 +68,6 @@ describe("useBootstrap", () => {
     server.use(
       http.post("/api/auth/refresh", () =>
         HttpResponse.json({ error: "x", message: "x" }, { status: 401 }),
-      ),
-      http.get("/api/auth/me", () =>
-        HttpResponse.json({ error: "u", message: "u" }, { status: 401 }),
       ),
     );
 
@@ -76,5 +77,17 @@ describe("useBootstrap", () => {
       expect(useAuthStore.getState().status).toBe("anonymous");
     });
     expect(readRefreshToken()).toBeNull();
+  });
+
+  it("becomes anonymous but keeps refresh token when the server is unreachable", async () => {
+    writeRefreshToken("r-keep");
+    server.use(http.post("/api/auth/refresh", () => HttpResponse.error()));
+
+    renderHook(() => useBootstrap());
+
+    await waitFor(() => {
+      expect(useAuthStore.getState().status).toBe("anonymous");
+    });
+    expect(readRefreshToken()).toBe("r-keep");
   });
 });

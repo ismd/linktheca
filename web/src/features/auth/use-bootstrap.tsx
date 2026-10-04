@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
+import { refreshSession } from "@/shared/api/client";
 import { useAuthStore } from "./store";
 import { readRefreshToken } from "./storage";
-import { me } from "./api";
 
 export function useBootstrap(): void {
   const started = useRef(false);
@@ -9,18 +9,11 @@ export function useBootstrap(): void {
     if (started.current) return;
     started.current = true;
 
-    const refreshToken = readRefreshToken();
-    if (!refreshToken) {
+    if (!readRefreshToken()) {
       useAuthStore.getState().clearSession();
       return;
     }
 
-    (async () => {
-      try {
-        await me(); // апи сам зовёт /auth/refresh при 401 и обновит store
-      } catch {
-        useAuthStore.getState().clearSession();
-      }
-    })();
+    refreshSession().catch(() => {});
   }, []);
 }

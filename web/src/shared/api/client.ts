@@ -41,6 +41,16 @@ function refreshOnce(): Promise<string> {
   return refreshPromise;
 }
 
+export async function refreshSession(): Promise<void> {
+  try {
+    await refreshOnce();
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) clearRefreshToken();
+    useAuthStore.getState().clearSession();
+    throw new ApiError(401, "session_expired", "session expired");
+  }
+}
+
 type Options = { _retry?: boolean };
 
 export async function apiFetch<T>(
@@ -57,7 +67,7 @@ export async function apiFetch<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  const res = await fetch(`${API_BASE}${path}`, { cache: "no-store", ...init, headers });
 
   if (res.ok) {
     if (res.status === 204) return undefined as T;
@@ -70,13 +80,7 @@ export async function apiFetch<T>(
     path !== REFRESH_PATH &&
     readRefreshToken()
   ) {
-    try {
-      await refreshOnce();
-    } catch {
-      clearRefreshToken();
-      useAuthStore.getState().clearSession();
-      throw new ApiError(401, "session_expired", "session expired");
-    }
+    await refreshSession();
     return apiFetch<T>(path, init, { _retry: true });
   }
 

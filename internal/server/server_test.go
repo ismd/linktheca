@@ -66,6 +66,7 @@ func TestIntegrationFullAuthFlow(t *testing.T) {
 	resp, err = http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
 	var me auth.User
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&me))
 	resp.Body.Close()
@@ -164,6 +165,20 @@ func TestRadarDisabled_Returns403OnAnyRoute(t *testing.T) {
 	}
 }
 
+func TestAPIResponsesAreNotCacheable(t *testing.T) {
+	srv := newMediaServer(t, t.TempDir())
+
+	// A stored /auth/me answer was replayed by the browser to a tokenless
+	// bootstrap request, leaving the app on its loading screen
+	for _, path := range []string{"/auth/me", "/library", "/radar/matches"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		srv.Handler.ServeHTTP(rec, req)
+
+		require.Equal(t, "no-store", rec.Header().Get("Cache-Control"), "path %s", path)
+	}
+}
+
 // newMediaServer builds a server serving downloaded images out of mediaDir.
 func newMediaServer(t *testing.T, mediaDir string) *http.Server {
 	t.Helper()
@@ -200,6 +215,7 @@ func TestMediaImageIsServedFromDisk(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, png, rec.Body.Bytes())
 	require.Equal(t, "image/png", rec.Header().Get("Content-Type"))
+	require.Equal(t, "public, max-age=31536000, immutable", rec.Header().Get("Cache-Control"))
 }
 
 func TestMediaFaviconIsServedFromDisk(t *testing.T) {
@@ -247,7 +263,7 @@ func TestMediaImageMissingReturns404(t *testing.T) {
 
 	require.Equal(t, http.StatusNotFound, rec.Code)
 	// A missing file must not be cached as if it were an immutable asset
-	require.Empty(t, rec.Header().Get("Cache-Control"))
+	require.Equal(t, "no-store", rec.Header().Get("Cache-Control"))
 }
 
 func TestMediaImagesAreNotBrowsable(t *testing.T) {

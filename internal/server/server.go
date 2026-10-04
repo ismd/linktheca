@@ -76,6 +76,7 @@ func New(deps Deps) *http.Server {
 	r.Use(httpx.RequestID)
 	r.Use(httpx.RequestLogger(logger))
 	r.Use(httpx.Recover(logger))
+	r.Use(httpx.NoStore)
 
 	if len(cfg.CORSOrigins) > 0 {
 		r.Use(chicors.Handler(chicors.Options{
