@@ -7,7 +7,6 @@ import { ReaderHeader } from "@/features/library/components/ReaderHeader";
 import { ReaderActions } from "@/features/library/components/ReaderActions";
 import { ErrorPanel } from "@/shared/ui/ErrorPanel";
 import { useMarkReadOnScroll } from "@/features/library/components/useMarkReadOnScroll";
-import { ReaderHero } from "@/features/library/components/ReaderHero";
 import { ApiError } from "@/shared/api/errors";
 
 function LoadingState() {
@@ -92,8 +91,6 @@ export default function LibraryItemRoute() {
         </Link>
 
         <ReaderHeader detail={d} />
-
-        <ReaderHero id={d.id} image={d.content.image ?? d.image} />
 
         {fetchFailed ? (
           <div className="border border-rule bg-paper-2 px-5 py-6">
