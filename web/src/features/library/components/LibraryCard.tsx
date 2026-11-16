@@ -1,7 +1,12 @@
 import { Link } from "react-router";
 import { useState } from "react";
 import { Star } from "lucide-react";
-import { gradientClassFor, previewImageUrl } from "../image";
+import {
+  gradientClassFor,
+  previewFit,
+  previewImageUrl,
+  type PreviewFit,
+} from "../image";
 import { relativeFromNow, readingTimeLabel } from "../time";
 import { LibraryCardMenu } from "./LibraryCardMenu";
 import type { LibraryItem } from "../types";
@@ -22,24 +27,44 @@ export function LibraryCard({ item }: Props) {
   const title = item.title ?? item.url;
   const isRead = item.state === "read";
   const [imageFailed, setImageFailed] = useState(false);
+  // Unknown until the image loads; it stays invisible until then so a
+  // letterboxed image never flashes in cropped form first.
+  const [fit, setFit] = useState<PreviewFit | null>(null);
   const showImage = Boolean(item.image) && !imageFailed;
+  const src = item.image ? previewImageUrl(item.image) : "";
   const href = `/library/${item.id}`;
   return (
     <article className="feed-card group flex flex-col h-full">
       <Link to={href} tabIndex={-1} aria-hidden="true" className="block mb-5">
         <div
-          className={`${gradientClassFor(item.id)} relative overflow-hidden`}
-          style={{ aspectRatio: "16 / 10" }}
+          className={`${gradientClassFor(item.id)} relative overflow-hidden aspect-[1200/630]`}
         >
           {showImage && (
             <>
+              {fit === "contain" && (
+                <img
+                  src={src}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover scale-125 blur-2xl"
+                />
+              )}
               <img
-                src={previewImageUrl(item.image!)}
+                src={src}
                 alt=""
                 loading="lazy"
                 decoding="async"
+                onLoad={(e) =>
+                  setFit(
+                    previewFit(
+                      e.currentTarget.naturalWidth,
+                      e.currentTarget.naturalHeight,
+                    ),
+                  )
+                }
                 onError={() => setImageFailed(true)}
-                className="absolute inset-0 h-full w-full object-cover"
+                className={`absolute inset-0 h-full w-full transition-opacity duration-300 ${
+                  fit === "contain" ? "object-contain" : "object-cover"
+                } ${fit ? "opacity-100" : "opacity-0"}`}
               />
               {/* The gradients are dark by design; a real photo may not be, so
                   the reading-time label needs its own footing. */}

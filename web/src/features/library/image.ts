@@ -7,6 +7,25 @@ export function gradientClassFor(id: number): string {
   return `img-${bucket + 1}`;
 }
 
+// Most previews are og:image banners laid out for the 1.91:1 frame (1200×630)
+// that social networks crop to, often with a headline running edge to edge.
+// Using the same frame shows them whole; photos only lose a sliver.
+const PREVIEW_RATIO = 1200 / 630;
+
+// Share of an image's width or height that object-cover may trim. Past it
+// (portraits, square logos, ultra-wide strips) the card letterboxes the image
+// over a blurred copy of itself instead.
+const MAX_COVER_CROP = 0.25;
+
+export type PreviewFit = "cover" | "contain";
+
+export function previewFit(width: number, height: number): PreviewFit {
+  // SVGs without intrinsic size report 0×0; cover is the safe default.
+  if (width <= 0 || height <= 0) return "cover";
+  const r = width / height / PREVIEW_RATIO;
+  return Math.min(r, 1 / r) >= 1 - MAX_COVER_CROP ? "cover" : "contain";
+}
+
 // Downloaded assets live outside the /api prefix: nginx serves them straight
 // from the shared volume in production, Vite proxies them to the backend in dev.
 const MEDIA_BASE = "/media";
