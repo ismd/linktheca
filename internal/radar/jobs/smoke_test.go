@@ -84,7 +84,7 @@ func TestSmoke_PipelineWithRealTEI(t *testing.T) {
 	scheduler := jobs.NewScheduleCrawlsWorker(store)
 	crawl := jobs.NewCrawlFeedWorker(store, crawler.NewHTTPFetcher(netsafe.NewClient(netsafe.Options{
 		Timeout: 30 * time.Second, AllowPrivate: true,
-	})))
+	})), false)
 	embed := jobs.NewEmbedFindingWorker(store, teiClient)
 	match := jobs.NewMatchFindingWorker(store)
 

@@ -11,13 +11,17 @@ import (
 
 type CrawlFeedWorker struct {
 	river.WorkerDefaults[CrawlFeedArgs]
-	store    *radar.Store
-	fetcher  crawler.Fetcher
-	inserter Inserter // set after River client is built; see SetInserter
+	store        *radar.Store
+	fetcher      crawler.Fetcher
+	fetchContent bool
+	inserter     Inserter // set after River client is built; see SetInserter
 }
 
-func NewCrawlFeedWorker(store *radar.Store, fetcher crawler.Fetcher) *CrawlFeedWorker {
-	return &CrawlFeedWorker{store: store, fetcher: fetcher}
+// NewCrawlFeedWorker returns a worker that reads a feed and passes each new
+// finding on: to FetchFindingContent when fetchContent is set, straight to
+// EmbedFinding otherwise.
+func NewCrawlFeedWorker(store *radar.Store, fetcher crawler.Fetcher, fetchContent bool) *CrawlFeedWorker {
+	return &CrawlFeedWorker{store: store, fetcher: fetcher, fetchContent: fetchContent}
 }
 
 func (w *CrawlFeedWorker) SetInserter(i Inserter) { w.inserter = i }
@@ -64,10 +68,17 @@ func (w *CrawlFeedWorker) Work(ctx context.Context, job *river.Job[CrawlFeedArgs
 			continue
 		}
 
-		if w.inserter != nil {
-			if _, err := w.inserter.Insert(ctx, EmbedFindingArgs{FindingID: f.ID}, nil); err != nil {
-				return fmt.Errorf("enqueue embed for finding %d: %w", f.ID, err)
-			}
+		if w.inserter == nil {
+			continue
+		}
+
+		var next river.JobArgs = EmbedFindingArgs{FindingID: f.ID}
+		if w.fetchContent {
+			next = FetchFindingContentArgs{FindingID: f.ID}
+		}
+
+		if _, err := w.inserter.Insert(ctx, next, nil); err != nil {
+			return fmt.Errorf("enqueue %s for finding %d: %w", next.Kind(), f.ID, err)
 		}
 	}
 

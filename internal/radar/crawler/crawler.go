@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/ismd/linktheca/internal/core/netsafe"
 	"github.com/ismd/linktheca/internal/radar"
 	"github.com/mmcdole/gofeed"
 	"golang.org/x/net/html"
@@ -44,7 +45,7 @@ func (f *HTTPFetcher) Fetch(ctx context.Context, url, etag, lastModified string)
 		return nil, fmt.Errorf("build request: %w", err)
 	}
 
-	req.Header.Set("User-Agent", "linktheca/0.1")
+	req.Header.Set("User-Agent", netsafe.UserAgent)
 	if etag != "" {
 		req.Header.Set("If-None-Match", etag)
 	}

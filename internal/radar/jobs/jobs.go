@@ -1,11 +1,16 @@
-// Package jobs hosts the four River workers that drive the Radar pipeline:
-// ScheduleCrawls (periodic) → CrawlFeed → EmbedFinding → MatchFinding.
+// Package jobs hosts the River workers that drive the Radar pipeline:
+//
+//	ScheduleCrawls (periodic) → CrawlFeed → FetchFindingContent → EmbedFinding → MatchFinding
+//
+// plus PruneFindingContent (periodic), which drops downloaded pages nobody
+// needs any more. FetchFindingContent is skipped when page downloads are off.
 package jobs
 
 import (
 	"context"
 	"time"
 
+	"github.com/ismd/linktheca/internal/core/content"
 	"github.com/ismd/linktheca/internal/core/embeddings"
 	"github.com/ismd/linktheca/internal/radar"
 	"github.com/ismd/linktheca/internal/radar/crawler"
@@ -28,8 +33,34 @@ type CrawlFeedArgs struct {
 
 func (CrawlFeedArgs) Kind() string { return "radar.crawl_feed" }
 
+// QueueFetch is the queue page downloads run in. It has its own workers, so
+// slow sites never hold up crawling, embedding and matching.
+const QueueFetch = "radar_fetch"
+
+// FetchFindingContentArgs asks for the page behind a finding to be
+// downloaded. Reembed and SkipMatch are passed on to EmbedFindingArgs.
+type FetchFindingContentArgs struct {
+	FindingID int64 `json:"finding_id"`
+	Reembed   bool  `json:"reembed,omitempty"`
+	SkipMatch bool  `json:"skip_match,omitempty"`
+}
+
+func (FetchFindingContentArgs) Kind() string { return "radar.fetch_finding_content" }
+
+// InsertOpts gives a failing download two more tries, after which the finding
+// is embedded without its page.
+func (FetchFindingContentArgs) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{Queue: QueueFetch, MaxAttempts: 3}
+}
+
 type EmbedFindingArgs struct {
 	FindingID int64 `json:"finding_id"`
+	// Reembed replaces an existing embedding instead of keeping it, for
+	// findings whose page was downloaded after they were embedded.
+	Reembed bool `json:"reembed,omitempty"`
+	// SkipMatch embeds without matching, so re-embedding old findings does
+	// not flood inboxes with matches from weeks ago.
+	SkipMatch bool `json:"skip_match,omitempty"`
 }
 
 func (EmbedFindingArgs) Kind() string { return "radar.embed_finding" }
@@ -39,6 +70,10 @@ type MatchFindingArgs struct {
 }
 
 func (MatchFindingArgs) Kind() string { return "radar.match_finding" }
+
+type PruneFindingContentArgs struct{}
+
+func (PruneFindingContentArgs) Kind() string { return "radar.prune_finding_content" }
 
 // Inserter is the slice of river.Client that workers actually need.
 // Defining an interface lets jobs_test.go run workers without a real client.
@@ -51,7 +86,27 @@ type Deps struct {
 	Store    *radar.Store
 	Embedder embeddings.Client
 	Fetcher  crawler.Fetcher
+
+	// Page downloads.
+	Contents  *content.Store
+	Extractor content.Extractor
+	Robots    RobotsChecker
+	Pacer     Pacer
 }
+
+// Config tunes the pipeline.
+type Config struct {
+	SchedulerInterval time.Duration
+	// FetchContent downloads the page behind each finding before embedding
+	// it. Off, findings are embedded from the feed's title and summary.
+	FetchContent bool
+	// ContentRetention is how long pages of findings that matched nothing
+	// are kept.
+	ContentRetention time.Duration
+}
+
+// pruneInterval is how often downloaded pages past retention are deleted.
+const pruneInterval = 24 * time.Hour
 
 // Bundle is what Build returns: ready-to-mount workers, the periodic-job
 // spec, and a setter that the caller invokes after constructing the River
@@ -62,23 +117,36 @@ type Bundle struct {
 	WireInserter func(Inserter)
 }
 
-func Build(d Deps, schedulerInterval time.Duration) Bundle {
+func Build(d Deps, cfg Config) Bundle {
 	scheduler := NewScheduleCrawlsWorker(d.Store)
-	crawl := NewCrawlFeedWorker(d.Store, d.Fetcher)
+	crawl := NewCrawlFeedWorker(d.Store, d.Fetcher, cfg.FetchContent)
+	fetch := NewFetchFindingContentWorker(d.Store, d.Contents, d.Extractor, d.Robots, d.Pacer)
 	embed := NewEmbedFindingWorker(d.Store, d.Embedder)
 	match := NewMatchFindingWorker(d.Store)
+	prune := NewPruneFindingContentWorker(d.Store, cfg.ContentRetention)
 
 	workers := river.NewWorkers()
 	river.AddWorker(workers, scheduler)
 	river.AddWorker(workers, crawl)
+	// Registered even with downloads off, so jobs queued before they were
+	// turned off still finish.
+	river.AddWorker(workers, fetch)
 	river.AddWorker(workers, embed)
 	river.AddWorker(workers, match)
+	river.AddWorker(workers, prune)
 
 	periodic := []*river.PeriodicJob{
 		river.NewPeriodicJob(
-			river.PeriodicInterval(schedulerInterval),
+			river.PeriodicInterval(cfg.SchedulerInterval),
 			func() (river.JobArgs, *river.InsertOpts) {
 				return ScheduleCrawlsArgs{}, nil
+			},
+			&river.PeriodicJobOpts{RunOnStart: true},
+		),
+		river.NewPeriodicJob(
+			river.PeriodicInterval(pruneInterval),
+			func() (river.JobArgs, *river.InsertOpts) {
+				return PruneFindingContentArgs{}, nil
 			},
 			&river.PeriodicJobOpts{RunOnStart: true},
 		),
@@ -90,16 +158,26 @@ func Build(d Deps, schedulerInterval time.Duration) Bundle {
 		WireInserter: func(i Inserter) {
 			scheduler.SetInserter(i)
 			crawl.SetInserter(i)
+			fetch.SetInserter(i)
 			embed.SetInserter(i)
 		},
 	}
 }
 
 // NewClient is a thin convenience over river.NewClient for callers that just
-// want sensible defaults.
-func NewClient(pool *pgxpool.Pool, workers *river.Workers, periodic []*river.PeriodicJob, maxWorkers int) (*river.Client[pgx.Tx], error) {
+// want sensible defaults. maxWorkers sizes the default queue, fetchWorkers
+// the page download queue.
+func NewClient(
+	pool *pgxpool.Pool,
+	workers *river.Workers,
+	periodic []*river.PeriodicJob,
+	maxWorkers, fetchWorkers int,
+) (*river.Client[pgx.Tx], error) {
 	return river.NewClient(riverpgxv5.New(pool), &river.Config{
-		Queues:       map[string]river.QueueConfig{river.QueueDefault: {MaxWorkers: maxWorkers}},
+		Queues: map[string]river.QueueConfig{
+			river.QueueDefault: {MaxWorkers: maxWorkers},
+			QueueFetch:         {MaxWorkers: fetchWorkers},
+		},
 		Workers:      workers,
 		PeriodicJobs: periodic,
 	})

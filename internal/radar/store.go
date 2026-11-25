@@ -334,23 +334,84 @@ func (s *Store) PreviewFindings(ctx context.Context, userID int64, vec pgvector.
 }
 
 type FindingForEmbed struct {
-	ID           int64
-	Title        *string
-	Summary      *string
+	ID      int64
+	Title   *string
+	Summary *string
+	// Text is the article text downloaded for the finding, nil when the page
+	// was not fetched or has been pruned since.
+	Text         *string
 	HasEmbedding bool
 }
 
 func (s *Store) GetFindingForEmbed(ctx context.Context, findingID int64) (*FindingForEmbed, error) {
 	row := s.db.QueryRow(ctx,
-		`SELECT id, title, summary, embedding IS NOT NULL
-		 FROM radar_findings WHERE id = $1`, findingID)
+		`SELECT f.id, f.title, f.summary, ac.text, f.embedding IS NOT NULL
+		 FROM radar_findings f
+		 LEFT JOIN article_contents ac ON ac.id = f.content_id
+		 WHERE f.id = $1`, findingID)
 
 	var f FindingForEmbed
-	if err := row.Scan(&f.ID, &f.Title, &f.Summary, &f.HasEmbedding); err != nil {
+	if err := row.Scan(&f.ID, &f.Title, &f.Summary, &f.Text, &f.HasEmbedding); err != nil {
 		return nil, wrapPgError(err)
 	}
 
 	return &f, nil
+}
+
+type FindingForFetch struct {
+	ID        int64
+	URL       string
+	ContentID *int64
+}
+
+func (s *Store) GetFindingForFetch(ctx context.Context, findingID int64) (*FindingForFetch, error) {
+	row := s.db.QueryRow(ctx,
+		`SELECT id, url, content_id FROM radar_findings WHERE id = $1`, findingID)
+
+	var f FindingForFetch
+	if err := row.Scan(&f.ID, &f.URL, &f.ContentID); err != nil {
+		return nil, wrapPgError(err)
+	}
+
+	return &f, nil
+}
+
+// SetFindingContent links a finding to the downloaded text of its page.
+func (s *Store) SetFindingContent(ctx context.Context, findingID, contentID int64) error {
+	cmd, err := s.db.Exec(ctx,
+		`UPDATE radar_findings SET content_id = $2 WHERE id = $1`, findingID, contentID)
+	if err != nil {
+		return fmt.Errorf("set finding content: %w", err)
+	}
+
+	if cmd.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+// PruneFindingContent deletes pages that Radar downloaded and no longer
+// needs: fetched before cutoff, linked only to findings that matched no
+// topic, and not saved to anyone's Library. Their findings keep everything
+// but the text, embeddings included, so they still show up in topic previews
+// and stay usable for learning from what users do with matches later.
+func (s *Store) PruneFindingContent(ctx context.Context, cutoff time.Time) (int64, error) {
+	cmd, err := s.db.Exec(ctx, `
+		DELETE FROM article_contents ac
+		WHERE ac.fetched_at < $1
+		  AND EXISTS (SELECT 1 FROM radar_findings f WHERE f.content_id = ac.id)
+		  AND NOT EXISTS (SELECT 1 FROM library_items li WHERE li.content_id = ac.id)
+		  AND NOT EXISTS (
+		        SELECT 1
+		        FROM radar_findings f
+		        JOIN radar_topic_matches m ON m.finding_id = f.id
+		        WHERE f.content_id = ac.id)`, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("prune finding content: %w", err)
+	}
+
+	return cmd.RowsAffected(), nil
 }
 
 const topicsWithStatsSQL = `

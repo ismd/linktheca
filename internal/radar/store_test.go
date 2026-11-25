@@ -1219,3 +1219,118 @@ func TestStore_GetGlobalFeedByURL_And_CountUserFeeds(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, n, "catalog feeds do not count against a user's quota")
 }
+
+// seedPage stores a downloaded page fetched age ago and links the findings to it.
+func seedPage(t *testing.T, pool *pgxpool.Pool, url string, age time.Duration, findingIDs ...int64) int64 {
+	t.Helper()
+	ctx := context.Background()
+
+	var id int64
+	require.NoError(t, pool.QueryRow(ctx,
+		`INSERT INTO article_contents (url, text, fetched_at)
+		 VALUES ($1, 'article text', now() - make_interval(secs => $2)) RETURNING id`,
+		url, age.Seconds()).Scan(&id))
+
+	for _, f := range findingIDs {
+		_, err := pool.Exec(ctx, `UPDATE radar_findings SET content_id = $1 WHERE id = $2`, id, f)
+		require.NoError(t, err)
+	}
+
+	return id
+}
+
+func TestStore_PruneFindingContent(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	feedID := seedFeed(t, pool, "https://f.example/rss", "F")
+	topicID := seedTopic(t, pool, userID, "T", "d", 0.5, true)
+
+	const day = 24 * time.Hour
+	finding := func(path string) int64 {
+		return seedFinding(t, pool, feedID, "https://a.example"+path, path)
+	}
+
+	unmatched := finding("/unmatched")
+	seedFindingEmbedding(t, pool, unmatched, 0)
+	prunable := seedPage(t, pool, "https://a.example/unmatched", 30*day, unmatched)
+
+	matched := finding("/matched")
+	seedMatch(t, pool, topicID, matched, "seen", 0.9)
+	keptMatched := seedPage(t, pool, "https://a.example/matched", 30*day, matched)
+
+	saved := finding("/saved")
+	keptSaved := seedPage(t, pool, "https://a.example/saved", 30*day, saved)
+	_, err := pool.Exec(ctx, `INSERT INTO library_items (user_id, content_id) VALUES ($1, $2)`, userID, keptSaved)
+	require.NoError(t, err)
+
+	fresh := finding("/fresh")
+	keptFresh := seedPage(t, pool, "https://a.example/fresh", day, fresh)
+
+	// Two feeds link the same page; one of the findings matched.
+	sharedA, sharedB := finding("/shared-a"), finding("/shared-b")
+	seedMatch(t, pool, topicID, sharedB, "new", 0.8)
+	keptShared := seedPage(t, pool, "https://a.example/shared", 30*day, sharedA, sharedB)
+
+	// A page only the Library knows about is none of Radar's business.
+	keptLibraryOnly := seedPage(t, pool, "https://a.example/library-only", 30*day)
+
+	n, err := store.PruneFindingContent(ctx, time.Now().Add(-14*day))
+	require.NoError(t, err)
+	require.Equal(t, int64(1), n)
+
+	exists := func(id int64) bool {
+		var ok bool
+		require.NoError(t, pool.QueryRow(ctx,
+			`SELECT EXISTS (SELECT 1 FROM article_contents WHERE id = $1)`, id).Scan(&ok))
+		return ok
+	}
+	require.False(t, exists(prunable))
+	for _, id := range []int64{keptMatched, keptSaved, keptFresh, keptShared, keptLibraryOnly} {
+		require.True(t, exists(id), "content %d must be kept", id)
+	}
+
+	// The finding outlives its page, embedding included.
+	var contentID *int64
+	var hasEmbedding bool
+	require.NoError(t, pool.QueryRow(ctx,
+		`SELECT content_id, embedding IS NOT NULL FROM radar_findings WHERE id = $1`, unmatched).
+		Scan(&contentID, &hasEmbedding))
+	require.Nil(t, contentID)
+	require.True(t, hasEmbedding)
+}
+
+func TestStore_FindingContent(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	feedID := seedFeed(t, pool, "https://f.example/rss", "F")
+	findingID := seedFinding(t, pool, feedID, "https://a.example/post", "Title")
+
+	f, err := store.GetFindingForFetch(ctx, findingID)
+	require.NoError(t, err)
+	require.Equal(t, "https://a.example/post", f.URL)
+	require.Nil(t, f.ContentID)
+
+	e, err := store.GetFindingForEmbed(ctx, findingID)
+	require.NoError(t, err)
+	require.Nil(t, e.Text)
+
+	contentID := seedPage(t, pool, "https://a.example/post", 0)
+	require.NoError(t, store.SetFindingContent(ctx, findingID, contentID))
+
+	f, err = store.GetFindingForFetch(ctx, findingID)
+	require.NoError(t, err)
+	require.Equal(t, &contentID, f.ContentID)
+
+	e, err = store.GetFindingForEmbed(ctx, findingID)
+	require.NoError(t, err)
+	require.Equal(t, "article text", *e.Text)
+
+	require.ErrorIs(t, store.SetFindingContent(ctx, 424242, contentID), radar.ErrNotFound)
+	_, err = store.GetFindingForFetch(ctx, 424242)
+	require.ErrorIs(t, err, radar.ErrNotFound)
+}

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
+	"github.com/ismd/linktheca/internal/core/content"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,70 +18,30 @@ var (
 )
 
 type Store struct {
-	db *pgxpool.Pool
+	db       *pgxpool.Pool
+	contents *content.Store
 }
 
 func NewStore(db *pgxpool.Pool) *Store {
-	return &Store{db: db}
+	return &Store{db: db, contents: content.NewStore(db)}
 }
 
-// UpsertContentParams holds parameters for inserting or finding existing content.
-type UpsertContentParams struct {
-	URL             string
-	CanonicalURL    *string
-	Title           *string
-	Byline          *string
-	Excerpt         *string
-	Text            *string
-	HTML            *string
-	Lang            *string
-	ImageURL        *string
-	FaviconURL      *string
-	SiteName        *string
-	PublishedTime   *time.Time
-	ModifiedTime    *time.Time
-	ReadingTimeSecs *int
-	Image           *string
-	Favicon         *string
-	FetchError      *string
-}
+// UpsertContentParams is one fetch of a page, see content.Store.Upsert.
+type UpsertContentParams = content.UpsertParams
 
-// UpsertContent inserts a new article_contents row or returns the existing one if the URL already exists
+// UpsertContent stores a fetch of a page in the shared article_contents table.
 func (s *Store) UpsertContent(ctx context.Context, p UpsertContentParams) (*ArticleContent, error) {
-	row := s.db.QueryRow(ctx, `
-		INSERT INTO article_contents (url, canonical_url, title, byline, excerpt, text, html, lang, image_url, favicon_url, site_name, published_time, modified_time, reading_time_seconds, image, favicon, fetch_error)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-		ON CONFLICT (url) DO UPDATE SET
-			image_url      = COALESCE(EXCLUDED.image_url, article_contents.image_url),
-			favicon_url    = COALESCE(EXCLUDED.favicon_url, article_contents.favicon_url),
-			site_name      = COALESCE(EXCLUDED.site_name, article_contents.site_name),
-			published_time = COALESCE(EXCLUDED.published_time, article_contents.published_time),
-			modified_time  = COALESCE(EXCLUDED.modified_time, article_contents.modified_time),
-			image          = COALESCE(EXCLUDED.image, article_contents.image),
-			favicon        = COALESCE(EXCLUDED.favicon, article_contents.favicon)
-		RETURNING id, url, canonical_url, title, byline, excerpt, text, html, lang, image_url, favicon_url, site_name, published_time, modified_time, reading_time_seconds, image, favicon, fetched_at, fetch_error
-	`, p.URL, p.CanonicalURL, p.Title, p.Byline, p.Excerpt, p.Text, p.HTML, p.Lang, p.ImageURL, p.FaviconURL, p.SiteName, p.PublishedTime, p.ModifiedTime, p.ReadingTimeSecs, p.Image, p.Favicon, p.FetchError)
-
-	return scanContent(row)
+	return s.contents.Upsert(ctx, p)
 }
 
 // GetContentByURL returns the article_contents row for a URL, or ErrNotFound
 func (s *Store) GetContentByURL(ctx context.Context, url string) (*ArticleContent, error) {
-	row := s.db.QueryRow(ctx, `
-		SELECT id, url, canonical_url, title, byline, excerpt, text, html, lang, image_url, favicon_url, site_name, published_time, modified_time, reading_time_seconds, image, favicon, fetched_at, fetch_error
-		FROM article_contents
-		WHERE url = $1
-	`, url)
-
-	c, err := scanContent(row)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrNotFound
-		}
-		return nil, fmt.Errorf("get content by url: %w", err)
+	c, err := s.contents.GetByURL(ctx, url)
+	if errors.Is(err, content.ErrNotFound) {
+		return nil, ErrNotFound
 	}
 
-	return c, nil
+	return c, err
 }
 
 // CreateItem creates a new library_items row. Returns ErrAlreadySaved if the user already saved this content.
@@ -104,20 +64,6 @@ func (s *Store) CreateItem(ctx context.Context, userID, contentID int64) (*Item,
 	}
 
 	return &item, nil
-}
-
-func scanContent(row pgx.Row) (*ArticleContent, error) {
-	var c ArticleContent
-
-	err := row.Scan(&c.ID, &c.URL, &c.CanonicalURL, &c.Title, &c.Byline,
-		&c.Excerpt, &c.Text, &c.HTML, &c.Lang, &c.ImageURL, &c.FaviconURL, &c.SiteName,
-		&c.PublishedTime, &c.ModifiedTime, &c.ReadingTimeSecs, &c.Image, &c.Favicon,
-		&c.FetchedAt, &c.FetchError)
-	if err != nil {
-		return nil, err
-	}
-
-	return &c, nil
 }
 
 // GetItemByID returns a single library item with joined content fields

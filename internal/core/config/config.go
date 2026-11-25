@@ -40,6 +40,18 @@ type Config struct {
 	RadarSchedulerInterval time.Duration `env:"LINKTHECA_RADAR_SCHEDULER_INTERVAL" envDefault:"5m"`
 	RadarMaxWorkers        int           `env:"LINKTHECA_RADAR_MAX_WORKERS" envDefault:"5"`
 	RadarMaxUserFeeds      int           `env:"LINKTHECA_RADAR_MAX_USER_FEEDS" envDefault:"20"`
+
+	// RadarFetchContent downloads the page behind each finding and matches
+	// topics against its text instead of the feed's title and summary.
+	RadarFetchContent bool `env:"LINKTHECA_RADAR_FETCH_CONTENT" envDefault:"true"`
+	// RadarFetchWorkers is how many pages are downloaded at once.
+	RadarFetchWorkers int `env:"LINKTHECA_RADAR_FETCH_WORKERS" envDefault:"3"`
+	// RadarFetchHostInterval is the least time between two downloads from
+	// the same site.
+	RadarFetchHostInterval time.Duration `env:"LINKTHECA_RADAR_FETCH_HOST_INTERVAL" envDefault:"2s"`
+	// RadarContentRetention is how long downloaded pages of findings that
+	// matched no topic are kept. Matched and saved pages are kept for good.
+	RadarContentRetention time.Duration `env:"LINKTHECA_RADAR_CONTENT_RETENTION" envDefault:"336h"`
 }
 
 func Load() (*Config, error) {

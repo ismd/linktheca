@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/ismd/linktheca/internal/core/embeddings"
 	"github.com/ismd/linktheca/internal/radar"
@@ -31,7 +32,7 @@ func (w *EmbedFindingWorker) Work(ctx context.Context, job *river.Job[EmbedFindi
 	if err != nil {
 		return fmt.Errorf("get finding %d: %w", id, err)
 	}
-	if f.HasEmbedding {
+	if f.HasEmbedding && !job.Args.Reembed {
 		return nil
 	}
 
@@ -49,7 +50,7 @@ func (w *EmbedFindingWorker) Work(ctx context.Context, job *river.Job[EmbedFindi
 		return fmt.Errorf("save embedding %d: %w", id, err)
 	}
 
-	if w.inserter != nil {
+	if w.inserter != nil && !job.Args.SkipMatch {
 		if _, err := w.inserter.Insert(ctx, MatchFindingArgs{FindingID: id}, nil); err != nil {
 			return fmt.Errorf("enqueue match for finding %d: %w", id, err)
 		}
@@ -58,6 +59,14 @@ func (w *EmbedFindingWorker) Work(ctx context.Context, job *river.Job[EmbedFindi
 	return nil
 }
 
+// maxEmbedTextRunes caps the article text sent to TEI. The model reads only
+// the first ~1024 tokens of it and truncates the rest; the cap just keeps a
+// long article from being shipped and tokenized whole for nothing.
+const maxEmbedTextRunes = 8000
+
+// embedText is what a finding is embedded from: its title followed by the
+// article text when the page was downloaded, or by the feed's summary when it
+// was not.
 func embedText(f *radar.FindingForEmbed) string {
 	parts := []string{}
 
@@ -65,9 +74,20 @@ func embedText(f *radar.FindingForEmbed) string {
 		parts = append(parts, strings.TrimSpace(*f.Title))
 	}
 
-	if f.Summary != nil {
+	switch {
+	case f.Text != nil && strings.TrimSpace(*f.Text) != "":
+		parts = append(parts, truncateRunes(strings.TrimSpace(*f.Text), maxEmbedTextRunes))
+	case f.Summary != nil:
 		parts = append(parts, strings.TrimSpace(*f.Summary))
 	}
 
 	return strings.TrimSpace(strings.Join(parts, "\n"))
+}
+
+func truncateRunes(s string, n int) string {
+	if utf8.RuneCountInString(s) <= n {
+		return s
+	}
+
+	return string([]rune(s)[:n])
 }

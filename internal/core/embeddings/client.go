@@ -31,7 +31,10 @@ func NewTEIClient(baseURL string, timeout time.Duration) *TEIClient {
 }
 
 func (c *TEIClient) Embed(ctx context.Context, text string) ([]float32, error) {
-	body, err := json.Marshal(map[string]string{"inputs": text})
+	// Truncate rather than reject inputs longer than the model takes: a
+	// finding is embedded from the start of its article, and that start is
+	// all the model can see anyway.
+	body, err := json.Marshal(map[string]any{"inputs": text, "truncate": true})
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}

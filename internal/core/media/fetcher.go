@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/ismd/linktheca/internal/core/netsafe"
 )
 
 var allowedContentTypes = []string{
@@ -121,7 +123,7 @@ func (f *httpFetcher) fetch(ctx context.Context, dir, rawURL, baseName string) (
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}
-	req.Header.Set("User-Agent", "Linktheca/0.1")
+	req.Header.Set("User-Agent", netsafe.UserAgent)
 
 	resp, err := f.client.Do(req)
 	if err != nil {

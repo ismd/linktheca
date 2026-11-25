@@ -78,4 +78,8 @@ func TestLoad_RadarDefaults(t *testing.T) {
 	require.Equal(t, 5*time.Minute, cfg.RadarSchedulerInterval)
 	require.Equal(t, 5, cfg.RadarMaxWorkers)
 	require.Equal(t, 20, cfg.RadarMaxUserFeeds)
+	require.True(t, cfg.RadarFetchContent)
+	require.Equal(t, 3, cfg.RadarFetchWorkers)
+	require.Equal(t, 2*time.Second, cfg.RadarFetchHostInterval)
+	require.Equal(t, 14*24*time.Hour, cfg.RadarContentRetention)
 }

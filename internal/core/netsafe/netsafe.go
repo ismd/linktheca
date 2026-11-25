@@ -25,6 +25,10 @@ var ErrBlockedAddress = errors.New("destination address is not public")
 // redirected after Options.MaxRedirects hops.
 var ErrTooManyRedirects = errors.New("too many redirects")
 
+// UserAgent identifies Linktheca to the sites it fetches from. Its product
+// token, "Linktheca", is what robots.txt rules are matched against.
+const UserAgent = "Linktheca/0.1 (+https://github.com/ismd/linktheca)"
+
 // Options configure a client.
 type Options struct {
 	// Timeout bounds the whole request, redirects and body included.

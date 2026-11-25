@@ -79,7 +79,7 @@ func (e *readabilityExtractor) Extract(ctx context.Context, rawURL string) (*Art
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}
-	req.Header.Set("User-Agent", "Linktheca/0.1")
+	req.Header.Set("User-Agent", netsafe.UserAgent)
 	req.Header.Set("Accept", "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5")
 
 	resp, err := e.client.Do(req)
@@ -135,7 +135,7 @@ func (e *readabilityExtractor) Extract(ctx context.Context, rawURL string) (*Art
 		CanonicalURL:    "",
 		Title:           doc.Title(),
 		Byline:          doc.Byline(),
-		Excerpt:         doc.Excerpt(),
+		Excerpt:         excerpt(doc),
 		Text:            text,
 		HTML:            htmlBuf.String(),
 		Lang:            doc.Language(),
@@ -146,6 +146,17 @@ func (e *readabilityExtractor) Extract(ctx context.Context, rawURL string) (*Art
 		ModifiedTime:    modifiedTime,
 		ReadingTimeSecs: EstimateReadingTime(text),
 	}, nil
+}
+
+// excerpt guards Article.Excerpt, which falls back to the first paragraph of
+// the article and panics when readability found no article at all, as on an
+// empty page.
+func excerpt(doc readability.Article) string {
+	if doc.Node == nil {
+		return ""
+	}
+
+	return doc.Excerpt()
 }
 
 func isTransientStatus(status int) bool {

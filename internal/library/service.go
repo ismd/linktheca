@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/ismd/linktheca/internal/core/content"
 	"github.com/ismd/linktheca/internal/core/media"
@@ -68,24 +67,9 @@ func (s *Service) SaveURL(ctx context.Context, userID int64, rawURL string) (*It
 			}
 		}
 
-		params = UpsertContentParams{
-			URL:             article.URL,
-			CanonicalURL:    nilIfEmpty(article.CanonicalURL),
-			Title:           nilIfEmpty(article.Title),
-			Byline:          nilIfEmpty(article.Byline),
-			Excerpt:         nilIfEmpty(article.Excerpt),
-			Text:            nilIfEmpty(article.Text),
-			HTML:            nilIfEmpty(article.HTML),
-			Lang:            nilIfEmpty(article.Lang),
-			ImageURL:        nilIfEmpty(article.ImageURL),
-			FaviconURL:      nilIfEmpty(article.Favicon),
-			SiteName:        nilIfEmpty(article.SiteName),
-			PublishedTime:   nilIfZeroTime(article.PublishedTime),
-			ModifiedTime:    nilIfZeroTime(article.ModifiedTime),
-			ReadingTimeSecs: nilIfZero(article.ReadingTimeSecs),
-			Image:           nilIfEmpty(imageFile),
-			Favicon:         nilIfEmpty(faviconFile),
-		}
+		params = content.ParamsFromArticle(article)
+		params.Image = nilIfEmpty(imageFile)
+		params.Favicon = nilIfEmpty(faviconFile)
 	}
 
 	ac, err := s.store.UpsertContent(ctx, params)
@@ -163,20 +147,4 @@ func nilIfEmpty(s string) *string {
 	}
 
 	return &s
-}
-
-func nilIfZero(n int) *int {
-	if n == 0 {
-		return nil
-	}
-
-	return &n
-}
-
-func nilIfZeroTime(t time.Time) *time.Time {
-	if t.IsZero() {
-		return nil
-	}
-
-	return &t
 }

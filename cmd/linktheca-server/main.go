@@ -13,6 +13,7 @@ import (
 
 	linktheca "github.com/ismd/linktheca"
 	"github.com/ismd/linktheca/internal/core/config"
+	"github.com/ismd/linktheca/internal/core/content"
 	"github.com/ismd/linktheca/internal/core/db"
 	"github.com/ismd/linktheca/internal/core/embeddings"
 	"github.com/ismd/linktheca/internal/core/logging"
@@ -79,17 +80,30 @@ func run() error {
 				"want", cfg.EmbeddingDim, "got", len(vec))
 		}
 
+		// Feed URLs and the links inside feeds are untrusted: any user can
+		// add a personal feed.
+		fetchClient := netsafe.NewClient(netsafe.Options{
+			Timeout:      30 * time.Second,
+			AllowPrivate: cfg.FetchAllowPrivateNetworks,
+		})
+
 		store := radar.NewStore(pool)
 		bundle := jobs.Build(jobs.Deps{
-			Store:    store,
-			Embedder: teiClient,
-			Fetcher: crawler.NewHTTPFetcher(netsafe.NewClient(netsafe.Options{
-				Timeout:      30 * time.Second,
-				AllowPrivate: cfg.FetchAllowPrivateNetworks,
-			})),
-		}, cfg.RadarSchedulerInterval)
+			Store:     store,
+			Embedder:  teiClient,
+			Fetcher:   crawler.NewHTTPFetcher(fetchClient),
+			Contents:  content.NewStore(pool),
+			Extractor: content.NewExtractor(fetchClient),
+			Robots:    crawler.NewRobots(fetchClient),
+			Pacer:     crawler.NewHostPacer(cfg.RadarFetchHostInterval),
+		}, jobs.Config{
+			SchedulerInterval: cfg.RadarSchedulerInterval,
+			FetchContent:      cfg.RadarFetchContent,
+			ContentRetention:  cfg.RadarContentRetention,
+		})
 
-		client, err := jobs.NewClient(pool, bundle.Workers, bundle.Periodic, cfg.RadarMaxWorkers)
+		client, err := jobs.NewClient(pool, bundle.Workers, bundle.Periodic,
+			cfg.RadarMaxWorkers, cfg.RadarFetchWorkers)
 		if err != nil {
 			return fmt.Errorf("river new client: %w", err)
 		}

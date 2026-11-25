@@ -219,6 +219,19 @@ func TestExtractReadsOnlyTheStartOfHugePages(t *testing.T) {
 	require.NotContains(t, result.Text, "past the cap")
 }
 
+func TestExtractEmptyPage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	}))
+	defer srv.Close()
+
+	result, err := content.NewExtractor(loopbackClient()).Extract(context.Background(), srv.URL)
+
+	require.NoError(t, err)
+	require.Empty(t, result.Text)
+	require.Empty(t, result.Excerpt)
+}
+
 func TestIsTransientIgnoresOtherErrors(t *testing.T) {
 	require.False(t, content.IsTransient(nil))
 	require.False(t, content.IsTransient(errors.New("parse: broken")))
