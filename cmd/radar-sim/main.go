@@ -77,7 +77,7 @@ Flags:
 	fs.PrintDefaults()
 
 	fmt.Fprint(w, `
-Topics are embedded as "Name: description" and findings as "Title\nSummary",
+Topics are embedded from their description alone and findings as "Title\nSummary",
 so mirror that formatting in -q to reproduce what the matcher sees.
 `)
 }

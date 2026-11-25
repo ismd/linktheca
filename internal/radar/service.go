@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -18,11 +19,42 @@ const defaultMatchThreshold = .55
 
 const previewLimit = 5
 
-func topicEmbedText(name, description string) string {
-	if name == "" {
-		return description
+// TopicEmbedText is the text a topic is embedded from. Only the description
+// takes part: the name is a display label, so renaming a topic never changes
+// what it matches.
+func TopicEmbedText(description string) string {
+	return description
+}
+
+const maxDerivedNameRunes = 60
+
+// nameClauseBreak ends the first clause of a description: sentence-final
+// punctuation followed by a space (so "Node.js" and "v1.2" survive), a colon
+// or semicolon followed by a space (so "https://" survives), or a spaced dash.
+var nameClauseBreak = regexp.MustCompile(`[.!?:;](\s|$)|\s[—–-]\s`)
+
+// deriveTopicName builds a display label from the start of a description: the
+// first line, up to its first clause break, cut at a word boundary when it is
+// still longer than maxDerivedNameRunes. The caller validates the description,
+// so it is never blank here.
+func deriveTopicName(description string) string {
+	name, _, _ := strings.Cut(strings.TrimSpace(description), "\n")
+
+	if loc := nameClauseBreak.FindStringIndex(name); loc != nil && loc[0] > 0 {
+		name = name[:loc[0]]
 	}
-	return name + ": " + description
+	name = strings.TrimSpace(name)
+
+	runes := []rune(name)
+	if len(runes) <= maxDerivedNameRunes {
+		return name
+	}
+
+	cut := string(runes[:maxDerivedNameRunes])
+	if i := strings.LastIndex(cut, " "); i > 0 {
+		cut = cut[:i]
+	}
+	return strings.TrimRight(cut, " ,-–") + "…"
 }
 
 func validateTopicDescription(desc string) error {
@@ -95,16 +127,21 @@ func (s *Service) MaxUserFeeds() int { return s.maxUserFeeds }
 // CreateTopic validates the request, persists the topic, and synchronously
 // computes its embedding. If the embedder is unavailable the topic stays in
 // the database without an embedding and is silently skipped by MatchFindingJob.
+// An empty name is derived from the start of the description.
 func (s *Service) CreateTopic(ctx context.Context, userID int64, req CreateTopicRequest) (*Topic, error) {
 	name := strings.TrimSpace(req.Name)
 	desc := strings.TrimSpace(req.Description)
 
-	if name == "" || len(name) > 200 {
-		return nil, fmt.Errorf("%w: name must be 1..200 chars", ErrInvalidInput)
+	if len(name) > 200 {
+		return nil, fmt.Errorf("%w: name must be at most 200 chars", ErrInvalidInput)
 	}
 
 	if err := validateTopicDescription(desc); err != nil {
 		return nil, err
+	}
+
+	if name == "" {
+		name = deriveTopicName(desc)
 	}
 
 	threshold := float32(defaultMatchThreshold)
@@ -122,7 +159,7 @@ func (s *Service) CreateTopic(ctx context.Context, userID int64, req CreateTopic
 		return nil, fmt.Errorf("create topic: %w", err)
 	}
 
-	vec, err := s.embedder.Embed(ctx, topicEmbedText(name, desc))
+	vec, err := s.embedder.Embed(ctx, TopicEmbedText(desc))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
 	}
@@ -294,7 +331,7 @@ func (s *Service) UpdateTopic(ctx context.Context, userID, topicID int64, req Up
 	}
 
 	if p.Description != nil {
-		vec, err := s.embedder.Embed(ctx, topicEmbedText(topic.Name, topic.Description))
+		vec, err := s.embedder.Embed(ctx, TopicEmbedText(topic.Description))
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
 		}
@@ -310,18 +347,16 @@ func (s *Service) UpdateTopic(ctx context.Context, userID, topicID int64, req Up
 	return topic, nil
 }
 
+// PreviewTopic scores the subscribed findings against a draft description,
+// embedded exactly the way CreateTopic would embed it.
 func (s *Service) PreviewTopic(ctx context.Context, userID int64, req PreviewTopicRequest) (*TopicPreview, error) {
-	name := strings.TrimSpace(req.Name)
 	desc := strings.TrimSpace(req.Description)
 
-	if len(name) > 200 {
-		return nil, fmt.Errorf("%w: name must be at most 200 chars", ErrInvalidInput)
-	}
 	if err := validateTopicDescription(desc); err != nil {
 		return nil, err
 	}
 
-	vec, err := s.embedder.Embed(ctx, topicEmbedText(name, desc))
+	vec, err := s.embedder.Embed(ctx, TopicEmbedText(desc))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
 	}

@@ -18,10 +18,15 @@ import { ApiError } from "@/shared/api/errors";
 import { useUpdateTopic } from "../use-mutations";
 import type { TopicWithStats } from "../types";
 import type { UpdateTopicInput } from "../api";
+import { TOPIC_DESCRIPTION_PLACEHOLDER, TopicWritingTips } from "./TopicWritingTips";
 
 const schema = z.object({
-  name: z.string().min(1, "Name is required").max(200),
-  description: z.string().min(10, "Description must be at least 10 characters").max(2000),
+  description: z
+    .string()
+    .trim()
+    .min(10, "Write at least 10 characters")
+    .max(2000, "Too long — keep it to a few sentences"),
+  name: z.string().trim().min(1, "Name is required").max(200, "Name too long"),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -83,6 +88,25 @@ function EditTopicForm({ topic, onClose }: { topic: TopicWithStats; onClose: () 
         </div>
       )}
       <div className="flex flex-col gap-2">
+        <Label htmlFor="edit-topic-desc" className="label-sc text-ink-3">
+          What to watch for
+        </Label>
+        <textarea
+          id="edit-topic-desc"
+          rows={4}
+          placeholder={TOPIC_DESCRIPTION_PLACEHOLDER}
+          className="border border-rule bg-paper px-3 py-2 font-body text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ink/10"
+          aria-invalid={errors.description ? "true" : "false"}
+          aria-describedby="edit-topic-tips"
+          disabled={update.isPending}
+          {...register("description")}
+        />
+        {errors.description && (
+          <p className="text-sm text-vermillion-dark">{errors.description.message}</p>
+        )}
+        <TopicWritingTips id="edit-topic-tips" />
+      </div>
+      <div className="flex flex-col gap-2">
         <Label htmlFor="edit-topic-name" className="label-sc text-ink-3">Name</Label>
         <Input
           id="edit-topic-name"
@@ -92,20 +116,6 @@ function EditTopicForm({ topic, onClose }: { topic: TopicWithStats; onClose: () 
         />
         {errors.name && (
           <p className="text-sm text-vermillion-dark">{errors.name.message}</p>
-        )}
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="edit-topic-desc" className="label-sc text-ink-3">Description</Label>
-        <textarea
-          id="edit-topic-desc"
-          rows={4}
-          className="border border-rule bg-paper px-3 py-2 font-body text-base focus:outline-none focus:ring-2 focus:ring-ink/10"
-          aria-invalid={errors.description ? "true" : "false"}
-          disabled={update.isPending}
-          {...register("description")}
-        />
-        {errors.description && (
-          <p className="text-sm text-vermillion-dark">{errors.description.message}</p>
         )}
       </div>
       <DialogFooter>
@@ -127,7 +137,7 @@ export function EditTopicDialog({ topic, open, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle className="display-tight text-3xl">Edit topic</DialogTitle>
           <DialogDescription className="label-sc text-muted-foreground">
-            Changing the description will re-embed the topic.
+            Changing what to watch for re-scores the topic; renaming it doesn&rsquo;t.
           </DialogDescription>
         </DialogHeader>
         {open && <EditTopicForm topic={topic} onClose={() => onOpenChange(false)} />}

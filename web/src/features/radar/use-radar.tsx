@@ -18,8 +18,8 @@ export const radarKeys = {
   match: (id: number) => ["radar", "match", id] as const,
   status: ["radar", "status"] as const,
   feeds: ["radar", "feeds"] as const,
-  topicPreview: (name: string, description: string) =>
-    ["radar", "topic-preview", name, description] as const,
+  topicPreview: (description: string) =>
+    ["radar", "topic-preview", description] as const,
 };
 
 export const MIN_PREVIEW_DESCRIPTION = 10;
@@ -39,14 +39,12 @@ export function useTopicQuery(id: number) {
   });
 }
 
-export function useTopicPreviewQuery(name: string, description: string) {
-  const trimmedName = name.trim();
+export function useTopicPreviewQuery(description: string) {
   const trimmedDescription = description.trim();
 
   return useQuery({
-    queryKey: radarKeys.topicPreview(trimmedName, trimmedDescription),
-    queryFn: () =>
-      previewTopic({ name: trimmedName, description: trimmedDescription }),
+    queryKey: radarKeys.topicPreview(trimmedDescription),
+    queryFn: () => previewTopic({ description: trimmedDescription }),
     enabled: trimmedDescription.length >= MIN_PREVIEW_DESCRIPTION,
     placeholderData: (previous) => previous,
   });

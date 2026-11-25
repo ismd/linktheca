@@ -31,7 +31,7 @@ describe("TopicPreviewPanel", () => {
   it("asks for more text instead of probing a too-short description", async () => {
     render(
       <Wrap>
-        <TopicPreviewPanel name="" description="short" />
+        <TopicPreviewPanel description="short" />
       </Wrap>,
     );
     // No msw handler is registered: an unhandled request would fail the test.
@@ -52,7 +52,7 @@ describe("TopicPreviewPanel", () => {
 
     render(
       <Wrap>
-        <TopicPreviewPanel name="Local-first" description={DESCRIPTION} />
+        <TopicPreviewPanel description={DESCRIPTION} />
       </Wrap>,
     );
 
@@ -64,7 +64,7 @@ describe("TopicPreviewPanel", () => {
     expect(screen.getByText(/1 above cutoff/i)).toBeInTheDocument();
   });
 
-  it("sends the draft name and description to the server", async () => {
+  it("sends the trimmed draft description to the server", async () => {
     let captured: unknown = null;
     server.use(
       http.post("/api/radar/topics/preview", async ({ request }) => {
@@ -75,12 +75,12 @@ describe("TopicPreviewPanel", () => {
 
     render(
       <Wrap>
-        <TopicPreviewPanel name="  Local-first  " description={` ${DESCRIPTION} `} />
+        <TopicPreviewPanel description={` ${DESCRIPTION} `} />
       </Wrap>,
     );
 
     expect(await screen.findByText(/nothing in your subscribed feeds/i)).toBeInTheDocument();
-    expect(captured).toEqual({ name: "Local-first", description: DESCRIPTION });
+    expect(captured).toEqual({ description: DESCRIPTION });
   });
 
   it("explains an offline embedder", async () => {
@@ -94,7 +94,7 @@ describe("TopicPreviewPanel", () => {
 
     render(
       <Wrap>
-        <TopicPreviewPanel name="" description={DESCRIPTION} />
+        <TopicPreviewPanel description={DESCRIPTION} />
       </Wrap>,
     );
 

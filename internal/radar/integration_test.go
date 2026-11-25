@@ -473,7 +473,7 @@ func TestIntegrationPersonalFeedMatchesOnlyItsOwner(t *testing.T) {
 
 	// The finding carries the topics' own vector, so similarity is 1 for both:
 	// only the subscription decides who gets a match.
-	vec, err := emb.Embed(ctx, "Rust: "+topicDesc)
+	vec, err := emb.Embed(ctx, radar.TopicEmbedText(topicDesc))
 	require.NoError(t, err)
 	matchFinding(t, ctx, store, vec, res.Feed.ID, "personal-1")
 

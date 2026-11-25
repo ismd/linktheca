@@ -57,7 +57,7 @@ describe("EditTopicDialog", () => {
       </Wrap>,
     );
 
-    const descField = screen.getByLabelText(/description/i) as HTMLTextAreaElement;
+    const descField = screen.getByLabelText(/what to watch for/i) as HTMLTextAreaElement;
     expect(descField.value).toBe("Old description, long enough.");
     await user.clear(descField);
     await user.type(descField, "New description, long enough.");
@@ -65,6 +65,36 @@ describe("EditTopicDialog", () => {
 
     await waitFor(() => expect(captured).not.toBeNull());
     expect(captured).toEqual({ description: "New description, long enough." });
+  });
+
+  it("renames without touching the description", async () => {
+    let captured: Record<string, unknown> | null = null;
+    server.use(
+      http.patch("/api/radar/topics/7", async ({ request }) => {
+        captured = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({
+          id: 7, user_id: 1, name: "Fresh name", description: "Old description, long enough.",
+          match_threshold: 0.55, is_active: true, has_embedding: true,
+          created_at: "2026-05-01T10:00:00Z", updated_at: "2026-05-02T10:00:00Z",
+          stats: { new_count: 0, total_count: 0, source_count: 0, last_match_at: null },
+        });
+      }),
+    );
+
+    const user = userEvent.setup();
+    render(
+      <Wrap>
+        <EditTopicDialog topic={topic} open={true} onOpenChange={() => {}} />
+      </Wrap>,
+    );
+
+    const nameField = screen.getByLabelText(/^name$/i);
+    await user.clear(nameField);
+    await user.type(nameField, "  Fresh name ");
+    await user.click(screen.getByRole("button", { name: /save/i }));
+
+    await waitFor(() => expect(captured).not.toBeNull());
+    expect(captured).toEqual({ name: "Fresh name" });
   });
 
   it("shows specific error on 503 embedder and stays open", async () => {
@@ -87,7 +117,7 @@ describe("EditTopicDialog", () => {
         />
       </Wrap>,
     );
-    const desc = screen.getByLabelText(/description/i);
+    const desc = screen.getByLabelText(/what to watch for/i);
     await user.clear(desc);
     await user.type(desc, "Changed description, long enough.");
     await user.click(screen.getByRole("button", { name: /save/i }));

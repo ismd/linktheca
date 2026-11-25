@@ -71,8 +71,10 @@ type Match struct {
 
 // DTOs ---------------------------------------------------------------------
 
+// CreateTopicRequest is the payload for POST /radar/topics. Name is optional:
+// when empty it is derived from the start of the description.
 type CreateTopicRequest struct {
-	Name           string   `json:"name"`
+	Name           string   `json:"name,omitempty"`
 	Description    string   `json:"description"`
 	MatchThreshold *float32 `json:"match_threshold,omitempty"`
 }
@@ -226,9 +228,9 @@ type UpdateTopicParams struct {
 }
 
 // PreviewTopicRequest is the payload for POST /radar/topics/preview.
-// It carries the draft topic the user is still typing; nothing is persisted.
+// It carries the draft description the user is still typing; nothing is
+// persisted.
 type PreviewTopicRequest struct {
-	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 

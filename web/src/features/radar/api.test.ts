@@ -88,9 +88,21 @@ describe("radar api", () => {
         return HttpResponse.json(rawTopic({ id: 99, name: "New" }), { status: 201 });
       }),
     );
-    const t = await createTopic({ name: "New", description: "Desc longer than 10 chars" });
-    expect(captured).toEqual({ name: "New", description: "Desc longer than 10 chars" });
+    const t = await createTopic({ description: "Desc longer than 10 chars" });
+    expect(captured).toEqual({ description: "Desc longer than 10 chars" });
     expect(t.id).toBe(99);
+  });
+
+  it("createTopic sends an explicit name when given", async () => {
+    let captured: unknown = null;
+    server.use(
+      http.post("/api/radar/topics", async ({ request }) => {
+        captured = await request.json();
+        return HttpResponse.json(rawTopic({ id: 99, name: "New" }), { status: 201 });
+      }),
+    );
+    await createTopic({ name: "New", description: "Desc longer than 10 chars" });
+    expect(captured).toEqual({ name: "New", description: "Desc longer than 10 chars" });
   });
 
   it("updateTopic PATCHes only provided fields", async () => {
@@ -200,9 +212,9 @@ describe("previewTopic", () => {
       }),
     );
 
-    const preview = await previewTopic({ name: "N", description: "Desc longer than 10 chars" });
+    const preview = await previewTopic({ description: "Desc longer than 10 chars" });
 
-    expect(captured).toEqual({ name: "N", description: "Desc longer than 10 chars" });
+    expect(captured).toEqual({ description: "Desc longer than 10 chars" });
     expect(preview.threshold).toBe(0.55);
     expect(preview.items[0]!.similarity).toBe(0.81);
     expect(preview.items[0]!.finding.publishedAt).toBeInstanceOf(Date);

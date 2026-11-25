@@ -48,16 +48,15 @@ export async function getTopic(id: number): Promise<TopicWithStats> {
 }
 
 export type CreateTopicInput = {
-  name: string;
+  /** Omit to let the server derive the name from the description. */
+  name?: string;
   description: string;
   matchThreshold?: number;
 };
 
 export async function createTopic(input: CreateTopicInput): Promise<Topic> {
-  const body: Record<string, unknown> = {
-    name: input.name,
-    description: input.description,
-  };
+  const body: Record<string, unknown> = { description: input.description };
+  if (input.name !== undefined) body.name = input.name;
   if (input.matchThreshold !== undefined) body.match_threshold = input.matchThreshold;
   const raw = await apiFetch<unknown>(`/radar/topics`, {
     method: "POST",
@@ -67,14 +66,13 @@ export async function createTopic(input: CreateTopicInput): Promise<Topic> {
 }
 
 export type PreviewTopicInput = {
-  name: string;
   description: string;
 };
 
 export async function previewTopic(input: PreviewTopicInput): Promise<TopicPreview> {
   const raw = await apiFetch<unknown>(`/radar/topics/preview`, {
     method: "POST",
-    body: JSON.stringify({ name: input.name, description: input.description }),
+    body: JSON.stringify({ description: input.description }),
   });
 
   return mapTopicPreview(parseInDev(RawTopicPreviewSchema, raw));

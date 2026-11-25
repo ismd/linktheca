@@ -11,20 +11,20 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/shared/ui/dialog";
-import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Button } from "@/shared/ui/button";
 import { ApiError } from "@/shared/api/errors";
 import { useNewTopicStore } from "../use-new-topic-store";
 import { useCreateTopic } from "../use-mutations";
 import { TopicPreviewPanel } from "./TopicPreviewPanel";
+import { TOPIC_DESCRIPTION_PLACEHOLDER, TopicWritingTips } from "./TopicWritingTips";
 
 const schema = z.object({
-  name: z.string().min(1, "Name is required").max(200, "Name too long"),
   description: z
     .string()
-    .min(10, "Description must be at least 10 characters")
-    .max(2000, "Description too long"),
+    .trim()
+    .min(10, "Write at least 10 characters")
+    .max(2000, "Too long — keep it to a few sentences"),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -50,16 +50,15 @@ function NewTopicForm({ onClose }: { onClose: () => void }) {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", description: "" },
+    defaultValues: { description: "" },
   });
-  const draftName = useWatch({ control, name: "name" });
   const draftDescription = useWatch({ control, name: "description" });
   const [topError, setTopError] = useState<string | null>(null);
 
-  const onSubmit = handleSubmit(async ({ name, description }) => {
+  const onSubmit = handleSubmit(async ({ description }) => {
     setTopError(null);
     try {
-      await create.mutateAsync({ name, description });
+      await create.mutateAsync({ description });
       toast.success("Saved");
       onClose();
     } catch (err) {
@@ -79,34 +78,26 @@ function NewTopicForm({ onClose }: { onClose: () => void }) {
       )}
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="new-topic-name" className="label-sc text-ink-3">Name</Label>
-        <Input
-          id="new-topic-name"
-          aria-invalid={errors.name ? "true" : "false"}
-          disabled={create.isPending}
-          {...register("name")}
-        />
-        {errors.name && (
-          <p className="text-sm text-vermillion-dark">{errors.name.message}</p>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="new-topic-desc" className="label-sc text-ink-3">Description</Label>
+        <Label htmlFor="new-topic-desc" className="label-sc text-ink-3">
+          What to watch for
+        </Label>
         <textarea
           id="new-topic-desc"
           rows={4}
-          className="border border-rule bg-paper px-3 py-2 font-body text-base focus:outline-none focus:ring-2 focus:ring-ink/10"
+          placeholder={TOPIC_DESCRIPTION_PLACEHOLDER}
+          className="border border-rule bg-paper px-3 py-2 font-body text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ink/10"
           aria-invalid={errors.description ? "true" : "false"}
+          aria-describedby="new-topic-tips"
           disabled={create.isPending}
           {...register("description")}
         />
         {errors.description && (
           <p className="text-sm text-vermillion-dark">{errors.description.message}</p>
         )}
+        <TopicWritingTips id="new-topic-tips" />
       </div>
 
-      <TopicPreviewPanel name={draftName} description={draftDescription} />
+      <TopicPreviewPanel description={draftDescription} />
 
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose} disabled={create.isPending}>
@@ -135,7 +126,7 @@ export function NewTopicDialog() {
         <DialogHeader>
           <DialogTitle className="display-tight text-3xl">New topic</DialogTitle>
           <DialogDescription className="label-sc text-muted-foreground">
-            Describe what you want to watch for; Radar will keep an eye out.
+            A sentence or two is enough. The first words become its name — rename it any time.
           </DialogDescription>
         </DialogHeader>
         {isOpen && <NewTopicForm onClose={close} />}

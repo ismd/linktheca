@@ -207,7 +207,7 @@ func TestService_CreateTopic_Success(t *testing.T) {
 	require.True(t, topic.HasEmbedding, "embedding must be set after CreateTopic")
 }
 
-func TestService_CreateTopic_EmbedsNameAndDescription(t *testing.T) {
+func TestService_CreateTopic_EmbedsDescriptionOnly(t *testing.T) {
 	store := newMockStore()
 	emb := &embeddings.FakeEmbedder{Dim: 1024}
 	svc := radar.NewService(store, emb)
@@ -217,13 +217,32 @@ func TestService_CreateTopic_EmbedsNameAndDescription(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	expected, _ := emb.Embed(context.Background(), "WebAuthn: webauthn passkeys")
+	expected, _ := emb.Embed(context.Background(), "webauthn passkeys")
 	require.Equal(t, pgvector.NewVector(expected), store.topicEmb[topic.ID],
-		"topic embedding must be derived from name + description")
+		"the name is a label; only the description is embedded")
+}
 
-	descOnly, _ := emb.Embed(context.Background(), "webauthn passkeys")
-	require.NotEqual(t, pgvector.NewVector(descOnly), store.topicEmb[topic.ID],
-		"topic embedding must not be description-only")
+func TestService_CreateTopic_DerivesNameFromDescription(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	topic, err := svc.CreateTopic(context.Background(), 1, radar.CreateTopicRequest{
+		Description: "  Open-weight LLM releases: Llama, Qwen, Mistral  ",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "Open-weight LLM releases", topic.Name)
+	require.Equal(t, "Open-weight LLM releases: Llama, Qwen, Mistral", topic.Description)
+}
+
+func TestService_CreateTopic_KeepsExplicitName(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	topic, err := svc.CreateTopic(context.Background(), 1, radar.CreateTopicRequest{
+		Name: "  LLMs ", Description: "Open-weight LLM releases",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "LLMs", topic.Name)
 }
 
 func TestService_CreateTopic_DefaultThreshold(t *testing.T) {
@@ -243,9 +262,9 @@ func TestService_CreateTopic_Validation(t *testing.T) {
 	emb := &embeddings.FakeEmbedder{Dim: 1024}
 	svc := radar.NewService(store, emb)
 
-	// empty name
+	// name too long
 	_, err := svc.CreateTopic(context.Background(), 1, radar.CreateTopicRequest{
-		Name: "", Description: "ten chars long",
+		Name: strings.Repeat("x", 201), Description: "ten chars long",
 	})
 	require.ErrorIs(t, err, radar.ErrInvalidInput)
 
@@ -610,8 +629,8 @@ func TestService_UpdateTopic_descriptionTriggersEmbed(t *testing.T) {
 	emb := &embeddings.FakeEmbedder{Dim: 1024}
 	svc := radar.NewService(store, emb)
 
-	// updateTopicResult dictates what UpdateTopic returns (used to derive
-	// embedder input "name: description").
+	// updateTopicResult dictates what UpdateTopic returns, and so the
+	// description the embedder is fed.
 	store.updateTopicResult = &radar.Topic{
 		ID: 7, Name: "name", Description: "new long description here",
 	}
@@ -622,7 +641,9 @@ func TestService_UpdateTopic_descriptionTriggersEmbed(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "new long description here", got.Description)
 	require.True(t, store.updateTopicCalled)
-	require.NotEmpty(t, store.topicEmb, "embedder should have written via UpdateTopicEmbedding")
+
+	expected, _ := emb.Embed(context.Background(), "new long description here")
+	require.Equal(t, pgvector.NewVector(expected), store.topicEmb[7])
 }
 
 func TestService_UpdateTopic_embedderUnavailable(t *testing.T) {
@@ -744,7 +765,7 @@ func TestService_PreviewTopic_ProbesLikeCreateTopic(t *testing.T) {
 	svc := radar.NewService(store, emb)
 
 	got, err := svc.PreviewTopic(context.Background(), 7, radar.PreviewTopicRequest{
-		Name: "WebAuthn", Description: "webauthn passkeys",
+		Description: "  webauthn passkeys ",
 	})
 	require.NoError(t, err)
 	require.Equal(t, float32(0.55), got.Threshold)
@@ -753,23 +774,9 @@ func TestService_PreviewTopic_ProbesLikeCreateTopic(t *testing.T) {
 	require.Equal(t, int64(7), store.previewUserID)
 	require.Equal(t, 5, store.previewLimit)
 
-	expected, _ := emb.Embed(context.Background(), "WebAuthn: webauthn passkeys")
+	expected, _ := emb.Embed(context.Background(), radar.TopicEmbedText("webauthn passkeys"))
 	require.Equal(t, pgvector.NewVector(expected), store.previewVec,
 		"preview must probe with the same text CreateTopic embeds")
-}
-
-func TestService_PreviewTopic_WithoutNameProbesDescriptionOnly(t *testing.T) {
-	store := newMockStore()
-	emb := &embeddings.FakeEmbedder{Dim: 1024}
-	svc := radar.NewService(store, emb)
-
-	_, err := svc.PreviewTopic(context.Background(), 1, radar.PreviewTopicRequest{
-		Description: "webauthn passkeys",
-	})
-	require.NoError(t, err)
-
-	expected, _ := emb.Embed(context.Background(), "webauthn passkeys")
-	require.Equal(t, pgvector.NewVector(expected), store.previewVec)
 }
 
 func TestService_PreviewTopic_ReturnsScoredFindings(t *testing.T) {
@@ -795,11 +802,6 @@ func TestService_PreviewTopic_Validation(t *testing.T) {
 
 	_, err := svc.PreviewTopic(context.Background(), 1, radar.PreviewTopicRequest{
 		Description: "short",
-	})
-	require.ErrorIs(t, err, radar.ErrInvalidInput)
-
-	_, err = svc.PreviewTopic(context.Background(), 1, radar.PreviewTopicRequest{
-		Name: strings.Repeat("x", 201), Description: "ten chars long",
 	})
 	require.ErrorIs(t, err, radar.ErrInvalidInput)
 

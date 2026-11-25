@@ -41,10 +41,24 @@ beforeEach(() => {
 });
 
 describe("NewTopicDialog", () => {
-  it("submits create and closes on success", async () => {
+  it("has a single field and no name input", () => {
+    render(
+      <Wrap>
+        <NewTopicDialog />
+      </Wrap>,
+    );
+    expect(screen.getByLabelText(/what to watch for/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^name$/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/headline of an article/i)).toBeInTheDocument();
+  });
+
+  it("submits only the description and closes on success", async () => {
+    let captured: unknown = null;
     server.use(
-      http.post("/api/radar/topics", () =>
-        HttpResponse.json(rawTopic, { status: 201 })),
+      http.post("/api/radar/topics", async ({ request }) => {
+        captured = await request.json();
+        return HttpResponse.json(rawTopic, { status: 201 });
+      }),
     );
     const user = userEvent.setup();
     render(
@@ -52,16 +66,18 @@ describe("NewTopicDialog", () => {
         <NewTopicDialog />
       </Wrap>,
     );
-    await user.type(screen.getByLabelText(/name/i), "Local-first");
     await user.type(
-      screen.getByLabelText(/description/i),
-      "CRDTs and offline-first tooling, the user-owned data movement.",
+      screen.getByLabelText(/what to watch for/i),
+      "  CRDTs and offline-first tooling, the user-owned data movement. ",
     );
     await user.click(screen.getByRole("button", { name: /save/i }));
 
     // dialog closes
     await screen.findByText(/saved/i);
     expect(useNewTopicStore.getState().isOpen).toBe(false);
+    expect(captured).toEqual({
+      description: "CRDTs and offline-first tooling, the user-owned data movement.",
+    });
   });
 
   it("shows specific error on 503 embedder_unavailable and stays open", async () => {
@@ -78,8 +94,7 @@ describe("NewTopicDialog", () => {
         <NewTopicDialog />
       </Wrap>,
     );
-    await user.type(screen.getByLabelText(/name/i), "X");
-    await user.type(screen.getByLabelText(/description/i), "Long enough description for radar.");
+    await user.type(screen.getByLabelText(/what to watch for/i), "Long enough description for radar.");
     await user.click(screen.getByRole("button", { name: /save/i }));
 
     expect(await screen.findByText(/embedder/i)).toBeInTheDocument();
@@ -114,7 +129,7 @@ describe("NewTopicDialog", () => {
     expect(screen.getByText(/write a sentence or two/i)).toBeInTheDocument();
 
     await user.type(
-      screen.getByLabelText(/description/i),
+      screen.getByLabelText(/what to watch for/i),
       "CRDTs and offline-first tooling, the user-owned data movement.",
     );
 
@@ -123,14 +138,15 @@ describe("NewTopicDialog", () => {
     ).toBeInTheDocument();
   });
 
-  it("validates name and description before submit", async () => {
+  it("validates the description before submit", async () => {
     const user = userEvent.setup();
     render(
       <Wrap>
         <NewTopicDialog />
       </Wrap>,
     );
+    await user.type(screen.getByLabelText(/what to watch for/i), "   short   ");
     await user.click(screen.getByRole("button", { name: /save/i }));
-    expect(await screen.findByText(/name is required/i)).toBeInTheDocument();
+    expect(await screen.findByText(/at least 10 characters/i)).toBeInTheDocument();
   });
 });

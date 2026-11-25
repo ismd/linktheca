@@ -76,14 +76,12 @@ function PreviewSkeleton() {
 }
 
 type Props = {
-  name: string;
   description: string;
 };
 
-export function TopicPreviewPanel({ name, description }: Props) {
-  const debouncedName = useDebouncedValue(name, DEBOUNCE_MS);
+export function TopicPreviewPanel({ description }: Props) {
   const debouncedDescription = useDebouncedValue(description, DEBOUNCE_MS);
-  const query = useTopicPreviewQuery(debouncedName, debouncedDescription);
+  const query = useTopicPreviewQuery(debouncedDescription);
 
   const tooShort = debouncedDescription.trim().length < MIN_PREVIEW_DESCRIPTION;
   const preview = query.data;

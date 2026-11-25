@@ -496,7 +496,7 @@ func TestHTTP_PreviewTopic_200(t *testing.T) {
 	h := radar.NewHTTP(svc)
 
 	body, _ := json.Marshal(radar.PreviewTopicRequest{
-		Name: "AI", Description: "machine learning research and products",
+		Description: "machine learning research and products",
 	})
 	req := httptest.NewRequest(http.MethodPost, "/radar/topics/preview", bytes.NewReader(body))
 	req = req.WithContext(userOnlyContext(req.Context(), 7, false))

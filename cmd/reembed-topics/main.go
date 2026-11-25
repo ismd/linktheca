@@ -1,8 +1,8 @@
 // Command reembed-topics recomputes embeddings for every row in radar_topics.
 //
 // Useful when the topic embedding strategy changes (e.g. switched from
-// description-only to name+description) — existing rows are stale and need
-// a one-shot re-embed against TEI.
+// name+description to description-only, see radar.TopicEmbedText) — existing
+// rows are stale and need a one-shot re-embed against TEI.
 package main
 
 import (
@@ -76,8 +76,7 @@ func run() error {
 	logger.Info("reembedding topics", "count", len(topics))
 
 	for _, t := range topics {
-		text := t.Name + ": " + t.Description
-		vec, err := teiClient.Embed(ctx, text)
+		vec, err := teiClient.Embed(ctx, radar.TopicEmbedText(t.Description))
 		if err != nil {
 			return fmt.Errorf("embed topic %d: %w", t.ID, err)
 		}
