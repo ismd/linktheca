@@ -12,10 +12,17 @@ import (
 	"github.com/go-chi/chi/v5"
 	coreauth "github.com/ismd/linktheca/internal/core/auth"
 	"github.com/ismd/linktheca/internal/core/content"
+	"github.com/ismd/linktheca/internal/core/netsafe"
 	"github.com/ismd/linktheca/internal/library"
 	"github.com/ismd/linktheca/internal/testing/testdb"
 	"github.com/stretchr/testify/require"
 )
+
+// loopbackClient lets the extractor reach the httptest servers, which listen
+// on loopback, an address the production client refuses.
+func loopbackClient() *http.Client {
+	return netsafe.NewClient(netsafe.Options{Timeout: 10 * time.Second, AllowPrivate: true})
+}
 
 func TestIntegrationFullLibraryFlow(t *testing.T) {
 	if testing.Short() {
@@ -46,7 +53,7 @@ func TestIntegrationFullLibraryFlow(t *testing.T) {
 	// fetcher stays mocked: a real one writes into the package directory,
 	// since its output path is a package-level constant in core/media.
 	store := library.NewStore(pool)
-	extractor := content.NewExtractor()
+	extractor := content.NewExtractor(loopbackClient())
 	svc := library.NewService(store, extractor, newMockFetcher())
 
 	issuer := coreauth.NewJWTIssuer("test-secret-at-least-32-bytes-long-for-hmac", 15*time.Minute)
@@ -145,7 +152,7 @@ func TestIntegrationSaveDuplicateURL(t *testing.T) {
 
 	userID := createTestUser(t, pool)
 	store := library.NewStore(pool)
-	extractor := content.NewExtractor()
+	extractor := content.NewExtractor(loopbackClient())
 	svc := library.NewService(store, extractor, newMockFetcher())
 	issuer := coreauth.NewJWTIssuer("test-secret-at-least-32-bytes-long-for-hmac", 15*time.Minute)
 	h := library.NewHTTP(svc)

@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/ismd/linktheca/internal/radar"
 	"github.com/mmcdole/gofeed"
@@ -33,8 +32,10 @@ type HTTPFetcher struct {
 	client *http.Client
 }
 
-func NewHTTPFetcher(timeout time.Duration) *HTTPFetcher {
-	return &HTTPFetcher{client: &http.Client{Timeout: timeout}}
+// NewHTTPFetcher returns a Fetcher using client. Pass a netsafe client: any
+// user can add a personal feed, so feed URLs are untrusted.
+func NewHTTPFetcher(client *http.Client) *HTTPFetcher {
+	return &HTTPFetcher{client: client}
 }
 
 func (f *HTTPFetcher) Fetch(ctx context.Context, url, etag, lastModified string) (*FetchResult, error) {

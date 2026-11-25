@@ -19,6 +19,7 @@ func TestLoadFromEnv(t *testing.T) {
 	t.Setenv("LINKTHECA_LOG_FORMAT", "json")
 	t.Setenv("LINKTHECA_MEDIA_DIR", "/var/lib/linktheca/media")
 	t.Setenv("LINKTHECA_RADAR_MAX_USER_FEEDS", "5")
+	t.Setenv("LINKTHECA_FETCH_ALLOW_PRIVATE_NETWORKS", "true")
 
 	cfg, err := config.Load()
 	require.NoError(t, err)
@@ -34,6 +35,7 @@ func TestLoadFromEnv(t *testing.T) {
 	require.Equal(t, "debug", cfg.LogLevel)
 	require.Equal(t, "json", cfg.LogFormat)
 	require.Equal(t, 5, cfg.RadarMaxUserFeeds)
+	require.True(t, cfg.FetchAllowPrivateNetworks)
 }
 
 func TestLoadRequiresJWTSecret(t *testing.T) {
@@ -59,6 +61,7 @@ func TestLoadDefaults(t *testing.T) {
 	require.Equal(t, "info", cfg.LogLevel)
 	require.Equal(t, "text", cfg.LogFormat)
 	require.Equal(t, "media", cfg.MediaDir)
+	require.False(t, cfg.FetchAllowPrivateNetworks)
 }
 
 func TestLoad_RadarDefaults(t *testing.T) {

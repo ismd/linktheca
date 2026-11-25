@@ -26,6 +26,12 @@ type Config struct {
 	// MediaDir holds downloaded article assets. Images go to <MediaDir>/images.
 	MediaDir string `env:"LINKTHECA_MEDIA_DIR" envDefault:"media"`
 
+	// FetchAllowPrivateNetworks lets saved pages, feeds and images be fetched
+	// from loopback, private and link-local addresses. Off by default: those
+	// URLs come from users and feeds, and could otherwise probe the server's
+	// own network.
+	FetchAllowPrivateNetworks bool `env:"LINKTHECA_FETCH_ALLOW_PRIVATE_NETWORKS" envDefault:"false"`
+
 	TEIURL       string        `env:"LINKTHECA_TEI_URL" envDefault:"http://localhost:8081"`
 	TEITimeout   time.Duration `env:"LINKTHECA_TEI_TIMEOUT" envDefault:"30s"`
 	EmbeddingDim int           `env:"LINKTHECA_EMBEDDING_DIM" envDefault:"1024"`

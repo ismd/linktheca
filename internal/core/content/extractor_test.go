@@ -2,14 +2,23 @@ package content_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ismd/linktheca/internal/core/content"
+	"github.com/ismd/linktheca/internal/core/netsafe"
 	"github.com/stretchr/testify/require"
 )
+
+// loopbackClient lets the extractor reach httptest servers, which listen on
+// loopback, an address the production client refuses.
+func loopbackClient() *http.Client {
+	return netsafe.NewClient(netsafe.Options{Timeout: 5 * time.Second, AllowPrivate: true})
+}
 
 const testHTML = `<!DOCTYPE html>
 <html>
@@ -38,7 +47,7 @@ func TestExtractFromURL(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	ext := content.NewExtractor()
+	ext := content.NewExtractor(loopbackClient())
 	result, err := ext.Extract(context.Background(), srv.URL)
 
 	require.NoError(t, err)
@@ -93,7 +102,7 @@ func TestExtractResolvesImageURL(t *testing.T) {
 			}))
 			defer srv.Close()
 
-			ext := content.NewExtractor()
+			ext := content.NewExtractor(loopbackClient())
 			result, err := ext.Extract(context.Background(), srv.URL+"/article/post")
 
 			require.NoError(t, err)
@@ -103,10 +112,116 @@ func TestExtractResolvesImageURL(t *testing.T) {
 }
 
 func TestExtractFromURLFetchError(t *testing.T) {
-	ext := content.NewExtractor()
+	ext := content.NewExtractor(loopbackClient())
 	_, err := ext.Extract(context.Background(), "http://127.0.0.1:1/nonexistent")
 
-	require.Error(t, err)
+	var fe *content.FetchError
+	require.ErrorAs(t, err, &fe)
+	require.Zero(t, fe.Status)
+	require.True(t, content.IsTransient(err), "a refused connection may work later")
+}
+
+func TestExtractRefusesPrivateAddresses(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(testHTML))
+	}))
+	defer srv.Close()
+
+	ext := content.NewExtractor(netsafe.NewClient(netsafe.Options{Timeout: 5 * time.Second}))
+	_, err := ext.Extract(context.Background(), srv.URL)
+
+	require.ErrorIs(t, err, netsafe.ErrBlockedAddress)
+	require.False(t, content.IsTransient(err))
+}
+
+func TestExtractClassifiesHTTPFailures(t *testing.T) {
+	tests := map[string]struct {
+		status      int
+		contentType string
+		transient   bool
+		message     string
+	}{
+		"not found":         {status: http.StatusNotFound, transient: false, message: "fetch: status 404"},
+		"gone":              {status: http.StatusGone, transient: false, message: "fetch: status 410"},
+		"forbidden":         {status: http.StatusForbidden, transient: false, message: "fetch: status 403"},
+		"rate limited":      {status: http.StatusTooManyRequests, transient: true, message: "fetch: status 429"},
+		"request timeout":   {status: http.StatusRequestTimeout, transient: true, message: "fetch: status 408"},
+		"server error":      {status: http.StatusInternalServerError, transient: true, message: "fetch: status 500"},
+		"unavailable":       {status: http.StatusServiceUnavailable, transient: true, message: "fetch: status 503"},
+		"pdf":               {status: http.StatusOK, contentType: "application/pdf", message: "fetch: not an HTML page (application/pdf)"},
+		"json":              {status: http.StatusOK, contentType: "application/json; charset=utf-8", message: "fetch: not an HTML page (application/json)"},
+		"garbage mime type": {status: http.StatusOK, contentType: "nonsense;;", message: "fetch: not an HTML page (nonsense;;)"},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if tt.contentType != "" {
+					w.Header().Set("Content-Type", tt.contentType)
+				}
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(testHTML))
+			}))
+			defer srv.Close()
+
+			_, err := content.NewExtractor(loopbackClient()).Extract(context.Background(), srv.URL)
+
+			var fe *content.FetchError
+			require.ErrorAs(t, err, &fe)
+			require.Equal(t, tt.status, fe.Status)
+			require.Equal(t, tt.transient, content.IsTransient(err))
+			require.Equal(t, tt.message, err.Error())
+		})
+	}
+}
+
+func TestExtractAcceptsHTMLContentTypes(t *testing.T) {
+	for _, ct := range []string{"", "text/html", "TEXT/HTML; charset=windows-1251", "application/xhtml+xml"} {
+		t.Run(ct, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				// An empty value still has to reach the client as "no header":
+				// net/http would otherwise sniff one from the body.
+				w.Header()["Content-Type"] = nil
+				if ct != "" {
+					w.Header().Set("Content-Type", ct)
+				}
+				_, _ = w.Write([]byte(testHTML))
+			}))
+			defer srv.Close()
+
+			result, err := content.NewExtractor(loopbackClient()).Extract(context.Background(), srv.URL)
+
+			require.NoError(t, err)
+			require.Contains(t, result.Title, "Test Article")
+		})
+	}
+}
+
+// Past the size cap the page is cut off rather than rejected: the article
+// near the top still comes through.
+func TestExtractReadsOnlyTheStartOfHugePages(t *testing.T) {
+	content.SetMaxPageBytes(t, 64<<10)
+	padding := "<!-- " + strings.Repeat("x", 1<<20) + " -->"
+	tail := "<p>This paragraph sits past the cap, after a megabyte of comment, and must not be read.</p>"
+	page := strings.Replace(testHTML, "</article>", padding+tail+"</article>", 1)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(page))
+	}))
+	defer srv.Close()
+
+	result, err := content.NewExtractor(loopbackClient()).Extract(context.Background(), srv.URL)
+
+	require.NoError(t, err)
+	require.Contains(t, result.Text, "first paragraph of a test article")
+	require.NotContains(t, result.Text, "past the cap")
+}
+
+func TestIsTransientIgnoresOtherErrors(t *testing.T) {
+	require.False(t, content.IsTransient(nil))
+	require.False(t, content.IsTransient(errors.New("parse: broken")))
 }
 
 func TestReadingTimeEstimation(t *testing.T) {

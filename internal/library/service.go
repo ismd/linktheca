@@ -132,9 +132,19 @@ func (s *Service) Delete(ctx context.Context, userID, itemID int64) error {
 	return s.store.DeleteItem(ctx, userID, itemID)
 }
 
-// GetDetail returns a single library item with full article content for reader view
+// GetDetail returns a single library item with full article content for reader
+// view. The article HTML is sanitized here: the frontend renders it as is.
 func (s *Service) GetDetail(ctx context.Context, userID, itemID int64) (*ItemDetail, error) {
-	return s.store.GetItemDetail(ctx, userID, itemID)
+	d, err := s.store.GetItemDetail(ctx, userID, itemID)
+	if err != nil {
+		return nil, err
+	}
+
+	if d.Content.HTML != nil {
+		d.Content.HTML = nilIfEmpty(content.SanitizeHTML(*d.Content.HTML))
+	}
+
+	return d, nil
 }
 
 // siteHost is the key a site's favicon is stored under.

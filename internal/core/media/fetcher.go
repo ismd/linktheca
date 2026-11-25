@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 )
 
 var allowedContentTypes = []string{
@@ -41,12 +40,11 @@ type httpFetcher struct {
 	faviconsDir string
 }
 
-// NewFetcher returns a Fetcher saving downloads under mediaDir.
-func NewFetcher(mediaDir string) Fetcher {
+// NewFetcher returns a Fetcher downloading with client and saving under
+// mediaDir. Pass a netsafe client: image URLs come from the pages themselves.
+func NewFetcher(mediaDir string, client *http.Client) Fetcher {
 	return &httpFetcher{
-		client: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+		client:      client,
 		imagesDir:   ImagesDir(mediaDir),
 		faviconsDir: FaviconsDir(mediaDir),
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/ismd/linktheca/internal/core/embeddings"
 	"github.com/ismd/linktheca/internal/core/httpx"
 	"github.com/ismd/linktheca/internal/core/media"
+	"github.com/ismd/linktheca/internal/core/netsafe"
 	"github.com/ismd/linktheca/internal/library"
 	"github.com/ismd/linktheca/internal/radar"
 	"github.com/jackc/pgx/v5"
@@ -66,8 +67,14 @@ func New(deps Deps) *http.Server {
 
 	// Library module
 	libStore := library.NewStore(deps.DB)
-	extractor := content.NewExtractor()
-	fetcher := media.NewFetcher(cfg.MediaDir)
+	// Saved pages and the images they declare come from users, so they go
+	// through a client that stays out of the server's own network.
+	fetchClient := netsafe.NewClient(netsafe.Options{
+		Timeout:      30 * time.Second,
+		AllowPrivate: cfg.FetchAllowPrivateNetworks,
+	})
+	extractor := content.NewExtractor(fetchClient)
+	fetcher := media.NewFetcher(cfg.MediaDir, fetchClient)
 	libSvc := library.NewService(libStore, extractor, fetcher)
 	libHTTP := library.NewHTTP(libSvc)
 

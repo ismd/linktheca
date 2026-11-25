@@ -39,6 +39,7 @@ func (m *mockStore) UpsertContent(_ context.Context, p library.UpsertContentPara
 		ID:    m.nextCID,
 		URL:   p.URL,
 		Title: p.Title,
+		HTML:  p.HTML,
 		Image: p.Image,
 	}
 	m.contents[p.URL] = c
@@ -161,7 +162,14 @@ func (m *mockStore) GetItemDetail(_ context.Context, userID, itemID int64) (*lib
 		return nil, library.ErrNotFound
 	}
 
-	return &library.ItemDetail{Item: *item}, nil
+	d := &library.ItemDetail{Item: *item}
+	for _, c := range m.contents {
+		if c.ID == item.ContentID {
+			d.Content = *c
+		}
+	}
+
+	return d, nil
 }
 
 // --- mock extractor ---
@@ -444,6 +452,34 @@ func TestServiceGetByID(t *testing.T) {
 	got, err := svc.GetByID(context.Background(), 1, item.ID)
 	require.NoError(t, err)
 	require.Equal(t, item.ID, got.ID)
+}
+
+func TestServiceGetDetailSanitizesHTML(t *testing.T) {
+	store := newMockStore()
+	ext := newMockExtractor()
+	ext.results["https://evil.example/post"] = &content.Article{
+		URL: "https://evil.example/post",
+		HTML: `<p>Readable <a href="javascript:alert(1)">part</a></p>` +
+			`<script>alert(document.cookie)</script>` +
+			`<img src="https://evil.example/x.png" onerror="alert(2)">` +
+			`<iframe src="https://evil.example/frame"></iframe>`,
+	}
+	svc := library.NewService(store, ext, newMockFetcher())
+
+	item, err := svc.SaveURL(context.Background(), 1, "https://evil.example/post")
+	require.NoError(t, err)
+
+	d, err := svc.GetDetail(context.Background(), 1, item.ID)
+	require.NoError(t, err)
+	require.NotNil(t, d.Content.HTML)
+
+	html := *d.Content.HTML
+	require.Contains(t, html, "<p>Readable")
+	require.Contains(t, html, `<img src="https://evil.example/x.png">`)
+	require.NotContains(t, html, "script")
+	require.NotContains(t, html, "onerror")
+	require.NotContains(t, html, "javascript:")
+	require.NotContains(t, html, "iframe")
 }
 
 func TestServiceGetByIDNotFound(t *testing.T) {

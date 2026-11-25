@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ismd/linktheca/internal/core/embeddings"
+	"github.com/ismd/linktheca/internal/core/netsafe"
 	"github.com/ismd/linktheca/internal/radar"
 	"github.com/ismd/linktheca/internal/radar/crawler"
 	"github.com/ismd/linktheca/internal/radar/jobs"
@@ -81,7 +82,9 @@ func TestSmoke_PipelineWithRealTEI(t *testing.T) {
 	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(tvec)))
 
 	scheduler := jobs.NewScheduleCrawlsWorker(store)
-	crawl := jobs.NewCrawlFeedWorker(store, crawler.NewHTTPFetcher(30*time.Second))
+	crawl := jobs.NewCrawlFeedWorker(store, crawler.NewHTTPFetcher(netsafe.NewClient(netsafe.Options{
+		Timeout: 30 * time.Second, AllowPrivate: true,
+	})))
 	embed := jobs.NewEmbedFindingWorker(store, teiClient)
 	match := jobs.NewMatchFindingWorker(store)
 

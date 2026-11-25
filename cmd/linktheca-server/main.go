@@ -16,6 +16,7 @@ import (
 	"github.com/ismd/linktheca/internal/core/db"
 	"github.com/ismd/linktheca/internal/core/embeddings"
 	"github.com/ismd/linktheca/internal/core/logging"
+	"github.com/ismd/linktheca/internal/core/netsafe"
 	"github.com/ismd/linktheca/internal/radar"
 	"github.com/ismd/linktheca/internal/radar/crawler"
 	"github.com/ismd/linktheca/internal/radar/jobs"
@@ -82,7 +83,10 @@ func run() error {
 		bundle := jobs.Build(jobs.Deps{
 			Store:    store,
 			Embedder: teiClient,
-			Fetcher:  crawler.NewHTTPFetcher(30 * time.Second),
+			Fetcher: crawler.NewHTTPFetcher(netsafe.NewClient(netsafe.Options{
+				Timeout:      30 * time.Second,
+				AllowPrivate: cfg.FetchAllowPrivateNetworks,
+			})),
 		}, cfg.RadarSchedulerInterval)
 
 		client, err := jobs.NewClient(pool, bundle.Workers, bundle.Periodic, cfg.RadarMaxWorkers)

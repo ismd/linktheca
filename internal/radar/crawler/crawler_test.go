@@ -7,10 +7,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ismd/linktheca/internal/core/netsafe"
 	"github.com/ismd/linktheca/internal/radar"
 	"github.com/ismd/linktheca/internal/radar/crawler"
 	"github.com/stretchr/testify/require"
 )
+
+// loopbackClient lets the fetcher reach httptest servers, which listen on
+// loopback, an address the production client refuses.
+func loopbackClient() *http.Client {
+	return netsafe.NewClient(netsafe.Options{Timeout: 2 * time.Second, AllowPrivate: true})
+}
 
 func TestHTTPFetcher_OK(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -20,7 +27,7 @@ func TestHTTPFetcher_OK(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	f := crawler.NewHTTPFetcher(2 * time.Second)
+	f := crawler.NewHTTPFetcher(loopbackClient())
 	got, err := f.Fetch(context.Background(), srv.URL, "", "")
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, got.StatusCode)
@@ -37,7 +44,7 @@ func TestHTTPFetcher_304(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	f := crawler.NewHTTPFetcher(2 * time.Second)
+	f := crawler.NewHTTPFetcher(loopbackClient())
 	got, err := f.Fetch(context.Background(), srv.URL, `"abc"`, "")
 	require.NoError(t, err)
 	require.True(t, got.NotModified)
@@ -49,7 +56,7 @@ func TestHTTPFetcher_5xx(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	f := crawler.NewHTTPFetcher(2 * time.Second)
+	f := crawler.NewHTTPFetcher(loopbackClient())
 	_, err := f.Fetch(context.Background(), srv.URL, "", "")
 	require.Error(t, err)
 }

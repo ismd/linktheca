@@ -7,10 +7,18 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/ismd/linktheca/internal/core/media"
+	"github.com/ismd/linktheca/internal/core/netsafe"
 	"github.com/stretchr/testify/require"
 )
+
+// loopbackClient lets the fetcher reach httptest servers, which listen on
+// loopback, an address the production client refuses.
+func loopbackClient() *http.Client {
+	return netsafe.NewClient(netsafe.Options{Timeout: 5 * time.Second, AllowPrivate: true})
+}
 
 // pngBody is a byte slice whose first bytes are the PNG signature, which is all
 // http.DetectContentType looks at.
@@ -23,7 +31,7 @@ func TestFetchWritesUnderConfiguredDir(t *testing.T) {
 	defer srv.Close()
 
 	dir := t.TempDir()
-	fetcher := media.NewFetcher(dir)
+	fetcher := media.NewFetcher(dir, loopbackClient())
 
 	img, err := fetcher.Fetch(context.Background(), srv.URL+"/preview.png")
 	require.NoError(t, err)
@@ -49,7 +57,7 @@ func TestFetchWritesWorldReadableFiles(t *testing.T) {
 	defer srv.Close()
 
 	dir := t.TempDir()
-	fetcher := media.NewFetcher(dir)
+	fetcher := media.NewFetcher(dir, loopbackClient())
 
 	img, err := fetcher.Fetch(context.Background(), srv.URL+"/preview.png")
 	require.NoError(t, err)
@@ -73,7 +81,7 @@ func TestFetchRejectsNonImage(t *testing.T) {
 	defer srv.Close()
 
 	dir := t.TempDir()
-	fetcher := media.NewFetcher(dir)
+	fetcher := media.NewFetcher(dir, loopbackClient())
 
 	_, err := fetcher.Fetch(context.Background(), srv.URL+"/preview.png")
 	require.Error(t, err)
@@ -93,7 +101,7 @@ func TestFetchFaviconIsKeyedByHost(t *testing.T) {
 	defer srv.Close()
 
 	dir := t.TempDir()
-	fetcher := media.NewFetcher(dir)
+	fetcher := media.NewFetcher(dir, loopbackClient())
 
 	first, err := fetcher.FetchFavicon(context.Background(), "habr.com", srv.URL+"/icon.png")
 	require.NoError(t, err)
@@ -126,7 +134,7 @@ func TestFetchFaviconRejectsUnusableHost(t *testing.T) {
 	defer srv.Close()
 
 	dir := t.TempDir()
-	fetcher := media.NewFetcher(dir)
+	fetcher := media.NewFetcher(dir, loopbackClient())
 
 	// The host becomes a filename, so it must never carry path separators
 	for _, host := range []string{"", ".", "..", "../../etc/passwd", "host/../..", "a\\b"} {
@@ -141,7 +149,7 @@ func TestFetchRejectsNotFound(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	fetcher := media.NewFetcher(t.TempDir())
+	fetcher := media.NewFetcher(t.TempDir(), loopbackClient())
 
 	_, err := fetcher.Fetch(context.Background(), srv.URL+"/gone.png")
 	require.Error(t, err)
