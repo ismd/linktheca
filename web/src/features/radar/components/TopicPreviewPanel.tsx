@@ -35,13 +35,18 @@ function PreviewRow({ item, muted }: { item: PreviewMatch; muted: boolean }) {
         {item.similarity.toFixed(2)}
       </span>
       <div className="min-w-0">
-        <p
-          className={`font-body text-sm leading-snug truncate ${
+        {/* A new tab keeps the half-written topic in this dialog intact. */}
+        <a
+          href={`/radar/findings/${f.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`block font-body text-sm leading-snug truncate underline-offset-2 hover:text-vermillion hover:underline ${
             muted ? "text-muted-foreground" : "text-ink"
           }`}
         >
           {f.title ?? host(f.url)}
-        </p>
+          <span className="sr-only"> (opens in a new tab)</span>
+        </a>
         <p className="label-sc text-muted-foreground">
           {f.feedTitle ?? host(f.url)}
         </p>

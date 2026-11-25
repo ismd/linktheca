@@ -80,6 +80,7 @@ type StoreAPI interface {
 	DeleteTopic(ctx context.Context, userID, topicID int64) error
 	ListMatches(ctx context.Context, userID int64, p ListMatchesParams) ([]MatchView, int, error)
 	GetMatch(ctx context.Context, userID, matchID int64) (*MatchView, error)
+	GetFinding(ctx context.Context, userID, findingID int64) (*MatchFinding, error)
 	UpdateMatchState(ctx context.Context, userID, matchID int64, state string) error
 	LastSweepAt(ctx context.Context, userID int64) (*time.Time, error)
 	ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) ([]FeedListItem, int, error)
@@ -409,15 +410,35 @@ func (s *Service) GetMatch(ctx context.Context, userID, matchID int64) (*MatchVi
 		return nil, err
 	}
 
-	if c := mv.Finding.Content; c != nil && c.HTML != nil {
-		clean := content.SanitizeHTML(*c.HTML)
-		c.HTML = &clean
-		if clean == "" {
-			c.HTML = nil
-		}
+	sanitizeFindingContent(&mv.Finding)
+	return mv, nil
+}
+
+// GetFinding returns a finding from one of the user's subscribed feeds, with
+// its article, so a topic preview row can be read before it becomes a match.
+func (s *Service) GetFinding(ctx context.Context, userID, findingID int64) (*MatchFinding, error) {
+	f, err := s.store.GetFinding(ctx, userID, findingID)
+	if err != nil {
+		return nil, err
 	}
 
-	return mv, nil
+	sanitizeFindingContent(f)
+	return f, nil
+}
+
+// sanitizeFindingContent cleans the stored article HTML, which the frontend
+// renders as is, and drops it when nothing survives.
+func sanitizeFindingContent(f *MatchFinding) {
+	c := f.Content
+	if c == nil || c.HTML == nil {
+		return
+	}
+
+	clean := content.SanitizeHTML(*c.HTML)
+	c.HTML = &clean
+	if clean == "" {
+		c.HTML = nil
+	}
 }
 
 // LastSweep returns the latest fetch timestamp across the user's active

@@ -64,6 +64,26 @@ describe("TopicPreviewPanel", () => {
     expect(screen.getByText(/1 above cutoff/i)).toBeInTheDocument();
   });
 
+  it("opens each previewed article in a new tab", async () => {
+    server.use(
+      http.post("/api/radar/topics/preview", () =>
+        HttpResponse.json({
+          items: [{ similarity: 0.813, finding: rawFinding(17, "Local-first software") }],
+          threshold: 0.55,
+        })),
+    );
+
+    render(
+      <Wrap>
+        <TopicPreviewPanel description={DESCRIPTION} />
+      </Wrap>,
+    );
+
+    const link = await screen.findByRole("link", { name: /local-first software/i });
+    expect(link).toHaveAttribute("href", "/radar/findings/17");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
   it("sends the trimmed draft description to the server", async () => {
     let captured: unknown = null;
     server.use(

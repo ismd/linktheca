@@ -170,6 +170,8 @@ func New(deps Deps) *http.Server {
 			r.Get("/matches/{id}", radarHTTP.GetMatchHandler())
 			r.Patch("/matches/{id}", radarHTTP.UpdateMatchHandler())
 
+			r.Get("/findings/{id}", radarHTTP.GetFindingHandler())
+
 			r.Get("/status", radarHTTP.StatusHandler())
 		})
 

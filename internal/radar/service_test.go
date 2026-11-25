@@ -58,6 +58,10 @@ type mockStore struct {
 	getMatchResult    *radar.MatchView
 	getMatchErr       error
 	getMatchCalled    bool
+	getFindingResult  *radar.MatchFinding
+	getFindingErr     error
+	getFindingUserID  int64
+	getFindingID      int64
 	previewResult     []radar.PreviewMatch
 	previewErr        error
 	previewCalled     bool
@@ -512,6 +516,12 @@ func (m *mockStore) GetMatch(_ context.Context, _, _ int64) (*radar.MatchView, e
 	return m.getMatchResult, m.getMatchErr
 }
 
+func (m *mockStore) GetFinding(_ context.Context, userID, findingID int64) (*radar.MatchFinding, error) {
+	m.getFindingUserID = userID
+	m.getFindingID = findingID
+	return m.getFindingResult, m.getFindingErr
+}
+
 func (m *mockStore) UpdateMatchState(_ context.Context, _, _ int64, state string) error {
 	m.updateMatchCalled = true
 	m.updateMatchState = state
@@ -740,6 +750,41 @@ func TestService_GetMatch_notFound(t *testing.T) {
 
 	_, err := svc.GetMatch(context.Background(), 1, 7)
 	require.True(t, errors.Is(err, radar.ErrNotFound))
+}
+
+func TestService_GetFinding_scopesToUser(t *testing.T) {
+	store := newMockStore()
+	want := &radar.MatchFinding{ID: 100, URL: "https://x.example/a"}
+	store.getFindingResult = want
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	got, err := svc.GetFinding(context.Background(), 3, 100)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
+	require.Equal(t, int64(3), store.getFindingUserID)
+	require.Equal(t, int64(100), store.getFindingID)
+}
+
+func TestService_GetFinding_sanitizesArticleHTML(t *testing.T) {
+	store := newMockStore()
+	html := `<p>Article</p><script>alert(1)</script>`
+	store.getFindingResult = &radar.MatchFinding{
+		Content: &radar.FindingContent{HTML: &html},
+	}
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	got, err := svc.GetFinding(context.Background(), 1, 100)
+	require.NoError(t, err)
+	require.Equal(t, `<p>Article</p>`, *got.Content.HTML)
+}
+
+func TestService_GetFinding_notFound(t *testing.T) {
+	store := newMockStore()
+	store.getFindingErr = radar.ErrNotFound
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	_, err := svc.GetFinding(context.Background(), 1, 100)
+	require.ErrorIs(t, err, radar.ErrNotFound)
 }
 
 func TestService_SetMatchState_validation(t *testing.T) {

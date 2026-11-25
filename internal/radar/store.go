@@ -671,6 +671,48 @@ func (s *Store) GetMatch(ctx context.Context, userID, matchID int64) (*MatchView
 	return &mv, nil
 }
 
+// GetFinding returns one finding with its downloaded article, provided the
+// user subscribes to its feed: the same findings a topic preview can surface,
+// so a preview row can be opened even though it is not a match yet.
+func (s *Store) GetFinding(ctx context.Context, userID, findingID int64) (*MatchFinding, error) {
+	row := s.db.QueryRow(ctx, `
+		SELECT
+		  f.id, f.feed_id, fd.title AS feed_title,
+		  f.url, f.title, COALESCE(f.summary, ac.excerpt),
+		  f.published_at, f.discovered_at,
+		  ac.id, ac.html, ac.text, ac.byline, ac.site_name, ac.reading_time_seconds
+		FROM radar_findings f
+		JOIN radar_feeds fd ON fd.id = f.feed_id
+		JOIN radar_feed_subscriptions rfs
+		  ON rfs.feed_id = f.feed_id AND rfs.user_id = $2
+		LEFT JOIN article_contents ac ON ac.id = f.content_id
+		WHERE f.id = $1`,
+		findingID, userID)
+
+	var (
+		mf        MatchFinding
+		contentID *int64
+		c         FindingContent
+	)
+	if err := row.Scan(
+		&mf.ID, &mf.FeedID, &mf.FeedTitle,
+		&mf.URL, &mf.Title, &mf.Summary,
+		&mf.PublishedAt, &mf.DiscoveredAt,
+		&contentID, &c.HTML, &c.Text, &c.Byline, &c.SiteName, &c.ReadingTimeSecs,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("get finding: %w", err)
+	}
+
+	if contentID != nil {
+		mf.Content = &c
+	}
+
+	return &mf, nil
+}
+
 func (s *Store) UpdateMatchState(ctx context.Context, userID, matchID int64, state string) error {
 	tag, err := s.db.Exec(ctx, `
 		UPDATE radar_topic_matches

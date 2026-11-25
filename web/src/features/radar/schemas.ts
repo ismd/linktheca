@@ -117,7 +117,7 @@ export function mapTopicWithStats(raw: RawTopicWithStats): TopicWithStats {
   };
 }
 
-function mapMatchFinding(raw: z.infer<typeof RawMatchFindingSchema>): MatchFinding {
+export function mapMatchFinding(raw: z.infer<typeof RawMatchFindingSchema>): MatchFinding {
   return {
     id: raw.id,
     feedId: raw.feed_id,

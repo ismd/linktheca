@@ -783,6 +783,60 @@ func TestStore_GetMatch_otherUser(t *testing.T) {
 	require.ErrorIs(t, err, radar.ErrNotFound)
 }
 
+func TestStore_GetFinding_withContent(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	feedID := seedFeed(t, pool, "https://f.example/rss", "F1")
+	seedSubscription(t, pool, userID, feedID)
+	findingID := seedFinding(t, pool, feedID, "https://x.example/1", "t1")
+
+	f, err := store.GetFinding(ctx, userID, findingID)
+	require.NoError(t, err)
+	require.Equal(t, findingID, f.ID)
+	require.Equal(t, "https://x.example/1", f.URL)
+	require.Equal(t, "F1", *f.FeedTitle)
+	require.Nil(t, f.Content, "no page downloaded")
+
+	_, err = pool.Exec(ctx, `
+		WITH ac AS (
+		  INSERT INTO article_contents (url, html, text, excerpt, byline, site_name, reading_time_seconds)
+		  VALUES ('https://x.example/1', '<p>Body</p>', 'Body', 'Page excerpt', 'Ann', 'X', 120)
+		  RETURNING id)
+		UPDATE radar_findings SET content_id = (SELECT id FROM ac) WHERE id = $1`, findingID)
+	require.NoError(t, err)
+
+	f, err = store.GetFinding(ctx, userID, findingID)
+	require.NoError(t, err)
+	require.NotNil(t, f.Content)
+	require.Equal(t, "<p>Body</p>", *f.Content.HTML)
+	require.Equal(t, "Body", *f.Content.Text)
+	require.Equal(t, 120, *f.Content.ReadingTimeSecs)
+	require.Equal(t, "Page excerpt", *f.Summary)
+}
+
+// A finding is readable only through a subscription to its feed, the same
+// scope a topic preview draws from.
+func TestStore_GetFinding_requiresSubscription(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	subscriber := seedUser(t, pool)
+	outsider := seedUser(t, pool)
+	feedID := seedFeed(t, pool, "https://f.example/rss", "F1")
+	seedSubscription(t, pool, subscriber, feedID)
+	findingID := seedFinding(t, pool, feedID, "https://x.example/1", "t1")
+
+	_, err := store.GetFinding(ctx, outsider, findingID)
+	require.ErrorIs(t, err, radar.ErrNotFound)
+
+	_, err = store.GetFinding(ctx, subscriber, 99999)
+	require.ErrorIs(t, err, radar.ErrNotFound)
+}
+
 // seedFindingEmbedding sets a finding's embedding to the unit vector pointing
 // along axis, so cosine similarity against another axis is exactly 0 or 1.
 func seedFindingEmbedding(t *testing.T, pool *pgxpool.Pool, findingID int64, axis int) {

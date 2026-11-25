@@ -435,6 +435,52 @@ func TestHTTP_GetMatch_notFound(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, rec.Code)
 }
 
+func TestHTTP_GetFinding_ok(t *testing.T) {
+	store := newMockStore()
+	title := "A finding"
+	store.getFindingResult = &radar.MatchFinding{
+		ID: 100, FeedID: 5, URL: "https://x.example/a", Title: &title,
+		DiscoveredAt: time.Now(),
+	}
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/findings/100", nil)
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 11, false), "100"))
+	rec := httptest.NewRecorder()
+	h.GetFindingHandler()(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"id":100`)
+	require.Contains(t, rec.Body.String(), `"title":"A finding"`)
+	require.Equal(t, int64(11), store.getFindingUserID)
+}
+
+func TestHTTP_GetFinding_badID(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/findings/abc", nil)
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 11, false), "abc"))
+	rec := httptest.NewRecorder()
+	h.GetFindingHandler()(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestHTTP_GetFinding_notFound(t *testing.T) {
+	store := newMockStore()
+	store.getFindingErr = radar.ErrNotFound
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	h := radar.NewHTTP(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/radar/findings/100", nil)
+	req = req.WithContext(withRouteID(userOnlyContext(req.Context(), 11, false), "100"))
+	rec := httptest.NewRecorder()
+	h.GetFindingHandler()(rec, req)
+	require.Equal(t, http.StatusNotFound, rec.Code)
+}
+
 func TestHTTP_Status_200_withLastSweep(t *testing.T) {
 	store := newMockStore()
 	when := time.Date(2026, 5, 14, 12, 0, 0, 0, time.UTC)

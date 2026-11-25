@@ -1,21 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Link } from "react-router";
-import { toast } from "sonner";
-import { Button } from "@/shared/ui/button";
 import { ApiError } from "@/shared/api/errors";
-import { saveLink } from "@/features/library/api";
 import { useMatchQuery } from "../use-radar";
 import { useMarkMatchSeen } from "../use-mutations";
-import { relativeFromNow, readingTimeLabel } from "@/features/library/time";
-import { ArticleBody } from "@/shared/ui/article-body";
-
-function host(u: string): string {
-  try {
-    return new URL(u).host.replace(/^www\./, "");
-  } catch {
-    return u;
-  }
-}
+import { FindingArticle, ReaderError, ReaderSkeleton } from "./FindingArticle";
 
 type Props = { matchId: number };
 
@@ -23,7 +11,6 @@ export function MatchReader({ matchId }: Props) {
   const q = useMatchQuery(matchId);
   const mark = useMarkMatchSeen();
   const marked = useRef(false);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (q.data && q.data.state === "new" && !marked.current) {
@@ -33,118 +20,40 @@ export function MatchReader({ matchId }: Props) {
   }, [q.data, mark, matchId]);
 
   if (q.isLoading) {
-    return (
-      <div className="max-w-[720px] mx-auto px-4 pt-10" aria-label="Loading match">
-        <div className="skeleton h-10 w-3/4 mb-6" />
-        <div className="skeleton h-4 w-1/2 mb-10" />
-        <div className="skeleton h-4 w-full mb-3" />
-      </div>
-    );
+    return <ReaderSkeleton label="Loading match" />;
   }
 
   if (q.isError) {
-    const notFound = q.error instanceof ApiError && q.error.status === 404;
     return (
-      <div className="max-w-[720px] mx-auto px-4 pt-10 text-center">
-        {notFound ? (
-          <>
-            <h1 className="display-tight text-3xl text-ink mb-3">Match not found</h1>
-            <Link to="/radar" className="back-link">← Back to radar</Link>
-          </>
-        ) : (
-          <p className="font-body text-muted-foreground">Couldn&rsquo;t load this match.</p>
-        )}
-      </div>
+      <ReaderError
+        notFound={q.error instanceof ApiError && q.error.status === 404}
+        notFoundTitle="Match not found"
+        failure="Couldn’t load this match."
+      />
     );
   }
 
   const m = q.data!;
-  const f = m.finding;
-  const title = f.title ?? f.url;
-  const source = f.feedTitle ?? host(f.url);
-  const when = f.publishedAt ?? f.discoveredAt;
-  const article = f.content;
-
-  async function onSaveToLibrary() {
-    setSaving(true);
-    try {
-      await saveLink(f.url);
-      toast.success("Saved to library");
-    } catch (e) {
-      if (e instanceof ApiError && (e.code === "already_saved" || e.status === 409)) {
-        toast.info("Already in library");
-      } else {
-        toast.error("Could not save");
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
 
   return (
-    <article className="max-w-[720px] mx-auto px-4 pt-8 pb-20">
-      <Link
-        to={`/radar/topics/${m.topicId}`}
-        className="back-link inline-block mb-10"
-      >
-        ← Back to {m.topicName}
-      </Link>
-
-      <header className="mb-10">
-        <div className="flex items-center gap-3 mb-6 flex-wrap">
-          <Link
-            to={`/radar/topics/${m.topicId}`}
-            className="stamp text-ink hover:text-vermillion"
-          >
-            {m.topicName}
-          </Link>
-        </div>
-        <h1 className="display-tight text-4xl md:text-5xl text-ink leading-[1.05] mb-6">
-          {title}
-        </h1>
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-body italic text-base text-muted-foreground">
-          {article?.byline && (
-            <span>
-              by <span className="not-italic text-ink">{article.byline}</span>
-            </span>
-          )}
-          <span>{source}</span>
-          <span>{relativeFromNow(when)}</span>
-          {article?.readingTimeSeconds != null && (
-            <span>{readingTimeLabel(article.readingTimeSeconds)}</span>
-          )}
-        </div>
-      </header>
-
-      <ArticleBody
-        html={article?.html}
-        text={article?.text}
-        fallback={
-          f.summary ? (
-            <p className="prose-reader font-body text-lg text-ink leading-relaxed whitespace-pre-line">
-              {f.summary}
-            </p>
-          ) : (
-            <p className="font-body italic text-muted-foreground">
-              No summary captured. Open the original to read.
-            </p>
-          )
-        }
-      />
-
-      <div className="mt-16 pt-10 border-t-2 border-ink flex flex-wrap items-center gap-3">
-        <a
-          href={f.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex"
+    <FindingArticle
+      finding={m.finding}
+      backLink={
+        <Link
+          to={`/radar/topics/${m.topicId}`}
+          className="back-link inline-block mb-10"
         >
-          <Button>Open original ↗</Button>
-        </a>
-        <Button variant="outline" onClick={onSaveToLibrary} disabled={saving}>
-          {saving ? "Saving…" : "Save to library"}
-        </Button>
-      </div>
-    </article>
+          ← Back to {m.topicName}
+        </Link>
+      }
+      stamps={
+        <Link
+          to={`/radar/topics/${m.topicId}`}
+          className="stamp text-ink hover:text-vermillion"
+        >
+          {m.topicName}
+        </Link>
+      }
+    />
   );
 }

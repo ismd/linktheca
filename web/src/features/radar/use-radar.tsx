@@ -4,6 +4,7 @@ import {
   getTopic,
   listMatches,
   getMatch,
+  getFinding,
   getStatus,
   previewTopic,
   listFeeds,
@@ -16,6 +17,7 @@ export const radarKeys = {
   topic: (id: number) => ["radar", "topic", id] as const,
   matches: (filters: MatchFilters) => ["radar", "matches", filters] as const,
   match: (id: number) => ["radar", "match", id] as const,
+  finding: (id: number) => ["radar", "finding", id] as const,
   status: ["radar", "status"] as const,
   feeds: ["radar", "feeds"] as const,
   topicPreview: (description: string) =>
@@ -94,6 +96,14 @@ export function useMatchQuery(id: number) {
   return useQuery({
     queryKey: radarKeys.match(id),
     queryFn: () => getMatch(id),
+    enabled: Number.isFinite(id) && id > 0,
+  });
+}
+
+export function useFindingQuery(id: number) {
+  return useQuery({
+    queryKey: radarKeys.finding(id),
+    queryFn: () => getFinding(id),
     enabled: Number.isFinite(id) && id > 0,
   });
 }

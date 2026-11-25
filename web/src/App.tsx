@@ -21,6 +21,7 @@ import TopicsListRoute from "./routes/radar.topics._index";
 import SourcesRoute from "./routes/radar.sources";
 import TopicRoute from "./routes/radar.topics.$topicId";
 import MatchRoute from "./routes/radar.matches.$matchId";
+import FindingRoute from "./routes/radar.findings.$findingId";
 import AdminSourcesRoute from "./routes/admin.sources";
 
 const router = createBrowserRouter([
@@ -48,6 +49,7 @@ const router = createBrowserRouter([
               { path: "radar/sources", element: <SourcesRoute /> },
               { path: "radar/topics/:topicId", element: <TopicRoute /> },
               { path: "radar/matches/:matchId", element: <MatchRoute /> },
+              { path: "radar/findings/:findingId", element: <FindingRoute /> },
               { path: "settings", element: <SettingsRoute /> },
               {
                 element: <AdminRoute />,

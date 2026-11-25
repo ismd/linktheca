@@ -5,6 +5,7 @@ import {
   RawTopicWithStatsSchema,
   RawMatchListSchema,
   RawMatchViewSchema,
+  RawMatchFindingSchema,
   RawRadarStatusSchema,
   RawTopicPreviewSchema,
   RawFeedListSchema,
@@ -14,6 +15,7 @@ import {
   mapTopicWithStats,
   mapMatchList,
   mapMatchView,
+  mapMatchFinding,
   mapRadarStatus,
   mapTopicPreview,
 } from "./schemas";
@@ -22,6 +24,7 @@ import type {
   TopicWithStats,
   MatchList,
   MatchView,
+  MatchFinding,
   RadarStatus,
   MatchState,
   TopicPreview,
@@ -129,6 +132,13 @@ export async function listMatches(args: ListMatchesArgs): Promise<MatchList> {
 export async function getMatch(id: number): Promise<MatchView> {
   const raw = await apiFetch<unknown>(`/radar/matches/${id}`);
   return mapMatchView(parseInDev(RawMatchViewSchema, raw));
+}
+
+/** A finding from a subscribed feed, article included — what a topic preview
+ * row opens, since previewed findings are not matches yet. */
+export async function getFinding(id: number): Promise<MatchFinding> {
+  const raw = await apiFetch<unknown>(`/radar/findings/${id}`);
+  return mapMatchFinding(parseInDev(RawMatchFindingSchema, raw));
 }
 
 export async function updateMatch(

@@ -259,6 +259,24 @@ func (h *HTTP) getMatch(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, mv)
 }
 
+// GetFindingHandler returns the http.HandlerFunc for GET /radar/findings/{id}.
+func (h *HTTP) GetFindingHandler() http.HandlerFunc { return h.getFinding }
+
+func (h *HTTP) getFinding(w http.ResponseWriter, r *http.Request) {
+	userID := coreauth.UserID(r.Context())
+	id, err := parseRadarID(r)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid id")
+		return
+	}
+	f, err := h.svc.GetFinding(r.Context(), userID, id)
+	if err != nil {
+		writeRadarError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, f)
+}
+
 // UpdateMatchHandler returns the http.HandlerFunc for PATCH /radar/matches/{id}.
 func (h *HTTP) UpdateMatchHandler() http.HandlerFunc { return h.updateMatch }
 
