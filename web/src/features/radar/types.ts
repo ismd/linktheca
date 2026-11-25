@@ -29,9 +29,22 @@ export type MatchFinding = {
   feedTitle: string | null;
   url: string;
   title: string | null;
+  /** The feed's description, or the page excerpt when the feed has none. */
   summary: string | null;
   publishedAt: Date | null;
   discoveredAt: Date;
+  /** The downloaded article. Only a single match carries it, and only while
+   * the page is stored. */
+  content: FindingContent | null;
+};
+
+export type FindingContent = {
+  /** Sanitized by the backend; safe to render as HTML. */
+  html: string | null;
+  text: string | null;
+  byline: string | null;
+  siteName: string | null;
+  readingTimeSeconds: number | null;
 };
 
 export type MatchView = {

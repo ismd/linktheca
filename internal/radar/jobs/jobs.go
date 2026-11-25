@@ -33,9 +33,18 @@ type CrawlFeedArgs struct {
 
 func (CrawlFeedArgs) Kind() string { return "radar.crawl_feed" }
 
-// QueueFetch is the queue page downloads run in. It has its own workers, so
-// slow sites never hold up crawling, embedding and matching.
-const QueueFetch = "radar_fetch"
+const (
+	// QueueFetch is the queue page downloads run in. It has its own
+	// workers, so slow sites never hold up crawling, embedding and matching.
+	QueueFetch = "radar_fetch"
+
+	// QueueEmbed is the queue embeddings are computed in. On CPU a finding
+	// takes TEI a second or two and TEI works through one or two at a time,
+	// so more parallel requests only wait in TEI's queue until the client
+	// times out. A small queue of its own keeps them flowing and keeps
+	// crawling and matching from waiting behind them.
+	QueueEmbed = "radar_embed"
+)
 
 // FetchFindingContentArgs asks for the page behind a finding to be
 // downloaded. Reembed and SkipMatch are passed on to EmbedFindingArgs.
@@ -64,6 +73,10 @@ type EmbedFindingArgs struct {
 }
 
 func (EmbedFindingArgs) Kind() string { return "radar.embed_finding" }
+
+func (EmbedFindingArgs) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{Queue: QueueEmbed}
+}
 
 type MatchFindingArgs struct {
 	FindingID int64 `json:"finding_id"`
@@ -164,19 +177,26 @@ func Build(d Deps, cfg Config) Bundle {
 	}
 }
 
+// QueueSizes is how many jobs of each queue run at once.
+type QueueSizes struct {
+	Default int // crawling, matching, housekeeping
+	Fetch   int // page downloads
+	Embed   int // TEI requests
+}
+
 // NewClient is a thin convenience over river.NewClient for callers that just
-// want sensible defaults. maxWorkers sizes the default queue, fetchWorkers
-// the page download queue.
+// want sensible defaults.
 func NewClient(
 	pool *pgxpool.Pool,
 	workers *river.Workers,
 	periodic []*river.PeriodicJob,
-	maxWorkers, fetchWorkers int,
+	sizes QueueSizes,
 ) (*river.Client[pgx.Tx], error) {
 	return river.NewClient(riverpgxv5.New(pool), &river.Config{
 		Queues: map[string]river.QueueConfig{
-			river.QueueDefault: {MaxWorkers: maxWorkers},
-			QueueFetch:         {MaxWorkers: fetchWorkers},
+			river.QueueDefault: {MaxWorkers: sizes.Default},
+			QueueFetch:         {MaxWorkers: sizes.Fetch},
+			QueueEmbed:         {MaxWorkers: sizes.Embed},
 		},
 		Workers:      workers,
 		PeriodicJobs: periodic,

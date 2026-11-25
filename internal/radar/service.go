@@ -8,14 +8,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ismd/linktheca/internal/core/content"
 	"github.com/ismd/linktheca/internal/core/embeddings"
 	"github.com/pgvector/pgvector-go"
 )
 
-// defaultMatchThreshold sits between BGE-M3's noise floor (~0.4 for unrelated
-// pairs) and weak cross-lingual semantic matches (~0.55–0.6). Per-topic
-// match_threshold lets users tighten for high-precision topics.
-const defaultMatchThreshold = .55
+// defaultMatchThreshold sits above BGE-M3's noise floor (~0.38 median, ~0.46
+// at the 90th percentile for unrelated topic/article pairs) and below where
+// related articles land when embedded from their opening (~0.5–0.7). Picked
+// on a labeled sample, see migration 017. Per-topic match_threshold lets
+// users tighten for high-precision topics.
+const defaultMatchThreshold = .52
 
 const previewLimit = 5
 
@@ -399,8 +402,22 @@ func (s *Service) SetMatchState(ctx context.Context, userID, matchID int64, stat
 }
 
 // GetMatch returns a single denormalized match owned by the user.
+// The article HTML is sanitized here: the frontend renders it as is.
 func (s *Service) GetMatch(ctx context.Context, userID, matchID int64) (*MatchView, error) {
-	return s.store.GetMatch(ctx, userID, matchID)
+	mv, err := s.store.GetMatch(ctx, userID, matchID)
+	if err != nil {
+		return nil, err
+	}
+
+	if c := mv.Finding.Content; c != nil && c.HTML != nil {
+		clean := content.SanitizeHTML(*c.HTML)
+		c.HTML = &clean
+		if clean == "" {
+			c.HTML = nil
+		}
+	}
+
+	return mv, nil
 }
 
 // LastSweep returns the latest fetch timestamp across the user's active

@@ -25,7 +25,8 @@ type topicRow struct {
 // owner to scope by.
 func topFindingsByVector(ctx context.Context, pool *pgxpool.Pool, vec pgvector.Vector, limit int) ([]scoredFinding, error) {
 	rows, err := pool.Query(ctx, `
-		SELECT f.id, f.title, f.url, 1 - (f.embedding <=> $1) AS similarity
+		SELECT f.id, f.title, f.url, 1 - (f.embedding <=> $1) AS similarity,
+		       f.content_id IS NOT NULL
 		FROM radar_findings f
 		WHERE f.embedding IS NOT NULL
 		ORDER BY f.embedding <=> $1
@@ -53,7 +54,8 @@ func topFindingsByTopic(ctx context.Context, pool *pgxpool.Pool, topicID int64, 
 	}
 
 	rows, err := pool.Query(ctx, `
-		SELECT f.id, f.title, f.url, 1 - (rt.embedding <=> f.embedding) AS similarity
+		SELECT f.id, f.title, f.url, 1 - (rt.embedding <=> f.embedding) AS similarity,
+		       f.content_id IS NOT NULL
 		FROM radar_topics rt
 		JOIN radar_findings f ON f.embedding IS NOT NULL
 		WHERE rt.id = $1
@@ -74,7 +76,7 @@ func collectScored(rows pgx.Rows) ([]scoredFinding, error) {
 	var out []scoredFinding
 	for rows.Next() {
 		var f scoredFinding
-		if err := rows.Scan(&f.ID, &f.Title, &f.URL, &f.Similarity); err != nil {
+		if err := rows.Scan(&f.ID, &f.Title, &f.URL, &f.Similarity, &f.HasPage); err != nil {
 			return nil, fmt.Errorf("scan finding: %w", err)
 		}
 		out = append(out, f)

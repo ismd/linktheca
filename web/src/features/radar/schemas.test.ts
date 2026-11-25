@@ -73,6 +73,29 @@ describe("radar schemas", () => {
     expect(m.finding.feedTitle).toBe("Feed");
     expect(m.finding.publishedAt).toBeInstanceOf(Date);
     expect(m.finding.discoveredAt).toBeInstanceOf(Date);
+    expect(m.finding.content).toBeNull();
+  });
+
+  it("mapMatchView maps the downloaded article", () => {
+    const raw = RawMatchViewSchema.parse({
+      id: 42, topic_id: 7, topic_name: "T",
+      similarity: 0.7, state: "new",
+      matched_at: "2026-05-18T10:00:00Z",
+      finding: {
+        id: 100, feed_id: 5, feed_title: "Feed",
+        url: "https://x.example/a", title: "Title", summary: null,
+        published_at: null,
+        discovered_at: "2026-05-18T09:00:00Z",
+        content: {
+          html: "<p>Body</p>", text: "Body", byline: "Ann",
+          site_name: "X", reading_time_seconds: 240,
+        },
+      },
+    });
+    expect(mapMatchView(raw).finding.content).toEqual({
+      html: "<p>Body</p>", text: "Body", byline: "Ann",
+      siteName: "X", readingTimeSeconds: 240,
+    });
   });
 
   it("mapMatchList maps items + total", () => {

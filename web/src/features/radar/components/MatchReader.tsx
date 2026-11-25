@@ -6,7 +6,8 @@ import { ApiError } from "@/shared/api/errors";
 import { saveLink } from "@/features/library/api";
 import { useMatchQuery } from "../use-radar";
 import { useMarkMatchSeen } from "../use-mutations";
-import { relativeFromNow } from "@/features/library/time";
+import { relativeFromNow, readingTimeLabel } from "@/features/library/time";
+import { ArticleBody } from "@/shared/ui/article-body";
 
 function host(u: string): string {
   try {
@@ -62,6 +63,7 @@ export function MatchReader({ matchId }: Props) {
   const title = f.title ?? f.url;
   const source = f.feedTitle ?? host(f.url);
   const when = f.publishedAt ?? f.discoveredAt;
+  const article = f.content;
 
   async function onSaveToLibrary() {
     setSaving(true);
@@ -101,20 +103,34 @@ export function MatchReader({ matchId }: Props) {
           {title}
         </h1>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-body italic text-base text-muted-foreground">
+          {article?.byline && (
+            <span>
+              by <span className="not-italic text-ink">{article.byline}</span>
+            </span>
+          )}
           <span>{source}</span>
           <span>{relativeFromNow(when)}</span>
+          {article?.readingTimeSeconds != null && (
+            <span>{readingTimeLabel(article.readingTimeSeconds)}</span>
+          )}
         </div>
       </header>
 
-      {f.summary ? (
-        <p className="prose-reader font-body text-lg text-ink leading-relaxed whitespace-pre-line">
-          {f.summary}
-        </p>
-      ) : (
-        <p className="font-body italic text-muted-foreground">
-          No summary captured. Open the original to read.
-        </p>
-      )}
+      <ArticleBody
+        html={article?.html}
+        text={article?.text}
+        fallback={
+          f.summary ? (
+            <p className="prose-reader font-body text-lg text-ink leading-relaxed whitespace-pre-line">
+              {f.summary}
+            </p>
+          ) : (
+            <p className="font-body italic text-muted-foreground">
+              No summary captured. Open the original to read.
+            </p>
+          )
+        }
+      />
 
       <div className="mt-16 pt-10 border-t-2 border-ink flex flex-wrap items-center gap-3">
         <a

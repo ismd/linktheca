@@ -13,6 +13,7 @@ const match: MatchView = {
     title: "Local-First Software", summary: "A great essay…",
     publishedAt: new Date("2026-05-17T10:00:00Z"),
     discoveredAt: new Date("2026-05-18T09:00:00Z"),
+    content: null,
   },
 };
 

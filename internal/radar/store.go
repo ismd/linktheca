@@ -300,12 +300,13 @@ func (s *Store) PreviewFindings(ctx context.Context, userID int64, vec pgvector.
 	rows, err := s.db.Query(ctx, `
 		SELECT 1 - (f.embedding <=> $2) AS similarity,
 		       f.id, f.feed_id, fd.title AS feed_title,
-		       f.url, f.title, f.summary,
+		       f.url, f.title, COALESCE(f.summary, ac.excerpt),
 		       f.published_at, f.discovered_at
 		FROM radar_findings f
 		JOIN radar_feeds fd ON fd.id = f.feed_id
 		JOIN radar_feed_subscriptions rfs
 		  ON rfs.feed_id = f.feed_id AND rfs.user_id = $1
+		LEFT JOIN article_contents ac ON ac.id = f.content_id
 		WHERE f.embedding IS NOT NULL
 		ORDER BY f.embedding <=> $2
 		LIMIT $3`, userID, vec, limit)
@@ -374,6 +375,25 @@ func (s *Store) GetFindingForFetch(ctx context.Context, findingID int64) (*Findi
 	}
 
 	return &f, nil
+}
+
+// ListFindingsWithoutPage returns findings discovered since the given time
+// whose page has not been downloaded, newest first.
+func (s *Store) ListFindingsWithoutPage(ctx context.Context, since time.Time) ([]int64, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT id FROM radar_findings
+		WHERE content_id IS NULL AND discovered_at >= $1
+		ORDER BY discovered_at DESC`, since)
+	if err != nil {
+		return nil, fmt.Errorf("list findings without page: %w", err)
+	}
+
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		return nil, fmt.Errorf("collect findings without page: %w", err)
+	}
+
+	return ids, nil
 }
 
 // SetFindingContent links a finding to the downloaded text of its page.
@@ -570,12 +590,13 @@ func (s *Store) ListMatches(ctx context.Context, userID int64, p ListMatchesPara
 		  m.id, m.topic_id, t.name AS topic_name,
 		  m.similarity, m.state, m.matched_at,
 		  f.id, f.feed_id, fd.title AS feed_title,
-		  f.url, f.title, f.summary,
+		  f.url, f.title, COALESCE(f.summary, ac.excerpt),
 		  f.published_at, f.discovered_at
 		FROM radar_topic_matches m
 		JOIN radar_topics t   ON t.id = m.topic_id
 		JOIN radar_findings f ON f.id = m.finding_id
 		JOIN radar_feeds fd   ON fd.id = f.feed_id
+		LEFT JOIN article_contents ac ON ac.id = f.content_id
 		WHERE t.user_id = $1
 		  AND ($2::bigint IS NULL OR m.topic_id = $2)
 		  AND ($3::text   IS NULL OR m.state    = $3)
@@ -613,28 +634,40 @@ func (s *Store) GetMatch(ctx context.Context, userID, matchID int64) (*MatchView
 		  m.id, m.topic_id, t.name AS topic_name,
 		  m.similarity, m.state, m.matched_at,
 		  f.id, f.feed_id, fd.title AS feed_title,
-		  f.url, f.title, f.summary,
-		  f.published_at, f.discovered_at
+		  f.url, f.title, COALESCE(f.summary, ac.excerpt),
+		  f.published_at, f.discovered_at,
+		  ac.id, ac.html, ac.text, ac.byline, ac.site_name, ac.reading_time_seconds
 		FROM radar_topic_matches m
 		JOIN radar_topics t   ON t.id = m.topic_id
 		JOIN radar_findings f ON f.id = m.finding_id
 		JOIN radar_feeds fd   ON fd.id = f.feed_id
+		LEFT JOIN article_contents ac ON ac.id = f.content_id
 		WHERE m.id = $1 AND t.user_id = $2`,
 		matchID, userID)
 
-	var mv MatchView
+	var (
+		mv        MatchView
+		contentID *int64
+		c         FindingContent
+	)
 	if err := row.Scan(
 		&mv.ID, &mv.TopicID, &mv.TopicName,
 		&mv.Similarity, &mv.State, &mv.MatchedAt,
 		&mv.Finding.ID, &mv.Finding.FeedID, &mv.Finding.FeedTitle,
 		&mv.Finding.URL, &mv.Finding.Title, &mv.Finding.Summary,
 		&mv.Finding.PublishedAt, &mv.Finding.DiscoveredAt,
+		&contentID, &c.HTML, &c.Text, &c.Byline, &c.SiteName, &c.ReadingTimeSecs,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("get match: %w", err)
 	}
+
+	if contentID != nil {
+		mv.Finding.Content = &c
+	}
+
 	return &mv, nil
 }
 

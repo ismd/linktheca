@@ -46,6 +46,9 @@ type Config struct {
 	RadarFetchContent bool `env:"LINKTHECA_RADAR_FETCH_CONTENT" envDefault:"true"`
 	// RadarFetchWorkers is how many pages are downloaded at once.
 	RadarFetchWorkers int `env:"LINKTHECA_RADAR_FETCH_WORKERS" envDefault:"3"`
+	// RadarEmbedWorkers is how many findings are sent to TEI at once. On CPU,
+	// TEI gets through one or two at a time; raise it for a GPU.
+	RadarEmbedWorkers int `env:"LINKTHECA_RADAR_EMBED_WORKERS" envDefault:"2"`
 	// RadarFetchHostInterval is the least time between two downloads from
 	// the same site.
 	RadarFetchHostInterval time.Duration `env:"LINKTHECA_RADAR_FETCH_HOST_INTERVAL" envDefault:"2s"`

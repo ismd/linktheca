@@ -85,6 +85,59 @@ describe("MatchReader", () => {
     expect(await screen.findByText(/no summary captured/i)).toBeInTheDocument();
   });
 
+  it("shows the downloaded article instead of the summary", async () => {
+    server.use(
+      http.get("/api/radar/matches/42", () =>
+        HttpResponse.json({
+          ...rawMatch("seen"),
+          finding: {
+            ...rawMatch("seen").finding,
+            content: {
+              html: "<p>Full <em>article</em> body</p>", text: "Full article body",
+              byline: "Ann Author", site_name: "X", reading_time_seconds: 300,
+            },
+          },
+        })),
+    );
+    render(<Wrap><MatchReader matchId={42} /></Wrap>);
+
+    const em = await screen.findByText("article");
+    expect(em.tagName).toBe("EM");
+    expect(screen.getByText("Ann Author")).toBeInTheDocument();
+    expect(screen.getByText("5 min read")).toBeInTheDocument();
+    expect(screen.queryByText("Summary text")).not.toBeInTheDocument();
+  });
+
+  it("shows the article text when there is no HTML", async () => {
+    server.use(
+      http.get("/api/radar/matches/42", () =>
+        HttpResponse.json({
+          ...rawMatch("seen"),
+          finding: {
+            ...rawMatch("seen").finding,
+            content: {
+              html: null, text: "Plain article text", byline: null,
+              site_name: null, reading_time_seconds: null,
+            },
+          },
+        })),
+    );
+    render(<Wrap><MatchReader matchId={42} /></Wrap>);
+
+    expect(await screen.findByText("Plain article text")).toBeInTheDocument();
+    expect(screen.queryByText("Summary text")).not.toBeInTheDocument();
+    expect(screen.queryByText(/min read/)).not.toBeInTheDocument();
+  });
+
+  it("shows the summary when the page was not downloaded", async () => {
+    server.use(
+      http.get("/api/radar/matches/42", () => HttpResponse.json(rawMatch("seen"))),
+    );
+    render(<Wrap><MatchReader matchId={42} /></Wrap>);
+
+    expect(await screen.findByText("Summary text")).toBeInTheDocument();
+  });
+
   it("links back to the topic archive under /radar/topics", async () => {
     server.use(
       http.get("/api/radar/matches/42", () => HttpResponse.json(rawMatch("seen"))),

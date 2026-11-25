@@ -59,10 +59,12 @@ func (w *EmbedFindingWorker) Work(ctx context.Context, job *river.Job[EmbedFindi
 	return nil
 }
 
-// maxEmbedTextRunes caps the article text sent to TEI. The model reads only
-// the first ~1024 tokens of it and truncates the rest; the cap just keeps a
-// long article from being shipped and tokenized whole for nothing.
-const maxEmbedTextRunes = 8000
+// maxEmbedTextRunes caps the article text a finding is embedded from: about
+// 450 tokens, the opening of the article, which is where it says what it is
+// about. The cost is what decides it. On CPU, bge-m3 takes ~1.7 s for 2000
+// characters and ~4.5 s for the 1024 tokens TEI would truncate to, and every
+// new finding goes through it.
+const maxEmbedTextRunes = 2000
 
 // embedText is what a finding is embedded from: its title followed by the
 // article text when the page was downloaded, or by the feed's summary when it

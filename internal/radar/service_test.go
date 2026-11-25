@@ -254,7 +254,7 @@ func TestService_CreateTopic_DefaultThreshold(t *testing.T) {
 		Name: "x", Description: "ten chars long",
 	})
 	require.NoError(t, err)
-	require.Equal(t, float32(0.55), topic.MatchThreshold)
+	require.Equal(t, float32(0.52), topic.MatchThreshold)
 }
 
 func TestService_CreateTopic_Validation(t *testing.T) {
@@ -704,6 +704,35 @@ func TestService_GetMatch_passesThrough(t *testing.T) {
 	require.True(t, store.getMatchCalled)
 }
 
+func TestService_GetMatch_sanitizesArticleHTML(t *testing.T) {
+	store := newMockStore()
+	html := `<p>Article</p><script>alert(1)</script><img src="https://x.example/a.png" onerror="alert(2)">`
+	text := "Article"
+	store.getMatchResult = &radar.MatchView{ID: 7, Finding: radar.MatchFinding{
+		Content: &radar.FindingContent{HTML: &html, Text: &text},
+	}}
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	got, err := svc.GetMatch(context.Background(), 1, 7)
+	require.NoError(t, err)
+
+	require.Equal(t, `<p>Article</p><img src="https://x.example/a.png">`, *got.Finding.Content.HTML)
+	require.Equal(t, "Article", *got.Finding.Content.Text)
+}
+
+func TestService_GetMatch_dropsHTMLThatSanitizesToNothing(t *testing.T) {
+	store := newMockStore()
+	html := `<script>alert(1)</script>`
+	store.getMatchResult = &radar.MatchView{ID: 7, Finding: radar.MatchFinding{
+		Content: &radar.FindingContent{HTML: &html},
+	}}
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+
+	got, err := svc.GetMatch(context.Background(), 1, 7)
+	require.NoError(t, err)
+	require.Nil(t, got.Finding.Content.HTML)
+}
+
 func TestService_GetMatch_notFound(t *testing.T) {
 	store := newMockStore()
 	store.getMatchErr = radar.ErrNotFound
@@ -768,7 +797,7 @@ func TestService_PreviewTopic_ProbesLikeCreateTopic(t *testing.T) {
 		Description: "  webauthn passkeys ",
 	})
 	require.NoError(t, err)
-	require.Equal(t, float32(0.55), got.Threshold)
+	require.Equal(t, float32(0.52), got.Threshold)
 
 	require.True(t, store.previewCalled)
 	require.Equal(t, int64(7), store.previewUserID)

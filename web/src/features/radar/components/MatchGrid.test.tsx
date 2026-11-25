@@ -20,6 +20,7 @@ const match = (id: number, topicName: string): MatchView => ({
     summary: null,
     publishedAt: null,
     discoveredAt: new Date("2026-05-18T09:00:00Z"),
+    content: null,
   },
 });
 

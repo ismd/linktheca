@@ -255,10 +255,12 @@ func TestNewClient_AcceptsThePipeline(t *testing.T) {
 		SchedulerInterval: time.Minute, FetchContent: true, ContentRetention: time.Hour,
 	})
 
-	_, err = jobs.NewClient(pool, bundle.Workers, bundle.Periodic, 5, 3)
+	_, err = jobs.NewClient(pool, bundle.Workers, bundle.Periodic, jobs.QueueSizes{Default: 5, Fetch: 3, Embed: 2})
 	require.NoError(t, err)
 
 	opts := jobs.FetchFindingContentArgs{}.InsertOpts()
 	require.Equal(t, jobs.QueueFetch, opts.Queue)
 	require.Equal(t, 3, opts.MaxAttempts)
+
+	require.Equal(t, jobs.QueueEmbed, jobs.EmbedFindingArgs{}.InsertOpts().Queue)
 }

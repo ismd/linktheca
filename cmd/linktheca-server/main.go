@@ -102,8 +102,11 @@ func run() error {
 			ContentRetention:  cfg.RadarContentRetention,
 		})
 
-		client, err := jobs.NewClient(pool, bundle.Workers, bundle.Periodic,
-			cfg.RadarMaxWorkers, cfg.RadarFetchWorkers)
+		client, err := jobs.NewClient(pool, bundle.Workers, bundle.Periodic, jobs.QueueSizes{
+			Default: cfg.RadarMaxWorkers,
+			Fetch:   cfg.RadarFetchWorkers,
+			Embed:   cfg.RadarEmbedWorkers,
+		})
 		if err != nil {
 			return fmt.Errorf("river new client: %w", err)
 		}

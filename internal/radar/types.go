@@ -141,14 +141,28 @@ type TopicWithStats struct {
 
 // MatchFinding is the finding portion of a denormalized MatchView.
 type MatchFinding struct {
-	ID           int64      `json:"id"`
-	FeedID       int64      `json:"feed_id"`
-	FeedTitle    *string    `json:"feed_title"`
-	URL          string     `json:"url"`
-	Title        *string    `json:"title"`
+	ID        int64   `json:"id"`
+	FeedID    int64   `json:"feed_id"`
+	FeedTitle *string `json:"feed_title"`
+	URL       string  `json:"url"`
+	Title     *string `json:"title"`
+	// Summary is the feed's description of the item or, when the feed has
+	// none, the excerpt of the downloaded page.
 	Summary      *string    `json:"summary"`
 	PublishedAt  *time.Time `json:"published_at"`
 	DiscoveredAt time.Time  `json:"discovered_at"`
+	// Content is the downloaded article. Only a single match carries it, and
+	// only while the page is stored.
+	Content *FindingContent `json:"content,omitempty"`
+}
+
+// FindingContent is the article a finding links to, as Radar downloaded it.
+type FindingContent struct {
+	HTML            *string `json:"html"`
+	Text            *string `json:"text"`
+	Byline          *string `json:"byline"`
+	SiteName        *string `json:"site_name"`
+	ReadingTimeSecs *int    `json:"reading_time_seconds"`
 }
 
 // MatchView is a Match denormalized with topic name and finding metadata.

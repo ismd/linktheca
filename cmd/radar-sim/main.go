@@ -77,8 +77,12 @@ Flags:
 	fs.PrintDefaults()
 
 	fmt.Fprint(w, `
-Topics are embedded from their description alone and findings as "Title\nSummary",
-so mirror that formatting in -q to reproduce what the matcher sees.
+Topics are embedded from their description alone. Findings are embedded as
+"Title\n<article text>" when Radar downloaded the page (src "page") and as
+"Title\nSummary" from the feed when it did not (src "feed"); the model reads
+about the first thousand tokens. Mirror that in -q to reproduce what the
+matcher sees. A page pruned after the retention period shows as "feed" even
+though the finding was embedded from it.
 `)
 }
 
@@ -146,6 +150,9 @@ type scoredFinding struct {
 	Title      *string
 	URL        string
 	Similarity float32
+	// HasPage tells whether the downloaded article is stored, i.e. whether
+	// the finding was embedded from the page or from the feed's summary.
+	HasPage bool
 }
 
 // renderScores prints rows (already sorted by similarity, descending) and,
@@ -156,7 +163,7 @@ func renderScores(w io.Writer, rows []scoredFinding, threshold *float32) {
 		return
 	}
 
-	fmt.Fprintf(w, "%8s  %6s  %s\n", "sim", "id", "title")
+	fmt.Fprintf(w, "%8s  %6s  %4s  %s\n", "sim", "id", "src", "title")
 
 	cutDrawn := threshold == nil
 	for _, r := range rows {
@@ -165,7 +172,7 @@ func renderScores(w io.Writer, rows []scoredFinding, threshold *float32) {
 				strings.Repeat("─", 8), *threshold, strings.Repeat("─", 40))
 			cutDrawn = true
 		}
-		fmt.Fprintf(w, "%8.4f  %6d  %s\n", r.Similarity, r.ID, displayTitle(r.Title))
+		fmt.Fprintf(w, "%8.4f  %6d  %4s  %s\n", r.Similarity, r.ID, textSource(r.HasPage), displayTitle(r.Title))
 	}
 }
 
@@ -188,6 +195,14 @@ func renderTopics(w io.Writer, topics []topicRow) {
 		fmt.Fprintf(w, "%6d  %10.4f  %-30s  %s%s\n",
 			t.ID, t.MatchThreshold, displayTitle(&t.Name), t.OwnerEmail, notes)
 	}
+}
+
+func textSource(hasPage bool) string {
+	if hasPage {
+		return "page"
+	}
+
+	return "feed"
 }
 
 func displayTitle(t *string) string {

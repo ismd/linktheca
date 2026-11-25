@@ -674,6 +674,88 @@ func TestStore_GetMatch_ok(t *testing.T) {
 	require.Equal(t, "F1", *mv.Finding.FeedTitle)
 }
 
+func TestStore_GetMatch_withContent(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	topicID := seedTopic(t, pool, userID, "A", "desc", 0.55, true)
+	feedID := seedFeed(t, pool, "https://f.example/rss", "F1")
+	findingID := seedFinding(t, pool, feedID, "https://x.example/1", "t1")
+	matchID := seedMatch(t, pool, topicID, findingID, "new", 0.7)
+
+	mv, err := store.GetMatch(ctx, userID, matchID)
+	require.NoError(t, err)
+	require.Nil(t, mv.Finding.Content, "no page downloaded")
+
+	_, err = pool.Exec(ctx, `
+		WITH ac AS (
+		  INSERT INTO article_contents (url, html, text, excerpt, byline, site_name, reading_time_seconds)
+		  VALUES ('https://x.example/1', '<p>Body</p>', 'Body', 'Page excerpt', 'Ann', 'X', 120)
+		  RETURNING id)
+		UPDATE radar_findings SET content_id = (SELECT id FROM ac) WHERE id = $1`, findingID)
+	require.NoError(t, err)
+
+	mv, err = store.GetMatch(ctx, userID, matchID)
+	require.NoError(t, err)
+	require.NotNil(t, mv.Finding.Content)
+	require.Equal(t, "<p>Body</p>", *mv.Finding.Content.HTML)
+	require.Equal(t, "Body", *mv.Finding.Content.Text)
+	require.Equal(t, "Ann", *mv.Finding.Content.Byline)
+	require.Equal(t, "X", *mv.Finding.Content.SiteName)
+	require.Equal(t, 120, *mv.Finding.Content.ReadingTimeSecs)
+	require.Equal(t, "Page excerpt", *mv.Finding.Summary, "the page excerpt stands in for a missing summary")
+}
+
+// Aggregator feeds such as HN carry no description; once the page is
+// downloaded, its excerpt shows on the card instead.
+func TestStore_SummaryFallsBackToPageExcerpt(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	topicID := seedTopic(t, pool, userID, "A", "desc", 0.55, true)
+	feedID := seedFeed(t, pool, "https://f.example/rss", "F1")
+	seedSubscription(t, pool, userID, feedID)
+
+	bare := seedFinding(t, pool, feedID, "https://x.example/bare", "bare")
+	withSummary := seedFinding(t, pool, feedID, "https://x.example/summary", "summary")
+	_, err := pool.Exec(ctx, `UPDATE radar_findings SET summary = 'Feed summary' WHERE id = $1`, withSummary)
+	require.NoError(t, err)
+
+	for _, f := range []int64{bare, withSummary} {
+		_, err := pool.Exec(ctx, `
+			WITH ac AS (
+			  INSERT INTO article_contents (url, excerpt) SELECT url, 'Page excerpt' FROM radar_findings WHERE id = $1
+			  RETURNING id)
+			UPDATE radar_findings SET content_id = (SELECT id FROM ac) WHERE id = $1`, f)
+		require.NoError(t, err)
+		seedFindingEmbedding(t, pool, f, 0)
+		seedMatch(t, pool, topicID, f, "new", 0.7)
+	}
+
+	want := map[int64]string{bare: "Page excerpt", withSummary: "Feed summary"}
+
+	items, _, err := store.ListMatches(ctx, userID, radar.ListMatchesParams{Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+	for _, m := range items {
+		require.Equal(t, want[m.Finding.ID], *m.Finding.Summary)
+		require.Nil(t, m.Finding.Content, "lists do not carry the article")
+	}
+
+	vec := make([]float32, 1024)
+	vec[0] = 1
+	preview, err := store.PreviewFindings(ctx, userID, pgvector.NewVector(vec), 10)
+	require.NoError(t, err)
+	require.Len(t, preview, 2)
+	for _, p := range preview {
+		require.Equal(t, want[p.Finding.ID], *p.Finding.Summary)
+	}
+}
+
 func TestStore_GetMatch_notFound(t *testing.T) {
 	pool := testdb.New(t)
 	store := radar.NewStore(pool)
@@ -1300,6 +1382,29 @@ func TestStore_PruneFindingContent(t *testing.T) {
 		Scan(&contentID, &hasEmbedding))
 	require.Nil(t, contentID)
 	require.True(t, hasEmbedding)
+}
+
+func TestStore_ListFindingsWithoutPage(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	feedID := seedFeed(t, pool, "https://f.example/rss", "F")
+	older := seedFinding(t, pool, feedID, "https://a.example/older", "older")
+	newer := seedFinding(t, pool, feedID, "https://a.example/newer", "newer")
+	withPage := seedFinding(t, pool, feedID, "https://a.example/page", "page")
+	tooOld := seedFinding(t, pool, feedID, "https://a.example/too-old", "too old")
+	seedPage(t, pool, "https://a.example/page", 0, withPage)
+
+	for id, age := range map[int64]string{older: "2 days", newer: "1 day", withPage: "1 day", tooOld: "30 days"} {
+		_, err := pool.Exec(ctx,
+			`UPDATE radar_findings SET discovered_at = now() - $2::interval WHERE id = $1`, id, age)
+		require.NoError(t, err)
+	}
+
+	ids, err := store.ListFindingsWithoutPage(ctx, time.Now().Add(-7*24*time.Hour))
+	require.NoError(t, err)
+	require.Equal(t, []int64{newer, older}, ids)
 }
 
 func TestStore_FindingContent(t *testing.T) {

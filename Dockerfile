@@ -12,13 +12,15 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -buildvcs=false -ldflags="-s -w" \
-        -o /out/linktheca-server ./cmd/linktheca-server
+        -o /out/ ./cmd/linktheca-server ./cmd/reembed-topics ./cmd/radar-backfill-content
 
 RUN mkdir -p /out/media/images
 
 FROM gcr.io/distroless/static-debian13:nonroot
 
 COPY --from=build /out/linktheca-server /usr/local/bin/linktheca-server
+# Maintenance commands, run with `docker compose exec backend <command>`.
+COPY --from=build /out/reembed-topics /out/radar-backfill-content /usr/local/bin/
 COPY --from=build --chown=65532:65532 /out/media /data/media
 
 EXPOSE 8080

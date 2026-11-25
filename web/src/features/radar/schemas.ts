@@ -33,6 +33,14 @@ export const RawTopicWithStatsSchema = RawTopicSchema.extend({
   stats: RawTopicStatsSchema,
 });
 
+export const RawFindingContentSchema = z.object({
+  html: z.string().nullable(),
+  text: z.string().nullable(),
+  byline: z.string().nullable(),
+  site_name: z.string().nullable(),
+  reading_time_seconds: z.number().int().nullable(),
+});
+
 export const RawMatchFindingSchema = z.object({
   id: z.number().int(),
   feed_id: z.number().int(),
@@ -42,6 +50,7 @@ export const RawMatchFindingSchema = z.object({
   summary: z.string().nullable(),
   published_at: z.string().nullable(),
   discovered_at: z.string(),
+  content: RawFindingContentSchema.nullish(),
 });
 
 export const RawMatchViewSchema = z.object({
@@ -118,6 +127,15 @@ function mapMatchFinding(raw: z.infer<typeof RawMatchFindingSchema>): MatchFindi
     summary: raw.summary,
     publishedAt: raw.published_at ? new Date(raw.published_at) : null,
     discoveredAt: new Date(raw.discovered_at),
+    content: raw.content
+      ? {
+          html: raw.content.html,
+          text: raw.content.text,
+          byline: raw.content.byline,
+          siteName: raw.content.site_name,
+          readingTimeSeconds: raw.content.reading_time_seconds,
+        }
+      : null,
   };
 }
 

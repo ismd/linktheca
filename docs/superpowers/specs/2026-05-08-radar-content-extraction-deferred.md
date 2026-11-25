@@ -1,6 +1,8 @@
 # Radar full-content extraction (deferred)
 
-**Status:** deferred — to be designed alongside reader view for findings.
+**Status:** implemented 2026-11-25 — see
+[`2026-11-20-radar-full-text-matching-design.md`](2026-11-20-radar-full-text-matching-design.md)
+for what was built and where it departs from this note.
 **Decided:** 2026-05-08.
 
 ## Context

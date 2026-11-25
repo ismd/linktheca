@@ -24,6 +24,19 @@ func TestRenderScores_printsSimIDAndTitleInOrder(t *testing.T) {
 	require.Less(t, strings.Index(out, "Wolfenstein"), strings.Index(out, "WebAuthn"))
 }
 
+func TestRenderScores_showsTextSource(t *testing.T) {
+	var buf bytes.Buffer
+	renderScores(&buf, []scoredFinding{
+		{ID: 1, Title: new("downloaded"), Similarity: 0.7, HasPage: true},
+		{ID: 2, Title: new("summary only"), Similarity: 0.6},
+	}, nil)
+
+	lines := strings.Split(buf.String(), "\n")
+	require.Contains(t, lines[0], "src")
+	require.Regexp(t, `\bpage\s+downloaded$`, lines[1])
+	require.Regexp(t, `\bfeed\s+summary only$`, lines[2])
+}
+
 func TestRenderScores_untitledFinding(t *testing.T) {
 	var buf bytes.Buffer
 	renderScores(&buf, []scoredFinding{{ID: 3, Title: nil, Similarity: 0.5}}, nil)

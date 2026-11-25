@@ -6,6 +6,7 @@ import { ReadingProgress } from "@/features/library/components/ReadingProgress";
 import { ReaderHeader } from "@/features/library/components/ReaderHeader";
 import { ReaderActions } from "@/features/library/components/ReaderActions";
 import { ErrorPanel } from "@/shared/ui/ErrorPanel";
+import { ArticleBody } from "@/shared/ui/article-body";
 import { useMarkReadOnScroll } from "@/features/library/components/useMarkReadOnScroll";
 import { ApiError } from "@/shared/api/errors";
 
@@ -102,19 +103,16 @@ export default function LibraryItemRoute() {
               {d.content.fetchError}
             </p>
           </div>
-        ) : d.content.html ? (
-          <div
-            className="prose-reader drop-cap"
-            dangerouslySetInnerHTML={{ __html: d.content.html }}
-          />
-        ) : d.content.text ? (
-          <div className="prose-reader drop-cap whitespace-pre-wrap">
-            {d.content.text}
-          </div>
         ) : (
-          <p className="font-body italic text-muted-foreground">
-            No readable content for this URL.
-          </p>
+          <ArticleBody
+            html={d.content.html}
+            text={d.content.text}
+            fallback={
+              <p className="font-body italic text-muted-foreground">
+                No readable content for this URL.
+              </p>
+            }
+          />
         )}
 
         <ReaderActions

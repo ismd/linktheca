@@ -83,6 +83,29 @@ func TestTopFindingsByVector_ranksBySimilarity(t *testing.T) {
 	require.InDelta(t, 0.7071, rows[1].Similarity, 0.001)
 	require.InDelta(t, 0.0, rows[2].Similarity, 0.001)
 	require.Equal(t, "near", *rows[0].Title)
+	require.False(t, rows[0].HasPage)
+}
+
+func TestTopFindingsByVector_reportsDownloadedPages(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test")
+	}
+
+	pool := testdb.New(t)
+	ctx := context.Background()
+
+	feed := seedFeed(t, pool, "https://f.example/page")
+	v := vec(1)
+	id := seedFinding(t, pool, feed, "with page", &v)
+	_, err := pool.Exec(ctx, `
+		WITH ac AS (INSERT INTO article_contents (url, text) VALUES ('https://a.example/p', 'body') RETURNING id)
+		UPDATE radar_findings SET content_id = (SELECT id FROM ac) WHERE id = $1`, id)
+	require.NoError(t, err)
+
+	rows, err := topFindingsByVector(ctx, pool, vec(1), 10)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.True(t, rows[0].HasPage)
 }
 
 func TestTopFindingsByVector_appliesLimit(t *testing.T) {

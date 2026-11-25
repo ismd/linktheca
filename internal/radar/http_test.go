@@ -509,7 +509,7 @@ func TestHTTP_PreviewTopic_200(t *testing.T) {
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&got))
 	require.Len(t, got.Items, 1)
 	require.Equal(t, float32(0.77), got.Items[0].Similarity)
-	require.Equal(t, float32(0.55), got.Threshold)
+	require.Equal(t, float32(0.52), got.Threshold)
 	require.Equal(t, int64(7), store.previewUserID)
 }
 
