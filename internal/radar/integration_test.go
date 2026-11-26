@@ -344,7 +344,7 @@ func TestIntegrationUnsubscribeStopsNewMatchesOnly(t *testing.T) {
 
 	vec := make([]float32, 1024)
 	vec[0] = 1
-	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec)))
+	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec), pgvector.NewVector(vec)))
 
 	feed, err := store.AddFeed(ctx, radar.AddFeedParams{
 		URL: "https://feed.example/unsub.xml", Kind: "rss", FetchIntervalSeconds: 3600,
@@ -390,7 +390,7 @@ func TestIntegrationDeleteFeedCascades(t *testing.T) {
 
 	vec := make([]float32, 1024)
 	vec[0] = 1
-	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec)))
+	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec), pgvector.NewVector(vec)))
 
 	feed, err := store.AddFeed(ctx, radar.AddFeedParams{
 		URL: "https://feed.example/cascade.xml", Kind: "rss", FetchIntervalSeconds: 3600,
@@ -426,7 +426,7 @@ func matchFinding(t *testing.T, ctx context.Context, store *radar.Store,
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, store.UpdateFindingEmbedding(ctx, f.ID, pgvector.NewVector(vec)))
+	require.NoError(t, store.UpdateFindingEmbedding(ctx, f.ID, pgvector.NewVector(vec), pgvector.NewVector(vec)))
 	_, err = store.MatchFindingToTopics(ctx, f.ID)
 	require.NoError(t, err)
 	return f.ID

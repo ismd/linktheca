@@ -3,7 +3,9 @@
 //	ScheduleCrawls (periodic) → CrawlFeed → FetchFindingContent → EmbedFinding → MatchFinding
 //
 // plus PruneFindingContent (periodic), which drops downloaded pages nobody
-// needs any more. FetchFindingContent is skipped when page downloads are off.
+// needs any more, and BackfillMatchVectors (periodic) → EmbedFindingTitle,
+// which completes rows embedded before match vectors existed.
+// FetchFindingContent is skipped when page downloads are off.
 package jobs
 
 import (
@@ -88,6 +90,31 @@ type PruneFindingContentArgs struct{}
 
 func (PruneFindingContentArgs) Kind() string { return "radar.prune_finding_content" }
 
+// BackfillMatchVectorsArgs fills in the match vectors of topics and findings
+// embedded before match vectors existed.
+type BackfillMatchVectorsArgs struct{}
+
+func (BackfillMatchVectorsArgs) Kind() string { return "radar.backfill_match_vectors" }
+
+// EmbedFindingTitleArgs completes the match vector of an already embedded
+// finding by embedding its title. Backfill only: the finding is not matched
+// again, its topics have seen it.
+type EmbedFindingTitleArgs struct {
+	FindingID int64 `json:"finding_id"`
+}
+
+func (EmbedFindingTitleArgs) Kind() string { return "radar.embed_finding_title" }
+
+// InsertOpts puts the backfill behind new findings in the embed queue, and
+// keeps a finding from being queued twice while its job is pending.
+func (EmbedFindingTitleArgs) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{
+		Queue:      QueueEmbed,
+		Priority:   4,
+		UniqueOpts: river.UniqueOpts{ByArgs: true},
+	}
+}
+
 // Inserter is the slice of river.Client that workers actually need.
 // Defining an interface lets jobs_test.go run workers without a real client.
 type Inserter interface {
@@ -99,6 +126,9 @@ type Deps struct {
 	Store    *radar.Store
 	Embedder embeddings.Client
 	Fetcher  crawler.Fetcher
+	// Reference is shared with the radar service, so the reference centroid
+	// is embedded once per process.
+	Reference *radar.Reference
 
 	// Page downloads.
 	Contents  *content.Store
@@ -121,6 +151,10 @@ type Config struct {
 // pruneInterval is how often downloaded pages past retention are deleted.
 const pruneInterval = 24 * time.Hour
 
+// backfillInterval is how often rows without match vectors are looked for.
+// Each run queues at most backfillBatch title embeddings.
+const backfillInterval = 10 * time.Minute
+
 // Bundle is what Build returns: ready-to-mount workers, the periodic-job
 // spec, and a setter that the caller invokes after constructing the River
 // client so workers can enqueue downstream jobs.
@@ -137,6 +171,8 @@ func Build(d Deps, cfg Config) Bundle {
 	embed := NewEmbedFindingWorker(d.Store, d.Embedder)
 	match := NewMatchFindingWorker(d.Store)
 	prune := NewPruneFindingContentWorker(d.Store, cfg.ContentRetention)
+	backfill := NewBackfillMatchVectorsWorker(d.Store, d.Reference)
+	title := NewEmbedFindingTitleWorker(d.Store, d.Embedder)
 
 	workers := river.NewWorkers()
 	river.AddWorker(workers, scheduler)
@@ -147,6 +183,8 @@ func Build(d Deps, cfg Config) Bundle {
 	river.AddWorker(workers, embed)
 	river.AddWorker(workers, match)
 	river.AddWorker(workers, prune)
+	river.AddWorker(workers, backfill)
+	river.AddWorker(workers, title)
 
 	periodic := []*river.PeriodicJob{
 		river.NewPeriodicJob(
@@ -163,6 +201,13 @@ func Build(d Deps, cfg Config) Bundle {
 			},
 			&river.PeriodicJobOpts{RunOnStart: true},
 		),
+		river.NewPeriodicJob(
+			river.PeriodicInterval(backfillInterval),
+			func() (river.JobArgs, *river.InsertOpts) {
+				return BackfillMatchVectorsArgs{}, nil
+			},
+			&river.PeriodicJobOpts{RunOnStart: true},
+		),
 	}
 
 	return Bundle{
@@ -173,6 +218,7 @@ func Build(d Deps, cfg Config) Bundle {
 			crawl.SetInserter(i)
 			fetch.SetInserter(i)
 			embed.SetInserter(i)
+			backfill.SetInserter(i)
 		},
 	}
 }

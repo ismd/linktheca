@@ -13,12 +13,12 @@ import (
 	"github.com/pgvector/pgvector-go"
 )
 
-// defaultMatchThreshold sits above BGE-M3's noise floor (~0.38 median, ~0.46
-// at the 90th percentile for unrelated topic/article pairs) and below where
-// related articles land when embedded from their opening (~0.5–0.7). Picked
-// on a labeled sample, see migration 017. Per-topic match_threshold lets
-// users tighten for high-precision topics.
-const defaultMatchThreshold = .52
+// defaultMatchThreshold is the match score (see Reference) a finding needs to
+// become a match. Picked leave-one-topic-out on 17 labeled topics, where one
+// threshold held for two-word topics and one-sentence descriptions alike, see
+// docs/superpowers/plans/2026-11-26-radar-hub-corrected-matching.md. Per-topic
+// match_threshold lets users tighten or loosen a topic.
+const defaultMatchThreshold = .18
 
 const previewLimit = 5
 
@@ -69,7 +69,7 @@ func validateTopicDescription(desc string) error {
 
 type StoreAPI interface {
 	CreateTopic(ctx context.Context, p CreateTopicParams) (*Topic, error)
-	UpdateTopicEmbedding(ctx context.Context, topicID int64, vec pgvector.Vector) error
+	UpdateTopicEmbedding(ctx context.Context, topicID int64, vec, matchVec pgvector.Vector) error
 	AddFeed(ctx context.Context, p AddFeedParams) (*Feed, error)
 	Subscribe(ctx context.Context, userID, feedID int64) (*Subscription, error)
 
@@ -86,7 +86,7 @@ type StoreAPI interface {
 	ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) ([]FeedListItem, int, error)
 	GetGlobalFeedByURL(ctx context.Context, url string) (*Feed, error)
 	CountUserFeeds(ctx context.Context, userID int64) (int, error)
-	PreviewFindings(ctx context.Context, userID int64, vec pgvector.Vector, limit int) ([]PreviewMatch, error)
+	PreviewFindings(ctx context.Context, userID int64, matchVec pgvector.Vector, limit int) ([]PreviewMatch, error)
 	Unsubscribe(ctx context.Context, userID, feedID int64) error
 	UpdateFeed(ctx context.Context, feedID int64, owner *int64, p UpdateFeedParams) (*Feed, error)
 	DeleteFeed(ctx context.Context, feedID int64, owner *int64) error
@@ -100,11 +100,22 @@ const defaultMaxUserFeeds = 20
 type Service struct {
 	store        StoreAPI
 	embedder     embeddings.Client
+	reference    *Reference
 	maxUserFeeds int
 }
 
 // ServiceOption tunes optional Service behaviour.
 type ServiceOption func(*Service)
+
+// WithReference shares the reference centroid with other users of it, so it is
+// embedded once per process. Without it the service embeds its own.
+func WithReference(r *Reference) ServiceOption {
+	return func(s *Service) {
+		if r != nil {
+			s.reference = r
+		}
+	}
+}
 
 // WithMaxUserFeeds caps how many personal feeds one account may own. Values
 // below 1 are ignored so a missing config cannot lock everyone out.
@@ -122,7 +133,27 @@ func NewService(store StoreAPI, embedder embeddings.Client, opts ...ServiceOptio
 		opt(s)
 	}
 
+	if s.reference == nil {
+		s.reference = NewReference(embedder)
+	}
+
 	return s
+}
+
+// embedTopic embeds a topic description and derives the vector it is matched
+// with. Either failing means the embedder is unavailable.
+func (s *Service) embedTopic(ctx context.Context, description string) (vec, matchVec pgvector.Vector, err error) {
+	raw, err := s.embedder.Embed(ctx, TopicEmbedText(description))
+	if err != nil {
+		return vec, matchVec, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
+	}
+
+	match, err := s.reference.TopicMatchVector(ctx, raw)
+	if err != nil {
+		return vec, matchVec, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
+	}
+
+	return pgvector.NewVector(raw), pgvector.NewVector(match), nil
 }
 
 // MaxUserFeeds exposes the personal-feed quota so the UI can show "n / max".
@@ -163,12 +194,12 @@ func (s *Service) CreateTopic(ctx context.Context, userID int64, req CreateTopic
 		return nil, fmt.Errorf("create topic: %w", err)
 	}
 
-	vec, err := s.embedder.Embed(ctx, TopicEmbedText(desc))
+	vec, matchVec, err := s.embedTopic(ctx, desc)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
+		return nil, err
 	}
 
-	if err := s.store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec)); err != nil {
+	if err := s.store.UpdateTopicEmbedding(ctx, topic.ID, vec, matchVec); err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return nil, err
 		}
@@ -335,11 +366,11 @@ func (s *Service) UpdateTopic(ctx context.Context, userID, topicID int64, req Up
 	}
 
 	if p.Description != nil {
-		vec, err := s.embedder.Embed(ctx, TopicEmbedText(topic.Description))
+		vec, matchVec, err := s.embedTopic(ctx, topic.Description)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
+			return nil, err
 		}
-		if err := s.store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec)); err != nil {
+		if err := s.store.UpdateTopicEmbedding(ctx, topic.ID, vec, matchVec); err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil, err
 			}
@@ -360,12 +391,12 @@ func (s *Service) PreviewTopic(ctx context.Context, userID int64, req PreviewTop
 		return nil, err
 	}
 
-	vec, err := s.embedder.Embed(ctx, TopicEmbedText(desc))
+	_, matchVec, err := s.embedTopic(ctx, desc)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
+		return nil, err
 	}
 
-	items, err := s.store.PreviewFindings(ctx, userID, pgvector.NewVector(vec), previewLimit)
+	items, err := s.store.PreviewFindings(ctx, userID, matchVec, previewLimit)
 	if err != nil {
 		return nil, fmt.Errorf("preview findings: %w", err)
 	}

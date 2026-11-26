@@ -39,22 +39,26 @@ func seedFeed(t *testing.T, pool *pgxpool.Pool, url string) int64 {
 	return id
 }
 
+// seedFinding stores embedding as both the finding's embedding and its match
+// vector, so score and cosine agree unless a test sets them apart.
 func seedFinding(t *testing.T, pool *pgxpool.Pool, feedID int64, title string, embedding *pgvector.Vector) int64 {
 	t.Helper()
 	var id int64
 	require.NoError(t, pool.QueryRow(context.Background(),
-		`INSERT INTO radar_findings (feed_id, url, title, embedding)
-		 VALUES ($1, $2, $3, $4) RETURNING id`,
+		`INSERT INTO radar_findings (feed_id, url, title, embedding, match_embedding)
+		 VALUES ($1, $2, $3, $4, $4) RETURNING id`,
 		feedID, fmt.Sprintf("https://e.example/%s/%s", t.Name(), title), title, embedding).Scan(&id))
 	return id
 }
 
+// seedTopic stores embedding as both the topic's embedding and its match
+// vector, like seedFinding.
 func seedTopic(t *testing.T, pool *pgxpool.Pool, userID int64, name string, threshold float32, embedding *pgvector.Vector) int64 {
 	t.Helper()
 	var id int64
 	require.NoError(t, pool.QueryRow(context.Background(),
-		`INSERT INTO radar_topics (user_id, name, description, match_threshold, embedding)
-		 VALUES ($1, $2, 'seeded topic description', $3, $4) RETURNING id`,
+		`INSERT INTO radar_topics (user_id, name, description, match_threshold, embedding, match_embedding)
+		 VALUES ($1, $2, 'seeded topic description', $3, $4, $4) RETURNING id`,
 		userID, name, threshold, embedding).Scan(&id))
 	return id
 }
@@ -69,19 +73,19 @@ func TestTopFindingsByVector_ranksBySimilarity(t *testing.T) {
 
 	feed := seedFeed(t, pool, "https://f.example/rank")
 	near := vec(1)
-	mid := vec(1, 1)
+	mid := vec(0.7071, 0.7071) // unit length: the score is an inner product
 	far := vec(0, 1)
 	nearID := seedFinding(t, pool, feed, "near", &near)
 	midID := seedFinding(t, pool, feed, "mid", &mid)
 	farID := seedFinding(t, pool, feed, "far", &far)
 
-	rows, err := topFindingsByVector(ctx, pool, vec(1), 10)
+	rows, err := topFindingsByVector(ctx, pool, vec(1), vec(1), 10)
 	require.NoError(t, err)
 	require.Len(t, rows, 3)
 	require.Equal(t, []int64{nearID, midID, farID}, []int64{rows[0].ID, rows[1].ID, rows[2].ID})
-	require.InDelta(t, 1.0, rows[0].Similarity, 0.001)
-	require.InDelta(t, 0.7071, rows[1].Similarity, 0.001)
-	require.InDelta(t, 0.0, rows[2].Similarity, 0.001)
+	require.InDelta(t, 1.0, rows[0].Score, 0.001)
+	require.InDelta(t, 0.7071, rows[1].Score, 0.001)
+	require.InDelta(t, 0.0, rows[2].Score, 0.001)
 	require.Equal(t, "near", *rows[0].Title)
 	require.False(t, rows[0].HasPage)
 }
@@ -102,7 +106,7 @@ func TestTopFindingsByVector_reportsDownloadedPages(t *testing.T) {
 		UPDATE radar_findings SET content_id = (SELECT id FROM ac) WHERE id = $1`, id)
 	require.NoError(t, err)
 
-	rows, err := topFindingsByVector(ctx, pool, vec(1), 10)
+	rows, err := topFindingsByVector(ctx, pool, vec(1), vec(1), 10)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.True(t, rows[0].HasPage)
@@ -122,7 +126,7 @@ func TestTopFindingsByVector_appliesLimit(t *testing.T) {
 	nearID := seedFinding(t, pool, feed, "near", &near)
 	seedFinding(t, pool, feed, "far", &far)
 
-	rows, err := topFindingsByVector(ctx, pool, vec(1), 1)
+	rows, err := topFindingsByVector(ctx, pool, vec(1), vec(1), 1)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, nearID, rows[0].ID)
@@ -139,7 +143,7 @@ func TestTopFindingsByVector_skipsFindingsWithoutEmbedding(t *testing.T) {
 	feed := seedFeed(t, pool, "https://f.example/noembed")
 	seedFinding(t, pool, feed, "not embedded yet", nil)
 
-	rows, err := topFindingsByVector(ctx, pool, vec(1), 10)
+	rows, err := topFindingsByVector(ctx, pool, vec(1), vec(1), 10)
 	require.NoError(t, err)
 	require.Empty(t, rows)
 }
@@ -165,7 +169,40 @@ func TestTopFindingsByTopic_usesStoredTopicEmbedding(t *testing.T) {
 	rows, err := topFindingsByTopic(ctx, pool, topicID, 10, false)
 	require.NoError(t, err)
 	require.Equal(t, []int64{nearID, farID}, []int64{rows[0].ID, rows[1].ID})
-	require.InDelta(t, 1.0, rows[0].Similarity, 0.001)
+	require.InDelta(t, 1.0, rows[0].Score, 0.001)
+}
+
+// The ranking follows the match vectors; the cosine column follows the plain
+// embeddings.
+func TestTopFindingsByTopic_ranksByMatchScoreNotCosine(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test")
+	}
+
+	pool := testdb.New(t)
+	ctx := context.Background()
+
+	user := seedUser(t, pool)
+	embedding := vec(1)
+	topicID := seedTopic(t, pool, user, "ai", 0.18, &embedding)
+
+	feed := seedFeed(t, pool, "https://f.example/score")
+	byScore := vec(0, 1)
+	byCos := vec(1)
+	scoreID := seedFinding(t, pool, feed, "high score", &byScore)
+	cosID := seedFinding(t, pool, feed, "high cosine", &byCos)
+
+	// Score the finding seeded along axis 1 high, the other one low.
+	_, err := pool.Exec(ctx, `UPDATE radar_topics SET match_embedding = $1 WHERE id = $2`, vec(0, 1), topicID)
+	require.NoError(t, err)
+
+	rows, err := topFindingsByTopic(ctx, pool, topicID, 10, false)
+	require.NoError(t, err)
+	require.Equal(t, []int64{scoreID, cosID}, []int64{rows[0].ID, rows[1].ID})
+	require.InDelta(t, 1.0, rows[0].Score, 0.001)
+	require.InDelta(t, 0.0, rows[0].Cos, 0.001)
+	require.InDelta(t, 0.0, rows[1].Score, 0.001)
+	require.InDelta(t, 1.0, rows[1].Cos, 0.001)
 }
 
 func TestTopFindingsByTopic_subscribedOnlyFiltersUnsubscribedFeeds(t *testing.T) {
@@ -242,6 +279,24 @@ func TestLoadTopic_withoutEmbedding(t *testing.T) {
 
 	_, err := loadTopic(ctx, pool, topicID)
 	require.ErrorContains(t, err, "no embedding")
+}
+
+func TestLoadTopic_withoutMatchVector(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test")
+	}
+
+	pool := testdb.New(t)
+	ctx := context.Background()
+
+	user := seedUser(t, pool)
+	embedding := vec(1)
+	topicID := seedTopic(t, pool, user, "pre-018", 0.18, &embedding)
+	_, err := pool.Exec(ctx, `UPDATE radar_topics SET match_embedding = NULL WHERE id = $1`, topicID)
+	require.NoError(t, err)
+
+	_, err = loadTopic(ctx, pool, topicID)
+	require.ErrorContains(t, err, "no match vector")
 }
 
 func TestListTopics_reportsOwnerThresholdAndEmbeddingState(t *testing.T) {

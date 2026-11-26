@@ -79,8 +79,11 @@ func TestJobs_FullPipeline(t *testing.T) {
 		UserID: userID, Name: "ML", Description: "machine learning research", MatchThreshold: 0.0,
 	})
 	require.NoError(t, err)
+	// Fake embeddings are unrelated to each other, so the topic is given the
+	// finding's own match vector: the score is then its squared length, > 0.
 	tvec, _ := emb.Embed(context.Background(), "machine learning research")
-	require.NoError(t, store.UpdateTopicEmbedding(context.Background(), topic.ID, pgvector.NewVector(tvec)))
+	require.NoError(t, store.UpdateTopicEmbedding(context.Background(), topic.ID,
+		pgvector.NewVector(tvec), findingMatchVector(t, emb, "OpenAI ships\nAbout models", "OpenAI ships")))
 
 	rss := []byte(`<?xml version="1.0"?>
 <rss version="2.0"><channel>
@@ -149,14 +152,18 @@ func TestJobs_FullPipelineWithPageFetch(t *testing.T) {
 	_, err = store.Subscribe(ctx, userID, feed.ID)
 	require.NoError(t, err)
 
-	// The topic is embedded from exactly the text the finding should be
-	// embedded from, so only that finding embedding clears the threshold.
+	// The topic is given the match vector the finding should end up with,
+	// from the page text and the title. The score is then the vector's squared
+	// length, ~0.5 for unrelated fake embeddings; a finding embedded from the
+	// feed's summary instead shares only the title half and scores ~0.25.
+	text := "Rust 2.0 released\n" + strings.TrimSpace(article.Text)
+	want := findingMatchVector(t, emb, text, "Rust 2.0 released")
 	topic, err := store.CreateTopic(ctx, radar.CreateTopicParams{
-		UserID: userID, Name: "Rust", Description: "Rust releases", MatchThreshold: 0.99,
+		UserID: userID, Name: "Rust", Description: "Rust releases", MatchThreshold: dot(want, want) - 0.01,
 	})
 	require.NoError(t, err)
-	tvec, _ := emb.Embed(ctx, "Rust 2.0 released\n"+strings.TrimSpace(article.Text))
-	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(tvec)))
+	tvec, _ := emb.Embed(ctx, "Rust releases")
+	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(tvec), want))
 
 	rss := []byte(`<?xml version="1.0"?>
 <rss version="2.0"><channel>
@@ -195,6 +202,30 @@ func TestJobs_FullPipelineWithPageFetch(t *testing.T) {
 	require.NoError(t, pool.QueryRow(ctx,
 		`SELECT count(*) FROM radar_topic_matches WHERE topic_id=$1`, topic.ID).Scan(&n))
 	require.Equal(t, 1, n, "the finding must be embedded from the page text")
+
+	var got pgvector.Vector
+	require.NoError(t, pool.QueryRow(ctx,
+		`SELECT match_embedding FROM radar_findings WHERE feed_id = $1`, feed.ID).Scan(&got))
+	require.InDeltaSlice(t, want.Slice(), got.Slice(), 1e-6, "text and title make the match vector")
+}
+
+// findingMatchVector is the match vector EmbedFindingWorker stores for a
+// finding embedded from text whose title is title.
+func findingMatchVector(t *testing.T, emb embeddings.Client, text, title string) pgvector.Vector {
+	t.Helper()
+	d, err := emb.Embed(context.Background(), text)
+	require.NoError(t, err)
+	tv, err := emb.Embed(context.Background(), title)
+	require.NoError(t, err)
+	return pgvector.NewVector(radar.FindingMatchVector(d, tv))
+}
+
+func dot(a, b pgvector.Vector) float32 {
+	var s float32
+	for i, x := range a.Slice() {
+		s += x * b.Slice()[i]
+	}
+	return s
 }
 
 func TestEmbedFinding_ReembedAndSkipMatch(t *testing.T) {
@@ -218,12 +249,18 @@ func TestEmbedFinding_ReembedAndSkipMatch(t *testing.T) {
 	require.NoError(t, err)
 
 	old, _ := emb.Embed(ctx, "something else entirely")
-	require.NoError(t, store.UpdateFindingEmbedding(ctx, f.ID, pgvector.NewVector(old)))
+	require.NoError(t, store.UpdateFindingEmbedding(ctx, f.ID, pgvector.NewVector(old), pgvector.NewVector(old)))
 
 	embedding := func() []float32 {
 		var v pgvector.Vector
 		require.NoError(t, pool.QueryRow(ctx,
 			`SELECT embedding FROM radar_findings WHERE id=$1`, f.ID).Scan(&v))
+		return v.Slice()
+	}
+	matchEmbedding := func() []float32 {
+		var v pgvector.Vector
+		require.NoError(t, pool.QueryRow(ctx,
+			`SELECT match_embedding FROM radar_findings WHERE id=$1`, f.ID).Scan(&v))
 		return v.Slice()
 	}
 
@@ -241,7 +278,77 @@ func TestEmbedFinding_ReembedAndSkipMatch(t *testing.T) {
 	}))
 	want, _ := emb.Embed(ctx, title)
 	require.Equal(t, want, embedding())
+	require.Equal(t, want, matchEmbedding(), "embedded from the title alone, the title adds nothing")
 	require.Empty(t, inserter.calls, "SkipMatch queues no match")
+}
+
+// Rows embedded before match vectors existed get them: topics in place from
+// their stored embedding, findings through a title embedding job each.
+func TestBackfillMatchVectors(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	ctx := context.Background()
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	reference := radar.NewReference(emb)
+
+	userID := seedUser(t, pool)
+	topic, err := store.CreateTopic(ctx, radar.CreateTopicParams{
+		UserID: userID, Name: "Rust", Description: "Rust releases", MatchThreshold: 0.18,
+	})
+	require.NoError(t, err)
+	tvec, _ := emb.Embed(ctx, "Rust releases")
+	_, err = pool.Exec(ctx, `UPDATE radar_topics SET embedding = $1 WHERE id = $2`, pgvector.NewVector(tvec), topic.ID)
+	require.NoError(t, err)
+
+	feed, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: "https://x.example/feed.xml", Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+	_, err = store.Subscribe(ctx, userID, feed.ID)
+	require.NoError(t, err)
+
+	title, ext := "Rust 2.0 released", "g1"
+	f, _, err := store.UpsertFinding(ctx, radar.FindingUpsert{
+		FeedID: feed.ID, ExternalID: &ext, URL: "https://x.example/post", Title: &title,
+	})
+	require.NoError(t, err)
+	article, _ := emb.Embed(ctx, "Rust 2.0 released\nThe article")
+	_, err = pool.Exec(ctx, `UPDATE radar_findings SET embedding = $1 WHERE id = $2`, pgvector.NewVector(article), f.ID)
+	require.NoError(t, err)
+
+	backfill := jobs.NewBackfillMatchVectorsWorker(store, reference)
+	titleWorker := jobs.NewEmbedFindingTitleWorker(store, emb)
+	inserter := newFakeInserter()
+	backfill.SetInserter(inserter)
+	inserter.dispatch[jobs.EmbedFindingTitleArgs{}.Kind()] = func(ctx context.Context, a river.JobArgs) {
+		require.NoError(t, titleWorker.Work(ctx, &river.Job[jobs.EmbedFindingTitleArgs]{Args: a.(jobs.EmbedFindingTitleArgs)}))
+	}
+
+	require.NoError(t, backfill.Work(ctx, &river.Job[jobs.BackfillMatchVectorsArgs]{}))
+
+	var topicMatch, findingMatch pgvector.Vector
+	require.NoError(t, pool.QueryRow(ctx,
+		`SELECT match_embedding FROM radar_topics WHERE id = $1`, topic.ID).Scan(&topicMatch))
+	wantTopic, err := reference.TopicMatchVector(ctx, tvec)
+	require.NoError(t, err)
+	require.InDeltaSlice(t, wantTopic, topicMatch.Slice(), 1e-6)
+
+	require.NoError(t, pool.QueryRow(ctx,
+		`SELECT match_embedding FROM radar_findings WHERE id = $1`, f.ID).Scan(&findingMatch))
+	titleVec, _ := emb.Embed(ctx, title)
+	require.InDeltaSlice(t, radar.FindingMatchVector(article, titleVec), findingMatch.Slice(), 1e-6)
+
+	require.Equal(t, []river.JobArgs{jobs.EmbedFindingTitleArgs{FindingID: f.ID}}, inserter.calls,
+		"one title job, and no match: the finding is old news")
+
+	// Nothing left to do on the next run.
+	inserter.calls = nil
+	require.NoError(t, backfill.Work(ctx, &river.Job[jobs.BackfillMatchVectorsArgs]{}))
+	require.Empty(t, inserter.calls)
 }
 
 // River validates queue names, worker registrations and periodic jobs when
@@ -263,4 +370,9 @@ func TestNewClient_AcceptsThePipeline(t *testing.T) {
 	require.Equal(t, 3, opts.MaxAttempts)
 
 	require.Equal(t, jobs.QueueEmbed, jobs.EmbedFindingArgs{}.InsertOpts().Queue)
+
+	title := jobs.EmbedFindingTitleArgs{}.InsertOpts()
+	require.Equal(t, jobs.QueueEmbed, title.Queue)
+	require.Equal(t, 4, title.Priority, "the backfill waits behind new findings")
+	require.True(t, title.UniqueOpts.ByArgs)
 }

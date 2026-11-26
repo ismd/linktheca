@@ -12,6 +12,9 @@ import (
 	"github.com/riverqueue/river"
 )
 
+// EmbedFindingWorker embeds a finding from the opening of its article
+// (embedText) and, separately, from its title. The two make the vector the
+// finding is matched with (radar.FindingMatchVector); then it is matched.
 type EmbedFindingWorker struct {
 	river.WorkerDefaults[EmbedFindingArgs]
 	store    *radar.Store
@@ -46,7 +49,15 @@ func (w *EmbedFindingWorker) Work(ctx context.Context, job *river.Job[EmbedFindi
 		return fmt.Errorf("embed finding %d: %w", id, err)
 	}
 
-	if err := w.store.UpdateFindingEmbedding(ctx, id, pgvector.NewVector(vec)); err != nil {
+	titleVec := vec
+	if title := titleText(f.Title); title != "" && title != text {
+		if titleVec, err = w.embedder.Embed(ctx, title); err != nil {
+			return fmt.Errorf("embed title of finding %d: %w", id, err)
+		}
+	}
+
+	matchVec := radar.FindingMatchVector(vec, titleVec)
+	if err := w.store.UpdateFindingEmbedding(ctx, id, pgvector.NewVector(vec), pgvector.NewVector(matchVec)); err != nil {
 		return fmt.Errorf("save embedding %d: %w", id, err)
 	}
 
@@ -72,8 +83,8 @@ const maxEmbedTextRunes = 2000
 func embedText(f *radar.FindingForEmbed) string {
 	parts := []string{}
 
-	if f.Title != nil {
-		parts = append(parts, strings.TrimSpace(*f.Title))
+	if title := titleText(f.Title); title != "" {
+		parts = append(parts, title)
 	}
 
 	switch {
@@ -84,6 +95,16 @@ func embedText(f *radar.FindingForEmbed) string {
 	}
 
 	return strings.TrimSpace(strings.Join(parts, "\n"))
+}
+
+// titleText is the title a finding's title embedding is computed from, ""
+// when it has none.
+func titleText(title *string) string {
+	if title == nil {
+		return ""
+	}
+
+	return strings.TrimSpace(*title)
 }
 
 func truncateRunes(s string, n int) string {

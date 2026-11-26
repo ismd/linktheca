@@ -38,10 +38,12 @@ func (s *Store) CreateTopic(ctx context.Context, p CreateTopicParams) (*Topic, e
 	return &t, nil
 }
 
-func (s *Store) UpdateTopicEmbedding(ctx context.Context, topicID int64, vec pgvector.Vector) error {
+// UpdateTopicEmbedding stores a topic's embedding together with the vector it
+// is matched with (see Reference.TopicMatchVector).
+func (s *Store) UpdateTopicEmbedding(ctx context.Context, topicID int64, vec, matchVec pgvector.Vector) error {
 	cmd, err := s.db.Exec(ctx,
-		`UPDATE radar_topics SET embedding=$1, updated_at=now() WHERE id=$2`,
-		vec, topicID)
+		`UPDATE radar_topics SET embedding=$1, match_embedding=$2, updated_at=now() WHERE id=$3`,
+		vec, matchVec, topicID)
 	if err != nil {
 		return fmt.Errorf("update topic embedding: %w", err)
 	}
@@ -253,9 +255,12 @@ func (s *Store) GetFindingByExternalID(ctx context.Context, feedID int64, extern
 	return &f, nil
 }
 
-func (s *Store) UpdateFindingEmbedding(ctx context.Context, findingID int64, vec pgvector.Vector) error {
+// UpdateFindingEmbedding stores a finding's article embedding together with
+// the vector it is matched with (see FindingMatchVector).
+func (s *Store) UpdateFindingEmbedding(ctx context.Context, findingID int64, vec, matchVec pgvector.Vector) error {
 	cmd, err := s.db.Exec(ctx,
-		`UPDATE radar_findings SET embedding = $1 WHERE id = $2`, vec, findingID)
+		`UPDATE radar_findings SET embedding = $1, match_embedding = $2 WHERE id = $3`,
+		vec, matchVec, findingID)
 
 	if err != nil {
 		return fmt.Errorf("update finding embedding: %w", err)
@@ -269,23 +274,25 @@ func (s *Store) UpdateFindingEmbedding(ctx context.Context, findingID int64, vec
 }
 
 // MatchFindingToTopics inserts matches for all subscribed+active topics of
-// the finding's feed where cosine similarity ≥ topic.match_threshold.
+// the finding's feed whose match score reaches topic.match_threshold. The
+// score is the inner product of the two match vectors (see Reference); it is
+// stored as the match's similarity.
 // Returns the number of matches inserted (existing rows are not counted).
 func (s *Store) MatchFindingToTopics(ctx context.Context, findingID int64) (int64, error) {
 	cmd, err := s.db.Exec(ctx, `
 		INSERT INTO radar_topic_matches (topic_id, finding_id, similarity, state)
 		SELECT rt.id,
 		       $1,
-		       1 - (rt.embedding <=> f.embedding) AS similarity,
+		       -(rt.match_embedding <#> f.match_embedding) AS score,
 		       'new'
 		FROM radar_topics rt
 		JOIN radar_feed_subscriptions rfs ON rfs.user_id = rt.user_id
 		JOIN radar_findings f ON f.id = $1
 		WHERE rfs.feed_id = f.feed_id
 		  AND rt.is_active
-		  AND rt.embedding IS NOT NULL
-		  AND f.embedding IS NOT NULL
-		  AND 1 - (rt.embedding <=> f.embedding) >= rt.match_threshold
+		  AND rt.match_embedding IS NOT NULL
+		  AND f.match_embedding IS NOT NULL
+		  AND -(rt.match_embedding <#> f.match_embedding) >= rt.match_threshold
 		ON CONFLICT (topic_id, finding_id) DO NOTHING
 	`, findingID)
 
@@ -296,9 +303,11 @@ func (s *Store) MatchFindingToTopics(ctx context.Context, findingID int64) (int6
 	return cmd.RowsAffected(), nil
 }
 
-func (s *Store) PreviewFindings(ctx context.Context, userID int64, vec pgvector.Vector, limit int) ([]PreviewMatch, error) {
+// PreviewFindings ranks the user's subscribed findings by their match score
+// against a topic match vector, the way MatchFindingToTopics would score them.
+func (s *Store) PreviewFindings(ctx context.Context, userID int64, matchVec pgvector.Vector, limit int) ([]PreviewMatch, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT 1 - (f.embedding <=> $2) AS similarity,
+		SELECT -(f.match_embedding <#> $2) AS score,
 		       f.id, f.feed_id, fd.title AS feed_title,
 		       f.url, f.title, COALESCE(f.summary, ac.excerpt),
 		       f.published_at, f.discovered_at
@@ -307,9 +316,9 @@ func (s *Store) PreviewFindings(ctx context.Context, userID int64, vec pgvector.
 		JOIN radar_feed_subscriptions rfs
 		  ON rfs.feed_id = f.feed_id AND rfs.user_id = $1
 		LEFT JOIN article_contents ac ON ac.id = f.content_id
-		WHERE f.embedding IS NOT NULL
-		ORDER BY f.embedding <=> $2
-		LIMIT $3`, userID, vec, limit)
+		WHERE f.match_embedding IS NOT NULL
+		ORDER BY f.match_embedding <#> $2
+		LIMIT $3`, userID, matchVec, limit)
 	if err != nil {
 		return nil, fmt.Errorf("preview findings: %w", err)
 	}
@@ -332,6 +341,76 @@ func (s *Store) PreviewFindings(ctx context.Context, userID int64, vec pgvector.
 		return nil, fmt.Errorf("rows: %w", err)
 	}
 	return items, nil
+}
+
+// FillTopicMatchEmbeddings derives the match vector of every embedded topic
+// that has none yet, q − c, from the stored embedding q and the reference
+// centroid c. Topics embedded before match vectors existed need it once.
+func (s *Store) FillTopicMatchEmbeddings(ctx context.Context, centroid pgvector.Vector) (int64, error) {
+	cmd, err := s.db.Exec(ctx, `
+		UPDATE radar_topics
+		SET match_embedding = embedding - $1
+		WHERE embedding IS NOT NULL AND match_embedding IS NULL`, centroid)
+	if err != nil {
+		return 0, fmt.Errorf("fill topic match embeddings: %w", err)
+	}
+
+	return cmd.RowsAffected(), nil
+}
+
+// ListFindingsWithoutMatchEmbedding returns up to limit embedded findings that
+// have no match vector yet, newest first.
+func (s *Store) ListFindingsWithoutMatchEmbedding(ctx context.Context, limit int) ([]int64, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT id FROM radar_findings
+		WHERE embedding IS NOT NULL AND match_embedding IS NULL
+		ORDER BY discovered_at DESC
+		LIMIT $1`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list findings without match embedding: %w", err)
+	}
+
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		return nil, fmt.Errorf("collect findings without match embedding: %w", err)
+	}
+
+	return ids, nil
+}
+
+// FindingForTitleEmbed is what completing a finding's match vector needs: the
+// title to embed and the article embedding to combine it with.
+type FindingForTitleEmbed struct {
+	ID                int64
+	Title             *string
+	Embedding         *pgvector.Vector
+	HasMatchEmbedding bool
+}
+
+func (s *Store) GetFindingForTitleEmbed(ctx context.Context, findingID int64) (*FindingForTitleEmbed, error) {
+	row := s.db.QueryRow(ctx,
+		`SELECT id, title, embedding, match_embedding IS NOT NULL
+		 FROM radar_findings WHERE id = $1`, findingID)
+
+	var f FindingForTitleEmbed
+	if err := row.Scan(&f.ID, &f.Title, &f.Embedding, &f.HasMatchEmbedding); err != nil {
+		return nil, wrapPgError(err)
+	}
+
+	return &f, nil
+}
+
+// FillFindingMatchEmbedding stores the match vector of a finding that has
+// none. A finding re-embedded in the meantime already has one that fits its
+// new embedding, and keeps it.
+func (s *Store) FillFindingMatchEmbedding(ctx context.Context, findingID int64, matchVec pgvector.Vector) error {
+	if _, err := s.db.Exec(ctx,
+		`UPDATE radar_findings SET match_embedding = $2 WHERE id = $1 AND match_embedding IS NULL`,
+		findingID, matchVec); err != nil {
+		return fmt.Errorf("fill finding match embedding: %w", err)
+	}
+
+	return nil
 }
 
 type FindingForEmbed struct {

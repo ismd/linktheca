@@ -37,8 +37,11 @@ type Deps struct {
 // It owns the River client lifecycle.
 type RadarDeps struct {
 	Embedder embeddings.Client
-	River    *river.Client[pgx.Tx]
-	Workers  *river.Workers
+	// Reference is shared with the River workers; nil makes the service
+	// embed its own.
+	Reference *radar.Reference
+	River     *river.Client[pgx.Tx]
+	Workers   *river.Workers
 }
 
 func New(deps Deps) *http.Server {
@@ -140,6 +143,7 @@ func New(deps Deps) *http.Server {
 	if cfg.RadarEnabled && deps.Radar != nil {
 		radarStore := radar.NewStore(deps.DB)
 		radarSvc := radar.NewService(radarStore, deps.Radar.Embedder,
+			radar.WithReference(deps.Radar.Reference),
 			radar.WithMaxUserFeeds(cfg.RadarMaxUserFeeds))
 		radarHTTP := radar.NewHTTP(radarSvc)
 

@@ -14,21 +14,23 @@ import (
 func TestRenderScores_printsSimIDAndTitleInOrder(t *testing.T) {
 	var buf bytes.Buffer
 	renderScores(&buf, []scoredFinding{
-		{ID: 18, Title: new("Wolfenstein 3D for Gameboy"), Similarity: 0.7497},
-		{ID: 452, Title: new("WebAuthn и Passkeys"), Similarity: 0.5933},
+		{ID: 18, Title: new("Wolfenstein 3D for Gameboy"), Score: 0.7497},
+		{ID: 452, Title: new("WebAuthn и Passkeys"), Score: 0.5933},
 	}, nil)
 
 	out := buf.String()
 	require.Contains(t, out, "0.7497")
 	require.Contains(t, out, "18")
+	require.Contains(t, out, "score")
+	require.Contains(t, out, "cos")
 	require.Less(t, strings.Index(out, "Wolfenstein"), strings.Index(out, "WebAuthn"))
 }
 
 func TestRenderScores_showsTextSource(t *testing.T) {
 	var buf bytes.Buffer
 	renderScores(&buf, []scoredFinding{
-		{ID: 1, Title: new("downloaded"), Similarity: 0.7, HasPage: true},
-		{ID: 2, Title: new("summary only"), Similarity: 0.6},
+		{ID: 1, Title: new("downloaded"), Score: 0.7, HasPage: true},
+		{ID: 2, Title: new("summary only"), Score: 0.6},
 	}, nil)
 
 	lines := strings.Split(buf.String(), "\n")
@@ -39,14 +41,14 @@ func TestRenderScores_showsTextSource(t *testing.T) {
 
 func TestRenderScores_untitledFinding(t *testing.T) {
 	var buf bytes.Buffer
-	renderScores(&buf, []scoredFinding{{ID: 3, Title: nil, Similarity: 0.5}}, nil)
+	renderScores(&buf, []scoredFinding{{ID: 3, Title: nil, Score: 0.5}}, nil)
 	require.Contains(t, buf.String(), "(no title)")
 }
 
 func TestRenderScores_truncatesLongTitles(t *testing.T) {
 	var buf bytes.Buffer
 	renderScores(&buf, []scoredFinding{
-		{ID: 1, Title: new(strings.Repeat("я", 200)), Similarity: 0.5},
+		{ID: 1, Title: new(strings.Repeat("я", 200)), Score: 0.5},
 	}, nil)
 
 	out := buf.String()
@@ -57,8 +59,8 @@ func TestRenderScores_truncatesLongTitles(t *testing.T) {
 func TestRenderScores_drawsCutoffBetweenRows(t *testing.T) {
 	var buf bytes.Buffer
 	renderScores(&buf, []scoredFinding{
-		{ID: 1, Title: new("above"), Similarity: 0.60},
-		{ID: 2, Title: new("below"), Similarity: 0.50},
+		{ID: 1, Title: new("above"), Score: 0.60},
+		{ID: 2, Title: new("below"), Score: 0.50},
 	}, new(float32(0.55)))
 
 	out := buf.String()
@@ -71,7 +73,7 @@ func TestRenderScores_drawsCutoffBetweenRows(t *testing.T) {
 func TestRenderScores_cutoffAboveEverything(t *testing.T) {
 	var buf bytes.Buffer
 	renderScores(&buf, []scoredFinding{
-		{ID: 1, Title: new("below"), Similarity: 0.40},
+		{ID: 1, Title: new("below"), Score: 0.40},
 	}, new(float32(0.55)))
 
 	out := buf.String()
@@ -81,7 +83,7 @@ func TestRenderScores_cutoffAboveEverything(t *testing.T) {
 func TestRenderScores_noCutoffWhenEverythingMatches(t *testing.T) {
 	var buf bytes.Buffer
 	renderScores(&buf, []scoredFinding{
-		{ID: 1, Title: new("above"), Similarity: 0.80},
+		{ID: 1, Title: new("above"), Score: 0.80},
 	}, new(float32(0.55)))
 
 	require.NotContains(t, buf.String(), "threshold")

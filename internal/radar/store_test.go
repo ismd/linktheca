@@ -62,18 +62,20 @@ func TestStore_UpdateTopicEmbedding(t *testing.T) {
 	require.NoError(t, err)
 
 	vec := make([]float32, 1024)
+	match := make([]float32, 1024)
 	for i := range vec {
 		vec[i] = 0.01
+		match[i] = -0.02
 	}
-	err = store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec))
+	err = store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec), pgvector.NewVector(match))
 	require.NoError(t, err)
 
-	// Reload via raw SQL to assert embedding is non-null.
-	var isNull bool
+	var gotVec, gotMatch pgvector.Vector
 	err = pool.QueryRow(ctx,
-		`SELECT embedding IS NULL FROM radar_topics WHERE id=$1`, topic.ID).Scan(&isNull)
+		`SELECT embedding, match_embedding FROM radar_topics WHERE id=$1`, topic.ID).Scan(&gotVec, &gotMatch)
 	require.NoError(t, err)
-	require.False(t, isNull)
+	require.Equal(t, vec, gotVec.Slice())
+	require.Equal(t, match, gotMatch.Slice())
 }
 
 func TestStore_AddFeed(t *testing.T) {
@@ -180,7 +182,7 @@ func TestStore_UpdateFindingEmbedding_AndMatch(t *testing.T) {
 	// Topic embedding.
 	vec := make([]float32, 1024)
 	vec[0] = 1.0
-	err = store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec))
+	err = store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec), pgvector.NewVector(vec))
 	require.NoError(t, err)
 
 	feed, err := store.AddFeed(ctx, radar.AddFeedParams{URL: "https://f.example/x", Kind: "rss", FetchIntervalSeconds: 3600})
@@ -194,8 +196,8 @@ func TestStore_UpdateFindingEmbedding_AndMatch(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Finding embedding identical → cosine distance 0 → similarity 1.
-	err = store.UpdateFindingEmbedding(ctx, f.ID, pgvector.NewVector(vec))
+	// Match vectors identical unit vectors → score 1.
+	err = store.UpdateFindingEmbedding(ctx, f.ID, pgvector.NewVector(vec), pgvector.NewVector(vec))
 	require.NoError(t, err)
 
 	n, err := store.MatchFindingToTopics(ctx, f.ID)
@@ -208,6 +210,173 @@ func TestStore_UpdateFindingEmbedding_AndMatch(t *testing.T) {
 		topic.ID, f.ID).Scan(&sim)
 	require.NoError(t, err)
 	require.InDelta(t, 1.0, sim, 0.001)
+}
+
+// unitVec is the 1024-dim vector of the given components, the rest zero.
+func unitVec(head ...float32) pgvector.Vector {
+	v := make([]float32, 1024)
+	copy(v, head)
+	return pgvector.NewVector(v)
+}
+
+// Matching compares the match vectors with the threshold; the plain
+// embeddings take no part.
+func TestStore_MatchFindingToTopics_scoresMatchVectors(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	feedID := seedFeed(t, pool, "https://f.example/score", "F")
+	seedSubscription(t, pool, userID, feedID)
+
+	topic, err := store.CreateTopic(ctx, radar.CreateTopicParams{
+		UserID: userID, Name: "t", Description: "topic", MatchThreshold: 0.3,
+	})
+	require.NoError(t, err)
+	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, unitVec(1), unitVec(0, 1)))
+
+	// Same embedding as the topic, but a match vector the topic's is
+	// orthogonal to: score 0.
+	sameText := seedFinding(t, pool, feedID, "https://x.example/same", "same text")
+	require.NoError(t, store.UpdateFindingEmbedding(ctx, sameText, unitVec(1), unitVec(1)))
+
+	// Unrelated embedding, but a match vector scoring 0.4 against the topic's.
+	scored := seedFinding(t, pool, feedID, "https://x.example/scored", "scored")
+	require.NoError(t, store.UpdateFindingEmbedding(ctx, scored, unitVec(0, 0, 1), unitVec(0, 0.4)))
+
+	// Below the threshold: 0.2.
+	below := seedFinding(t, pool, feedID, "https://x.example/below", "below")
+	require.NoError(t, store.UpdateFindingEmbedding(ctx, below, unitVec(1), unitVec(0, 0.2)))
+
+	for _, f := range []int64{sameText, scored, below} {
+		_, err := store.MatchFindingToTopics(ctx, f)
+		require.NoError(t, err)
+	}
+
+	var ids []int64
+	var scores []float32
+	rows, err := pool.Query(ctx,
+		`SELECT finding_id, similarity FROM radar_topic_matches WHERE topic_id = $1`, topic.ID)
+	require.NoError(t, err)
+	for rows.Next() {
+		var id int64
+		var sc float32
+		require.NoError(t, rows.Scan(&id, &sc))
+		ids, scores = append(ids, id), append(scores, sc)
+	}
+	require.NoError(t, rows.Err())
+
+	require.Equal(t, []int64{scored}, ids)
+	require.InDelta(t, 0.4, scores[0], 0.001, "the match records its score")
+}
+
+// A topic or finding without a match vector yet takes no part in matching.
+func TestStore_MatchFindingToTopics_skipsRowsWithoutMatchVectors(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	feedID := seedFeed(t, pool, "https://f.example/nomatch", "F")
+	seedSubscription(t, pool, userID, feedID)
+
+	topicID := seedTopic(t, pool, userID, "t", "topic", 0.1, true)
+	_, err := pool.Exec(ctx, `UPDATE radar_topics SET embedding = $1 WHERE id = $2`, unitVec(1), topicID)
+	require.NoError(t, err)
+
+	f := seedFinding(t, pool, feedID, "https://x.example/f", "f")
+	seedFindingEmbedding(t, pool, f, 0)
+
+	n, err := store.MatchFindingToTopics(ctx, f)
+	require.NoError(t, err)
+	require.Zero(t, n, "the topic has no match vector")
+
+	_, err = pool.Exec(ctx, `UPDATE radar_topics SET match_embedding = embedding WHERE id = $1`, topicID)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `UPDATE radar_findings SET match_embedding = NULL WHERE id = $1`, f)
+	require.NoError(t, err)
+
+	n, err = store.MatchFindingToTopics(ctx, f)
+	require.NoError(t, err)
+	require.Zero(t, n, "the finding has no match vector")
+}
+
+func TestStore_FillTopicMatchEmbeddings(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	userID := seedUser(t, pool)
+	pending := seedTopic(t, pool, userID, "pending", "embedded before match vectors", 0.18, true)
+	done := seedTopic(t, pool, userID, "done", "already has one", 0.18, true)
+	bare := seedTopic(t, pool, userID, "bare", "not embedded at all", 0.18, true)
+
+	_, err := pool.Exec(ctx, `UPDATE radar_topics SET embedding = $1 WHERE id = $2`, unitVec(1, 0.5), pending)
+	require.NoError(t, err)
+	require.NoError(t, store.UpdateTopicEmbedding(ctx, done, unitVec(1), unitVec(9)))
+
+	n, err := store.FillTopicMatchEmbeddings(ctx, unitVec(0.25, 0.5))
+	require.NoError(t, err)
+	require.Equal(t, int64(1), n)
+
+	match := func(id int64) *pgvector.Vector {
+		var v *pgvector.Vector
+		require.NoError(t, pool.QueryRow(ctx,
+			`SELECT match_embedding FROM radar_topics WHERE id = $1`, id).Scan(&v))
+		return v
+	}
+	require.Equal(t, unitVec(0.75, 0).Slice(), match(pending).Slice(), "embedding minus centroid")
+	require.Equal(t, unitVec(9).Slice(), match(done).Slice(), "an existing match vector is kept")
+	require.Nil(t, match(bare))
+}
+
+func TestStore_FindingMatchVectorBackfill(t *testing.T) {
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	ctx := context.Background()
+
+	feedID := seedFeed(t, pool, "https://f.example/backfill", "F")
+	older := seedFinding(t, pool, feedID, "https://x.example/older", "Older")
+	newer := seedFinding(t, pool, feedID, "https://x.example/newer", "Newer")
+	complete := seedFinding(t, pool, feedID, "https://x.example/complete", "Complete")
+	seedFinding(t, pool, feedID, "https://x.example/raw", "Not embedded")
+
+	_, err := pool.Exec(ctx, `
+		UPDATE radar_findings SET embedding = $1,
+		       discovered_at = now() - make_interval(hours => CASE WHEN id = $2 THEN 2 ELSE 1 END)
+		WHERE id IN ($2, $3)`, unitVec(1), older, newer)
+	require.NoError(t, err)
+	seedFindingEmbedding(t, pool, complete, 0)
+
+	ids, err := store.ListFindingsWithoutMatchEmbedding(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, []int64{newer, older}, ids, "embedded findings without one, newest first")
+
+	ids, err = store.ListFindingsWithoutMatchEmbedding(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, []int64{newer}, ids)
+
+	f, err := store.GetFindingForTitleEmbed(ctx, newer)
+	require.NoError(t, err)
+	require.Equal(t, "Newer", *f.Title)
+	require.Equal(t, unitVec(1).Slice(), f.Embedding.Slice())
+	require.False(t, f.HasMatchEmbedding)
+
+	require.NoError(t, store.FillFindingMatchEmbedding(ctx, newer, unitVec(0.5, 0.5)))
+	require.NoError(t, store.FillFindingMatchEmbedding(ctx, newer, unitVec(7)))
+
+	f, err = store.GetFindingForTitleEmbed(ctx, newer)
+	require.NoError(t, err)
+	require.True(t, f.HasMatchEmbedding)
+
+	var got pgvector.Vector
+	require.NoError(t, pool.QueryRow(ctx,
+		`SELECT match_embedding FROM radar_findings WHERE id = $1`, newer).Scan(&got))
+	require.Equal(t, unitVec(0.5, 0.5).Slice(), got.Slice(), "a filled match vector is not overwritten")
+
+	_, err = store.GetFindingForTitleEmbed(ctx, 99999)
+	require.ErrorIs(t, err, radar.ErrNotFound)
 }
 
 func seedTopic(t *testing.T, pool *pgxpool.Pool, userID int64, name, desc string, threshold float32, active bool) int64 {
@@ -837,14 +1006,15 @@ func TestStore_GetFinding_requiresSubscription(t *testing.T) {
 	require.ErrorIs(t, err, radar.ErrNotFound)
 }
 
-// seedFindingEmbedding sets a finding's embedding to the unit vector pointing
-// along axis, so cosine similarity against another axis is exactly 0 or 1.
+// seedFindingEmbedding sets a finding's embedding and match vector to the unit
+// vector pointing along axis, so its score against another axis is exactly 0
+// or 1.
 func seedFindingEmbedding(t *testing.T, pool *pgxpool.Pool, findingID int64, axis int) {
 	t.Helper()
 	vec := make([]float32, 1024)
 	vec[axis] = 1
 	_, err := pool.Exec(context.Background(),
-		`UPDATE radar_findings SET embedding = $1 WHERE id = $2`,
+		`UPDATE radar_findings SET embedding = $1, match_embedding = $1 WHERE id = $2`,
 		pgvector.NewVector(vec), findingID)
 	require.NoError(t, err)
 }
@@ -863,17 +1033,20 @@ func TestStore_PreviewFindings_ranksSubscribedFindings(t *testing.T) {
 	miss := seedFinding(t, pool, subscribed, "https://p.example/miss", "Miss")
 	unsubscribed := seedFinding(t, pool, other, "https://p.example/nope", "Unsubscribed")
 	unembedded := seedFinding(t, pool, subscribed, "https://p.example/raw", "No embedding")
+	pre018 := seedFinding(t, pool, subscribed, "https://p.example/pre", "No match vector yet")
 
 	seedFindingEmbedding(t, pool, hit, 0)
 	seedFindingEmbedding(t, pool, miss, 1)
 	seedFindingEmbedding(t, pool, unsubscribed, 0)
+	_, err := pool.Exec(ctx, `UPDATE radar_findings SET embedding = $1 WHERE id = $2`, unitVec(1), pre018)
+	require.NoError(t, err)
 
 	probe := make([]float32, 1024)
 	probe[0] = 1
 
 	items, err := store.PreviewFindings(ctx, userID, pgvector.NewVector(probe), 5)
 	require.NoError(t, err)
-	require.Len(t, items, 2, "unsubscribed and unembedded findings must not appear")
+	require.Len(t, items, 2, "unsubscribed findings and those without a match vector must not appear")
 
 	require.Equal(t, hit, items[0].Finding.ID)
 	require.InDelta(t, 1.0, items[0].Similarity, 0.001)
@@ -888,6 +1061,7 @@ func TestStore_PreviewFindings_ranksSubscribedFindings(t *testing.T) {
 	for _, it := range items {
 		require.NotEqual(t, unsubscribed, it.Finding.ID)
 		require.NotEqual(t, unembedded, it.Finding.ID)
+		require.NotEqual(t, pre018, it.Finding.ID)
 	}
 }
 

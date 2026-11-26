@@ -20,18 +20,21 @@ type topicRow struct {
 	HasEmbedding   bool
 }
 
-// topFindingsByVector scores every embedded finding against vec, best first.
-// Unlike the real matcher it ignores feed subscriptions — a debug probe has no
-// owner to scope by.
-func topFindingsByVector(ctx context.Context, pool *pgxpool.Pool, vec pgvector.Vector, limit int) ([]scoredFinding, error) {
+// topFindingsByVector scores every finding against a probe, best first: by
+// the match score against matchVec (the probe's topic match vector), with the
+// plain cosine against vec alongside. Unlike the real matcher it ignores feed
+// subscriptions — a debug probe has no owner to scope by.
+func topFindingsByVector(ctx context.Context, pool *pgxpool.Pool, vec, matchVec pgvector.Vector, limit int) ([]scoredFinding, error) {
 	rows, err := pool.Query(ctx, `
-		SELECT f.id, f.title, f.url, 1 - (f.embedding <=> $1) AS similarity,
+		SELECT f.id, f.title, f.url,
+		       -(f.match_embedding <#> $2) AS score,
+		       1 - (f.embedding <=> $1) AS cos,
 		       f.content_id IS NOT NULL
 		FROM radar_findings f
-		WHERE f.embedding IS NOT NULL
-		ORDER BY f.embedding <=> $1
-		LIMIT $2
-	`, vec, limit)
+		WHERE f.match_embedding IS NOT NULL
+		ORDER BY f.match_embedding <#> $2
+		LIMIT $3
+	`, vec, matchVec, limit)
 	if err != nil {
 		return nil, fmt.Errorf("query findings: %w", err)
 	}
@@ -39,8 +42,8 @@ func topFindingsByVector(ctx context.Context, pool *pgxpool.Pool, vec pgvector.V
 	return collectScored(rows)
 }
 
-// topFindingsByTopic scores findings against the topic's stored embedding —
-// the same expression MatchFindingToTopics uses, minus the threshold filter.
+// topFindingsByTopic scores findings against the topic's stored vectors — the
+// same score MatchFindingToTopics uses, minus the threshold filter.
 // With subscribedOnly it also applies the subscription join of the real
 // matcher, which is what tells "sim too low" apart from "feed not subscribed".
 func topFindingsByTopic(ctx context.Context, pool *pgxpool.Pool, topicID int64, limit int, subscribedOnly bool) ([]scoredFinding, error) {
@@ -54,13 +57,15 @@ func topFindingsByTopic(ctx context.Context, pool *pgxpool.Pool, topicID int64, 
 	}
 
 	rows, err := pool.Query(ctx, `
-		SELECT f.id, f.title, f.url, 1 - (rt.embedding <=> f.embedding) AS similarity,
+		SELECT f.id, f.title, f.url,
+		       -(rt.match_embedding <#> f.match_embedding) AS score,
+		       1 - (rt.embedding <=> f.embedding) AS cos,
 		       f.content_id IS NOT NULL
 		FROM radar_topics rt
-		JOIN radar_findings f ON f.embedding IS NOT NULL
+		JOIN radar_findings f ON f.match_embedding IS NOT NULL
 		WHERE rt.id = $1
-		  AND rt.embedding IS NOT NULL`+subscriptionFilter+`
-		ORDER BY rt.embedding <=> f.embedding
+		  AND rt.match_embedding IS NOT NULL`+subscriptionFilter+`
+		ORDER BY rt.match_embedding <#> f.match_embedding
 		LIMIT $2
 	`, topicID, limit)
 	if err != nil {
@@ -76,7 +81,7 @@ func collectScored(rows pgx.Rows) ([]scoredFinding, error) {
 	var out []scoredFinding
 	for rows.Next() {
 		var f scoredFinding
-		if err := rows.Scan(&f.ID, &f.Title, &f.URL, &f.Similarity, &f.HasPage); err != nil {
+		if err := rows.Scan(&f.ID, &f.Title, &f.URL, &f.Score, &f.Cos, &f.HasPage); err != nil {
 			return nil, fmt.Errorf("scan finding: %w", err)
 		}
 		out = append(out, f)
@@ -93,16 +98,17 @@ func collectScored(rows pgx.Rows) ([]scoredFinding, error) {
 // fails loudly when the topic cannot be probed at all.
 func loadTopic(ctx context.Context, pool *pgxpool.Pool, topicID int64) (*topicRow, error) {
 	var (
-		t            topicRow
-		hasEmbedding bool
+		t                 topicRow
+		hasEmbedding      bool
+		hasMatchEmbedding bool
 	)
 	err := pool.QueryRow(ctx, `
 		SELECT t.id, u.email, t.name, t.match_threshold, t.is_active,
-		       t.embedding IS NOT NULL
+		       t.embedding IS NOT NULL, t.match_embedding IS NOT NULL
 		FROM radar_topics t
 		JOIN users u ON u.id = t.user_id
 		WHERE t.id = $1
-	`, topicID).Scan(&t.ID, &t.OwnerEmail, &t.Name, &t.MatchThreshold, &t.IsActive, &hasEmbedding)
+	`, topicID).Scan(&t.ID, &t.OwnerEmail, &t.Name, &t.MatchThreshold, &t.IsActive, &hasEmbedding, &hasMatchEmbedding)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, fmt.Errorf("topic %d not found", topicID)
@@ -113,6 +119,9 @@ func loadTopic(ctx context.Context, pool *pgxpool.Pool, topicID int64) (*topicRo
 
 	if !hasEmbedding {
 		return nil, fmt.Errorf("topic %d has no embedding yet — run reembed-topics", topicID)
+	}
+	if !hasMatchEmbedding {
+		return nil, fmt.Errorf("topic %d has no match vector yet — a running server fills it in, or run reembed-topics", topicID)
 	}
 	t.HasEmbedding = true
 

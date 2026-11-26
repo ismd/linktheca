@@ -1,8 +1,9 @@
 // Command reembed-topics recomputes embeddings for every row in radar_topics.
 //
 // Useful when the topic embedding strategy changes (e.g. switched from
-// name+description to description-only, see radar.TopicEmbedText) — existing
-// rows are stale and need a one-shot re-embed against TEI.
+// name+description to description-only, see radar.TopicEmbedText) or the
+// reference topics do (radar.Reference) — existing rows are stale and need a
+// one-shot re-embed against TEI.
 package main
 
 import (
@@ -47,6 +48,7 @@ func run() error {
 	defer pool.Close()
 
 	teiClient := embeddings.NewTEIClient(cfg.TEIURL, cfg.TEITimeout)
+	reference := radar.NewReference(teiClient)
 	store := radar.NewStore(pool)
 
 	rows, err := pool.Query(ctx, `SELECT id, name, description FROM radar_topics ORDER BY id`)
@@ -80,7 +82,11 @@ func run() error {
 		if err != nil {
 			return fmt.Errorf("embed topic %d: %w", t.ID, err)
 		}
-		if err := store.UpdateTopicEmbedding(ctx, t.ID, pgvector.NewVector(vec)); err != nil {
+		matchVec, err := reference.TopicMatchVector(ctx, vec)
+		if err != nil {
+			return fmt.Errorf("match vector of topic %d: %w", t.ID, err)
+		}
+		if err := store.UpdateTopicEmbedding(ctx, t.ID, pgvector.NewVector(vec), pgvector.NewVector(matchVec)); err != nil {
 			return fmt.Errorf("save embedding for topic %d: %w", t.ID, err)
 		}
 		logger.Info("reembedded topic", "id", t.ID, "name", t.Name)

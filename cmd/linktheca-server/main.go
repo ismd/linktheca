@@ -88,9 +88,11 @@ func run() error {
 		})
 
 		store := radar.NewStore(pool)
+		reference := radar.NewReference(teiClient)
 		bundle := jobs.Build(jobs.Deps{
 			Store:     store,
 			Embedder:  teiClient,
+			Reference: reference,
 			Fetcher:   crawler.NewHTTPFetcher(fetchClient),
 			Contents:  content.NewStore(pool),
 			Extractor: content.NewExtractor(fetchClient),
@@ -117,9 +119,10 @@ func run() error {
 		riverClient = client
 
 		radarDeps = &server.RadarDeps{
-			Embedder: teiClient,
-			River:    client,
-			Workers:  bundle.Workers,
+			Embedder:  teiClient,
+			Reference: reference,
+			River:     client,
+			Workers:   bundle.Workers,
 		}
 	}
 

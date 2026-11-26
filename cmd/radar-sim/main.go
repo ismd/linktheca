@@ -1,6 +1,7 @@
-// Command radar-sim is a debugging aid for Radar embeddings: it scores
-// radar_findings by cosine similarity against a probe vector and prints them
-// ranked, so you can see why something did (or did not) match a topic.
+// Command radar-sim is a debugging aid for Radar matching: it scores
+// radar_findings against a probe the way the matcher does and prints them
+// ranked, with the plain cosine alongside, so you can see why something did
+// (or did not) match a topic.
 package main
 
 import (
@@ -17,6 +18,7 @@ import (
 
 	"github.com/ismd/linktheca/internal/core/db"
 	"github.com/ismd/linktheca/internal/core/embeddings"
+	"github.com/ismd/linktheca/internal/radar"
 	"github.com/pgvector/pgvector-go"
 )
 
@@ -46,14 +48,14 @@ func newFlagSet(opts *options, threshold *float64) *flag.FlagSet {
 	fs.Bool("topics", false, "list topics with their id, threshold and embedding state")
 	fs.BoolVar(&opts.subscribedOnly, "subscribed", false, "with -topic: only findings from feeds the topic owner is subscribed to")
 	fs.IntVar(&opts.limit, "limit", 20, "how many findings to print")
-	fs.Float64Var(threshold, "threshold", 0, "draw the cutoff line at this similarity (default: the topic's match_threshold)")
+	fs.Float64Var(threshold, "threshold", 0, "draw the cutoff line at this score (default: the topic's match_threshold)")
 
 	return fs
 }
 
 // usage documents the modes; the flag descriptions come from newFlagSet.
 func usage(w io.Writer) {
-	fmt.Fprint(w, `radar-sim — rank radar_findings by embedding similarity.
+	fmt.Fprint(w, `radar-sim — rank radar_findings by match score.
 
 Usage:
   radar-sim -q "<text>" [-limit N] [-threshold X]   probe with freshly embedded text
@@ -80,9 +82,14 @@ Flags:
 Topics are embedded from their description alone. Findings are embedded as
 "Title\n<article text>" when Radar downloaded the page (src "page") and as
 "Title\nSummary" from the feed when it did not (src "feed"); the model reads
-about the first thousand tokens. Mirror that in -q to reproduce what the
-matcher sees. A page pruned after the retention period shows as "feed" even
-though the finding was embedded from it.
+about the first thousand tokens. A page pruned after the retention period
+shows as "feed" even though the finding was embedded from it.
+
+"score" is what the matcher compares with match_threshold: the mean of the
+topic's similarity to the finding's text and to its title, minus the same for
+an average topic (see radar.Reference). "cos" is the plain similarity of topic
+and text, for comparison. Findings embedded before match vectors existed are
+left out until the server has filled theirs in.
 `)
 }
 
@@ -143,36 +150,38 @@ func parseArgs(args []string) (*options, error) {
 // titleWidth caps the printed title so rows stay on one terminal line.
 const titleWidth = 70
 
-// scoredFinding is a radar_findings row with its cosine similarity to the
-// probe vector.
+// scoredFinding is a radar_findings row with its match score against the
+// probe and the plain cosine of probe and text.
 type scoredFinding struct {
-	ID         int64
-	Title      *string
-	URL        string
-	Similarity float32
+	ID    int64
+	Title *string
+	URL   string
+	Score float32
+	Cos   float32
 	// HasPage tells whether the downloaded article is stored, i.e. whether
 	// the finding was embedded from the page or from the feed's summary.
 	HasPage bool
 }
 
-// renderScores prints rows (already sorted by similarity, descending) and,
-// when threshold is set, a cutoff line where the score drops below it.
+// renderScores prints rows (already sorted by score, descending) and, when
+// threshold is set, a cutoff line where the score drops below it.
 func renderScores(w io.Writer, rows []scoredFinding, threshold *float32) {
 	if len(rows) == 0 {
 		fmt.Fprintln(w, "no findings with embeddings — is the embed job running?")
 		return
 	}
 
-	fmt.Fprintf(w, "%8s  %6s  %4s  %s\n", "sim", "id", "src", "title")
+	fmt.Fprintf(w, "%8s  %6s  %6s  %4s  %s\n", "score", "cos", "id", "src", "title")
 
 	cutDrawn := threshold == nil
 	for _, r := range rows {
-		if !cutDrawn && r.Similarity < *threshold {
+		if !cutDrawn && r.Score < *threshold {
 			fmt.Fprintf(w, "%s threshold %.4f %s\n",
 				strings.Repeat("─", 8), *threshold, strings.Repeat("─", 40))
 			cutDrawn = true
 		}
-		fmt.Fprintf(w, "%8.4f  %6d  %4s  %s\n", r.Similarity, r.ID, textSource(r.HasPage), displayTitle(r.Title))
+		fmt.Fprintf(w, "%8.4f  %6.4f  %6d  %4s  %s\n",
+			r.Score, r.Cos, r.ID, textSource(r.HasPage), displayTitle(r.Title))
 	}
 }
 
@@ -289,14 +298,18 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 
 	case modeQuery:
 		tei := embeddings.NewTEIClient(teiURL(), teiTimeout())
-		vec, err := tei.Embed(ctx, opts.query)
+		vec, err := tei.Embed(ctx, radar.TopicEmbedText(opts.query))
 		if err != nil {
 			return fmt.Errorf("embed query: %w", err)
+		}
+		matchVec, err := radar.NewReference(tei).TopicMatchVector(ctx, vec)
+		if err != nil {
+			return fmt.Errorf("match vector of query: %w", err)
 		}
 
 		fmt.Fprintf(out, "query %q\n\n", opts.query)
 
-		rows, err := topFindingsByVector(ctx, pool, pgvector.NewVector(vec), opts.limit)
+		rows, err := topFindingsByVector(ctx, pool, pgvector.NewVector(vec), pgvector.NewVector(matchVec), opts.limit)
 		if err != nil {
 			return err
 		}

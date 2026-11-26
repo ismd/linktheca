@@ -19,6 +19,7 @@ import (
 type mockStore struct {
 	topics         map[int64]*radar.Topic
 	topicEmb       map[int64]pgvector.Vector
+	topicMatchEmb  map[int64]pgvector.Vector
 	feeds          map[int64]*radar.Feed
 	feedsByURL     map[string]*radar.Feed
 	subs           map[string]*radar.Subscription
@@ -82,12 +83,13 @@ type mockStore struct {
 
 func newMockStore() *mockStore {
 	return &mockStore{
-		topics:     make(map[int64]*radar.Topic),
-		topicEmb:   make(map[int64]pgvector.Vector),
-		feeds:      make(map[int64]*radar.Feed),
-		feedsByURL: make(map[string]*radar.Feed),
-		feedOwners: make(map[int64]*int64),
-		subs:       make(map[string]*radar.Subscription),
+		topics:        make(map[int64]*radar.Topic),
+		topicEmb:      make(map[int64]pgvector.Vector),
+		topicMatchEmb: make(map[int64]pgvector.Vector),
+		feeds:         make(map[int64]*radar.Feed),
+		feedsByURL:    make(map[string]*radar.Feed),
+		feedOwners:    make(map[int64]*int64),
+		subs:          make(map[string]*radar.Subscription),
 	}
 }
 
@@ -105,7 +107,7 @@ func (m *mockStore) CreateTopic(_ context.Context, p radar.CreateTopicParams) (*
 	return t, nil
 }
 
-func (m *mockStore) UpdateTopicEmbedding(_ context.Context, topicID int64, vec pgvector.Vector) error {
+func (m *mockStore) UpdateTopicEmbedding(_ context.Context, topicID int64, vec, matchVec pgvector.Vector) error {
 	if m.updateEmbErr != nil {
 		return m.updateEmbErr
 	}
@@ -114,6 +116,7 @@ func (m *mockStore) UpdateTopicEmbedding(_ context.Context, topicID int64, vec p
 		return radar.ErrNotFound
 	}
 	m.topicEmb[topicID] = vec
+	m.topicMatchEmb[topicID] = matchVec
 	t.HasEmbedding = true
 	return nil
 }
@@ -226,6 +229,53 @@ func TestService_CreateTopic_EmbedsDescriptionOnly(t *testing.T) {
 		"the name is a label; only the description is embedded")
 }
 
+// A topic is matched with its embedding minus the reference centroid.
+func TestService_CreateTopic_StoresMatchVector(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+	ctx := context.Background()
+
+	topic, err := svc.CreateTopic(ctx, 1, radar.CreateTopicRequest{Description: "webauthn passkeys"})
+	require.NoError(t, err)
+
+	raw, _ := emb.Embed(ctx, "webauthn passkeys")
+	centroid, err := radar.NewReference(emb).Centroid(ctx)
+	require.NoError(t, err)
+
+	got := store.topicMatchEmb[topic.ID].Slice()
+	require.Len(t, got, len(raw))
+	for i := range raw {
+		require.InDelta(t, raw[i]-centroid[i], got[i], 1e-6)
+	}
+}
+
+// The reference centroid is embedded once and shared through WithReference.
+func TestService_WithReference_sharesTheCentroid(t *testing.T) {
+	counter := &countingEmbedder{inner: &embeddings.FakeEmbedder{Dim: 1024}}
+	ref := radar.NewReference(counter)
+	ctx := context.Background()
+
+	_, err := ref.Centroid(ctx)
+	require.NoError(t, err)
+	afterWarmup := counter.calls
+
+	svc := radar.NewService(newMockStore(), counter, radar.WithReference(ref))
+	_, err = svc.PreviewTopic(ctx, 1, radar.PreviewTopicRequest{Description: "webauthn passkeys"})
+	require.NoError(t, err)
+	require.Equal(t, afterWarmup+1, counter.calls, "only the description is embedded")
+}
+
+type countingEmbedder struct {
+	inner embeddings.Client
+	calls int
+}
+
+func (c *countingEmbedder) Embed(ctx context.Context, text string) ([]float32, error) {
+	c.calls++
+	return c.inner.Embed(ctx, text)
+}
+
 func TestService_CreateTopic_DerivesNameFromDescription(t *testing.T) {
 	store := newMockStore()
 	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
@@ -258,7 +308,7 @@ func TestService_CreateTopic_DefaultThreshold(t *testing.T) {
 		Name: "x", Description: "ten chars long",
 	})
 	require.NoError(t, err)
-	require.Equal(t, float32(0.52), topic.MatchThreshold)
+	require.Equal(t, float32(0.18), topic.MatchThreshold)
 }
 
 func TestService_CreateTopic_Validation(t *testing.T) {
@@ -654,6 +704,11 @@ func TestService_UpdateTopic_descriptionTriggersEmbed(t *testing.T) {
 
 	expected, _ := emb.Embed(context.Background(), "new long description here")
 	require.Equal(t, pgvector.NewVector(expected), store.topicEmb[7])
+
+	match, err := radar.NewReference(emb).TopicMatchVector(context.Background(), expected)
+	require.NoError(t, err)
+	require.Equal(t, pgvector.NewVector(match), store.topicMatchEmb[7],
+		"an edited description gets a new match vector too")
 }
 
 func TestService_UpdateTopic_embedderUnavailable(t *testing.T) {
@@ -842,15 +897,17 @@ func TestService_PreviewTopic_ProbesLikeCreateTopic(t *testing.T) {
 		Description: "  webauthn passkeys ",
 	})
 	require.NoError(t, err)
-	require.Equal(t, float32(0.52), got.Threshold)
+	require.Equal(t, float32(0.18), got.Threshold)
 
 	require.True(t, store.previewCalled)
 	require.Equal(t, int64(7), store.previewUserID)
 	require.Equal(t, 5, store.previewLimit)
 
-	expected, _ := emb.Embed(context.Background(), radar.TopicEmbedText("webauthn passkeys"))
+	raw, _ := emb.Embed(context.Background(), radar.TopicEmbedText("webauthn passkeys"))
+	expected, err := radar.NewReference(emb).TopicMatchVector(context.Background(), raw)
+	require.NoError(t, err)
 	require.Equal(t, pgvector.NewVector(expected), store.previewVec,
-		"preview must probe with the same text CreateTopic embeds")
+		"preview must probe with the match vector CreateTopic stores")
 }
 
 func TestService_PreviewTopic_ReturnsScoredFindings(t *testing.T) {

@@ -30,7 +30,7 @@ cd web && npm run dev
 
 See `Makefile` for the full set of targets (tests, lint, build).
 
-To inspect what Radar's embeddings actually score, run the `radar-sim` tool — it ranks findings by cosine similarity against a query you type or against a topic's stored embedding, and draws the match threshold as a cutoff line. It reads the same `LINKTHECA_DB_DSN` / `LINKTHECA_TEI_URL` variables as the backend:
+To inspect what Radar's embeddings actually score, run the `radar-sim` tool — it ranks findings by match score against a query you type or against a topic, prints the plain cosine alongside, and draws the match threshold as a cutoff line. It reads the same `LINKTHECA_DB_DSN` / `LINKTHECA_TEI_URL` variables as the backend:
 
 ```sh
 go run ./cmd/radar-sim -topics                 # topic ids, thresholds, embedding state
@@ -82,6 +82,8 @@ docker compose -f compose.prod.yaml exec backend radar-backfill-content -days 7
 ### Upgrading to full-text Radar
 
 Releases from November 2026 change what Radar compares: a topic is embedded from its description alone, and a finding from the article instead of the feed's summary. After upgrading, run `reembed-topics` once, then `radar-backfill-content` so that recent findings are scored the same way as new ones. Topics still at the old default threshold move to the new one automatically.
+
+From migration 018 on, a finding is also scored against its title, and findings that resemble every topic are discounted. Nothing needs to be run by hand: the server fills in the new vectors for existing topics at start and embeds the titles of existing findings in the background, newest first and behind new findings. Until a finding's title is embedded it does not show up in topic previews. Thresholds move to the new scale automatically.
 
 ## Status
 
