@@ -82,8 +82,8 @@ func TestJobs_FullPipeline(t *testing.T) {
 	// Fake embeddings are unrelated to each other, so the topic is given the
 	// finding's own match vector: the score is then its squared length, > 0.
 	tvec, _ := emb.Embed(context.Background(), "machine learning research")
-	require.NoError(t, store.UpdateTopicEmbedding(context.Background(), topic.ID,
-		pgvector.NewVector(tvec), findingMatchVector(t, emb, "OpenAI ships\nAbout models", "OpenAI ships")))
+	require.NoError(t, store.UpdateTopicEmbedding(context.Background(), topic.ID, pgvector.NewVector(tvec),
+		radar.TopicModel{MatchVec: findingMatchVector(t, emb, "OpenAI ships\nAbout models", "OpenAI ships").Slice()}))
 
 	rss := []byte(`<?xml version="1.0"?>
 <rss version="2.0"><channel>
@@ -163,7 +163,8 @@ func TestJobs_FullPipelineWithPageFetch(t *testing.T) {
 	})
 	require.NoError(t, err)
 	tvec, _ := emb.Embed(ctx, "Rust releases")
-	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(tvec), want))
+	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(tvec),
+		radar.TopicModel{MatchVec: want.Slice(), Cutoff: topic.MatchThreshold}))
 
 	rss := []byte(`<?xml version="1.0"?>
 <rss version="2.0"><channel>

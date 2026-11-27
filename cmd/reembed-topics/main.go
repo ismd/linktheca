@@ -1,4 +1,5 @@
-// Command reembed-topics recomputes embeddings for every row in radar_topics.
+// Command reembed-topics recomputes embeddings for every row in radar_topics
+// and relearns each topic from the user's marks.
 //
 // Useful when the topic embedding strategy changes (e.g. switched from
 // name+description to description-only, see radar.TopicEmbedText) or the
@@ -19,7 +20,6 @@ import (
 	"github.com/ismd/linktheca/internal/core/embeddings"
 	"github.com/ismd/linktheca/internal/core/logging"
 	"github.com/ismd/linktheca/internal/radar"
-	"github.com/pgvector/pgvector-go"
 )
 
 func main() {
@@ -48,23 +48,21 @@ func run() error {
 	defer pool.Close()
 
 	teiClient := embeddings.NewTEIClient(cfg.TEIURL, cfg.TEITimeout)
-	reference := radar.NewReference(teiClient)
-	store := radar.NewStore(pool)
+	svc := radar.NewService(radar.NewStore(pool), teiClient)
 
-	rows, err := pool.Query(ctx, `SELECT id, name, description FROM radar_topics ORDER BY id`)
+	rows, err := pool.Query(ctx, `SELECT id, name FROM radar_topics ORDER BY id`)
 	if err != nil {
 		return fmt.Errorf("list topics: %w", err)
 	}
 
 	type topicRow struct {
-		ID          int64
-		Name        string
-		Description string
+		ID   int64
+		Name string
 	}
 	var topics []topicRow
 	for rows.Next() {
 		var t topicRow
-		if err := rows.Scan(&t.ID, &t.Name, &t.Description); err != nil {
+		if err := rows.Scan(&t.ID, &t.Name); err != nil {
 			rows.Close()
 			return fmt.Errorf("scan topic: %w", err)
 		}
@@ -78,16 +76,8 @@ func run() error {
 	logger.Info("reembedding topics", "count", len(topics))
 
 	for _, t := range topics {
-		vec, err := teiClient.Embed(ctx, radar.TopicEmbedText(t.Description))
-		if err != nil {
-			return fmt.Errorf("embed topic %d: %w", t.ID, err)
-		}
-		matchVec, err := reference.TopicMatchVector(ctx, vec)
-		if err != nil {
-			return fmt.Errorf("match vector of topic %d: %w", t.ID, err)
-		}
-		if err := store.UpdateTopicEmbedding(ctx, t.ID, pgvector.NewVector(vec), pgvector.NewVector(matchVec)); err != nil {
-			return fmt.Errorf("save embedding for topic %d: %w", t.ID, err)
+		if err := svc.ReembedTopic(ctx, t.ID); err != nil {
+			return fmt.Errorf("reembed topic %d: %w", t.ID, err)
 		}
 		logger.Info("reembedded topic", "id", t.ID, "name", t.Name)
 	}

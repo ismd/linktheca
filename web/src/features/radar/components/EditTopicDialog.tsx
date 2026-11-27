@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -16,9 +16,11 @@ import { Label } from "@/shared/ui/label";
 import { Button } from "@/shared/ui/button";
 import { ApiError } from "@/shared/api/errors";
 import { useUpdateTopic } from "../use-mutations";
-import type { TopicWithStats } from "../types";
+import { useTopicMarksQuery } from "../use-radar";
+import type { TopicMark, TopicWithStats } from "../types";
 import type { UpdateTopicInput } from "../api";
 import { TOPIC_DESCRIPTION_PLACEHOLDER, TopicWritingTips } from "./TopicWritingTips";
+import { TopicPreviewPanel } from "./TopicPreviewPanel";
 
 const schema = z.object({
   description: z
@@ -52,18 +54,27 @@ function EditTopicForm({ topic, onClose }: { topic: TopicWithStats; onClose: () 
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { name: topic.name, description: topic.description },
   });
+  const draftDescription = useWatch({ control, name: "description" });
   const [topError, setTopError] = useState<string | null>(null);
+
+  // The saved marks until the user changes them. Marking waits for them to
+  // load, so a save can never replace marks it has not seen.
+  const savedMarks = useTopicMarksQuery(topic.id);
+  const [editedMarks, setEditedMarks] = useState<TopicMark[] | null>(null);
+  const marks = editedMarks ?? savedMarks.data ?? [];
 
   const onSubmit = handleSubmit(async (values) => {
     setTopError(null);
     const patch: UpdateTopicInput = {};
     if (values.name !== topic.name) patch.name = values.name;
     if (values.description !== topic.description) patch.description = values.description;
+    if (editedMarks !== null) patch.marks = editedMarks;
     if (Object.keys(patch).length === 0) {
       onClose();
       return;
@@ -106,6 +117,11 @@ function EditTopicForm({ topic, onClose }: { topic: TopicWithStats; onClose: () 
         )}
         <TopicWritingTips id="edit-topic-tips" />
       </div>
+      <TopicPreviewPanel
+        description={draftDescription}
+        marks={marks}
+        onMarksChange={savedMarks.isSuccess ? setEditedMarks : undefined}
+      />
       <div className="flex flex-col gap-2">
         <Label htmlFor="edit-topic-name" className="label-sc text-ink-3">Name</Label>
         <Input
@@ -133,7 +149,7 @@ function EditTopicForm({ topic, onClose }: { topic: TopicWithStats; onClose: () 
 export function EditTopicDialog({ topic, open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="paper-surface">
+      <DialogContent className="paper-surface max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="display-tight text-3xl">Edit topic</DialogTitle>
           <DialogDescription className="label-sc text-muted-foreground">

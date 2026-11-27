@@ -169,12 +169,13 @@ func TestParseArgs_subscribedNeedsTopic(t *testing.T) {
 func TestRenderTopics_showsThresholdAndEmbeddingState(t *testing.T) {
 	var buf bytes.Buffer
 	renderTopics(&buf, []topicRow{
-		{ID: 3, OwnerEmail: "a@example.com", Name: "AI", MatchThreshold: 0.55, IsActive: true, HasEmbedding: true},
-		{ID: 4, OwnerEmail: "a@example.com", Name: "Bare", MatchThreshold: 0.70, IsActive: false, HasEmbedding: false},
+		{ID: 3, OwnerEmail: "a@example.com", Name: "AI", MatchThreshold: 0.55, MatchCutoff: 0.61, IsActive: true, HasEmbedding: true},
+		{ID: 4, OwnerEmail: "a@example.com", Name: "Bare", MatchThreshold: 0.70, MatchCutoff: 0.70, IsActive: false, HasEmbedding: false},
 	})
 
 	out := buf.String()
 	require.Contains(t, out, "0.5500")
+	require.Contains(t, out, "0.6100", "the cutoff learned from marks is shown next to the threshold")
 	require.Contains(t, out, "a@example.com")
 	require.Contains(t, out, "AI")
 	require.Contains(t, out, "no embedding")

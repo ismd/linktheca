@@ -48,7 +48,7 @@ func newFlagSet(opts *options, threshold *float64) *flag.FlagSet {
 	fs.Bool("topics", false, "list topics with their id, threshold and embedding state")
 	fs.BoolVar(&opts.subscribedOnly, "subscribed", false, "with -topic: only findings from feeds the topic owner is subscribed to")
 	fs.IntVar(&opts.limit, "limit", 20, "how many findings to print")
-	fs.Float64Var(threshold, "threshold", 0, "draw the cutoff line at this score (default: the topic's match_threshold)")
+	fs.Float64Var(threshold, "threshold", 0, "draw the cutoff line at this score (default: the topic's cutoff)")
 
 	return fs
 }
@@ -85,11 +85,13 @@ Topics are embedded from their description alone. Findings are embedded as
 about the first thousand tokens. A page pruned after the retention period
 shows as "feed" even though the finding was embedded from it.
 
-"score" is what the matcher compares with match_threshold: the mean of the
+"score" is what the matcher compares with the topic's cutoff: the mean of the
 topic's similarity to the finding's text and to its title, minus the same for
-an average topic (see radar.Reference). "cos" is the plain similarity of topic
-and text, for comparison. Findings embedded before match vectors existed are
-left out until the server has filled theirs in.
+an average topic (see radar.Reference). A topic that learned from the user's
+marks scores with its moved vector and offset, and its cutoff may sit above
+match_threshold (see radar.LearnTopic). "cos" is the plain similarity of the
+topic's description and the text, for comparison. Findings embedded before
+match vectors existed are left out until the server has filled theirs in.
 `)
 }
 
@@ -192,7 +194,7 @@ func renderTopics(w io.Writer, topics []topicRow) {
 		return
 	}
 
-	fmt.Fprintf(w, "%6s  %10s  %-30s  %s\n", "id", "threshold", "name", "owner")
+	fmt.Fprintf(w, "%6s  %10s  %7s  %-30s  %s\n", "id", "threshold", "cutoff", "name", "owner")
 	for _, t := range topics {
 		notes := ""
 		if !t.HasEmbedding {
@@ -201,8 +203,8 @@ func renderTopics(w io.Writer, topics []topicRow) {
 		if !t.IsActive {
 			notes += "  [inactive]"
 		}
-		fmt.Fprintf(w, "%6d  %10.4f  %-30s  %s%s\n",
-			t.ID, t.MatchThreshold, displayTitle(&t.Name), t.OwnerEmail, notes)
+		fmt.Fprintf(w, "%6d  %10.4f  %7.4f  %-30s  %s%s\n",
+			t.ID, t.MatchThreshold, t.MatchCutoff, displayTitle(&t.Name), t.OwnerEmail, notes)
 	}
 }
 
@@ -280,7 +282,7 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 
 		threshold := opts.threshold
 		if threshold == nil {
-			threshold = &topic.MatchThreshold
+			threshold = &topic.MatchCutoff
 		}
 
 		scope := "all findings"

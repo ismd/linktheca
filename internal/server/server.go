@@ -162,6 +162,9 @@ func New(deps Deps) *http.Server {
 			r.Get("/topics/{id}", radarHTTP.GetTopicHandler())
 			r.Patch("/topics/{id}", radarHTTP.UpdateTopicHandler())
 			r.Delete("/topics/{id}", radarHTTP.DeleteTopicHandler())
+			r.Get("/topics/{id}/feedback", radarHTTP.ListTopicFeedbackHandler())
+			r.Put("/topics/{id}/feedback/{findingId}", radarHTTP.SetTopicFeedbackHandler())
+			r.Delete("/topics/{id}/feedback/{findingId}", radarHTTP.DeleteTopicFeedbackHandler())
 
 			r.Get("/feeds", radarHTTP.ListFeedsHandler())
 			r.Post("/feeds", radarHTTP.AddUserFeedHandler())

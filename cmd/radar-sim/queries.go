@@ -16,8 +16,10 @@ type topicRow struct {
 	OwnerEmail     string
 	Name           string
 	MatchThreshold float32
-	IsActive       bool
-	HasEmbedding   bool
+	// MatchCutoff is the threshold after learning from the user's marks.
+	MatchCutoff  float32
+	IsActive     bool
+	HasEmbedding bool
 }
 
 // topFindingsByVector scores every finding against a probe, best first: by
@@ -42,8 +44,9 @@ func topFindingsByVector(ctx context.Context, pool *pgxpool.Pool, vec, matchVec 
 	return collectScored(rows)
 }
 
-// topFindingsByTopic scores findings against the topic's stored vectors — the
-// same score MatchFindingToTopics uses, minus the threshold filter.
+// topFindingsByTopic scores findings against the topic's stored model — the
+// same score MatchFindingToTopics uses, without its cutoff filter and with the
+// findings the user marked irrelevant still in.
 // With subscribedOnly it also applies the subscription join of the real
 // matcher, which is what tells "sim too low" apart from "feed not subscribed".
 func topFindingsByTopic(ctx context.Context, pool *pgxpool.Pool, topicID int64, limit int, subscribedOnly bool) ([]scoredFinding, error) {
@@ -58,7 +61,7 @@ func topFindingsByTopic(ctx context.Context, pool *pgxpool.Pool, topicID int64, 
 
 	rows, err := pool.Query(ctx, `
 		SELECT f.id, f.title, f.url,
-		       -(rt.match_embedding <#> f.match_embedding) AS score,
+		       -(rt.match_embedding <#> f.match_embedding) - rt.match_offset AS score,
 		       1 - (rt.embedding <=> f.embedding) AS cos,
 		       f.content_id IS NOT NULL
 		FROM radar_topics rt
@@ -103,12 +106,12 @@ func loadTopic(ctx context.Context, pool *pgxpool.Pool, topicID int64) (*topicRo
 		hasMatchEmbedding bool
 	)
 	err := pool.QueryRow(ctx, `
-		SELECT t.id, u.email, t.name, t.match_threshold, t.is_active,
+		SELECT t.id, u.email, t.name, t.match_threshold, t.match_cutoff, t.is_active,
 		       t.embedding IS NOT NULL, t.match_embedding IS NOT NULL
 		FROM radar_topics t
 		JOIN users u ON u.id = t.user_id
 		WHERE t.id = $1
-	`, topicID).Scan(&t.ID, &t.OwnerEmail, &t.Name, &t.MatchThreshold, &t.IsActive, &hasEmbedding, &hasMatchEmbedding)
+	`, topicID).Scan(&t.ID, &t.OwnerEmail, &t.Name, &t.MatchThreshold, &t.MatchCutoff, &t.IsActive, &hasEmbedding, &hasMatchEmbedding)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, fmt.Errorf("topic %d not found", topicID)
@@ -130,7 +133,7 @@ func loadTopic(ctx context.Context, pool *pgxpool.Pool, topicID int64) (*topicRo
 
 func listTopics(ctx context.Context, pool *pgxpool.Pool) ([]topicRow, error) {
 	rows, err := pool.Query(ctx, `
-		SELECT t.id, u.email, t.name, t.match_threshold, t.is_active,
+		SELECT t.id, u.email, t.name, t.match_threshold, t.match_cutoff, t.is_active,
 		       t.embedding IS NOT NULL
 		FROM radar_topics t
 		JOIN users u ON u.id = t.user_id
@@ -144,7 +147,7 @@ func listTopics(ctx context.Context, pool *pgxpool.Pool) ([]topicRow, error) {
 	var out []topicRow
 	for rows.Next() {
 		var t topicRow
-		if err := rows.Scan(&t.ID, &t.OwnerEmail, &t.Name, &t.MatchThreshold, &t.IsActive, &t.HasEmbedding); err != nil {
+		if err := rows.Scan(&t.ID, &t.OwnerEmail, &t.Name, &t.MatchThreshold, &t.MatchCutoff, &t.IsActive, &t.HasEmbedding); err != nil {
 			return nil, fmt.Errorf("scan topic: %w", err)
 		}
 		out = append(out, t)

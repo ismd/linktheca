@@ -8,8 +8,9 @@ import {
   getStatus,
   previewTopic,
   listFeeds,
+  listTopicMarks,
 } from "./api";
-import { PAGE_SIZE, type MatchFilters, type MatchList } from "./types";
+import { PAGE_SIZE, type MatchFilters, type MatchList, type TopicMark } from "./types";
 
 export const radarKeys = {
   all: ["radar"] as const,
@@ -20,9 +21,18 @@ export const radarKeys = {
   finding: (id: number) => ["radar", "finding", id] as const,
   status: ["radar", "status"] as const,
   feeds: ["radar", "feeds"] as const,
-  topicPreview: (description: string) =>
-    ["radar", "topic-preview", description] as const,
+  topicPreview: (description: string, marks: string) =>
+    ["radar", "topic-preview", description, marks] as const,
+  topicMarks: (id: number) => ["radar", "topic-marks", id] as const,
 };
+
+/** A stable key for a set of marks, whatever order they were given in. */
+function marksKey(marks: TopicMark[]): string {
+  return marks
+    .map((m) => `${m.finding.id}:${m.verdict}`)
+    .sort()
+    .join(",");
+}
 
 export const MIN_PREVIEW_DESCRIPTION = 10;
 
@@ -41,14 +51,22 @@ export function useTopicQuery(id: number) {
   });
 }
 
-export function useTopicPreviewQuery(description: string) {
+export function useTopicPreviewQuery(description: string, marks: TopicMark[] = []) {
   const trimmedDescription = description.trim();
 
   return useQuery({
-    queryKey: radarKeys.topicPreview(trimmedDescription),
-    queryFn: () => previewTopic({ description: trimmedDescription }),
+    queryKey: radarKeys.topicPreview(trimmedDescription, marksKey(marks)),
+    queryFn: () => previewTopic({ description: trimmedDescription, marks }),
     enabled: trimmedDescription.length >= MIN_PREVIEW_DESCRIPTION,
     placeholderData: (previous) => previous,
+  });
+}
+
+export function useTopicMarksQuery(topicId: number, enabled = true) {
+  return useQuery({
+    queryKey: radarKeys.topicMarks(topicId),
+    queryFn: () => listTopicMarks(topicId),
+    enabled: enabled && Number.isFinite(topicId) && topicId > 0,
   });
 }
 

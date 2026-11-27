@@ -225,6 +225,35 @@ slider (deferred, see the threshold slider spec) and feedback matter.
 
 ### 2. Make the topic say what it means
 
+> **Follow-up, 2026-11-26.** Re-measured on the implemented score
+> (`fused − hub ≥ 0.18`). The "name (what it is)" phrasing is no longer the
+> best one overall: F1 0.882 vs 0.919 for the short name, though with fewer
+> false alerts in the empty stream (16 vs 25). It helps names the model
+> misreads (Passkeys 0.76 → 0.92, Ozempic 0.54 → 0.89, Starship 0.94 → 0.99)
+> and breaks plain concepts: the added words lower every score of the topic
+> below the threshold while the ranking stays (nuclear power 0.90 → 0.16,
+> recall 0.83 → 0.09; e-bikes 0.98 → 0.70; Kubernetes 0.99 → 0.84). So the
+> tip must not be a nudge on every short description, and an LLM writing the
+> same gloss would only save typing. For Steam Deck it removes StemDeck but
+> not Steam Frame (0.24 vs real articles from 0.25).
+>
+> The cross-encoder veto on top of the new score: empty-stream false alerts
+> 25 → 10 (short, veto ≥ 0.005) and 16 → 6 (gloss), F1 0.919 → 0.900 and
+> 0.882 → 0.854. Part of the F1 drop is the setup: 40 accepted short pairs
+> fell outside the reranker's candidate set and were vetoed unseen. Steam
+> Frame goes only with the gloss (rerank 0.002 vs 0.24 for the short name),
+> and with it a few real Steam Deck articles score as low.
+>
+> Steam Frame scores like a typical real Steam Deck article (0.29, the real
+> ones' 10th percentile is 0.29), so ✗ cannot work by raising the threshold
+> above the rejected finding without losing about a tenth of the real ones.
+> Measured on 2026-11-27 (see the feedback plan,
+> `docs/superpowers/plans/2026-11-27-radar-topic-feedback.md`): rejected
+> findings as examples do not work, as noise is as close to real articles as
+> to other noise. Raising the cutoff on ✗, capped by ✓, plus Rocchio on ✓
+> with the stream's mean shift subtracted, does: F1 0.896 → 0.936 and false
+> alerts 1.22 → 0.48 per 1,000 when the user marks what they see.
+
 - Dialog tip: *"Name it, then say what it is: Steam Deck (Valve's handheld
   gaming PC)."* Nudge when the description is one or two words. This is the
   best phrasing measured, and it costs nothing.

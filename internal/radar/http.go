@@ -238,6 +238,87 @@ func (h *HTTP) deleteTopic(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ListTopicFeedbackHandler returns the http.HandlerFunc for
+// GET /radar/topics/{id}/feedback.
+func (h *HTTP) ListTopicFeedbackHandler() http.HandlerFunc { return h.listTopicFeedback }
+
+// SetTopicFeedbackHandler returns the http.HandlerFunc for
+// PUT /radar/topics/{id}/feedback/{findingId}.
+func (h *HTTP) SetTopicFeedbackHandler() http.HandlerFunc { return h.setTopicFeedback }
+
+// DeleteTopicFeedbackHandler returns the http.HandlerFunc for
+// DELETE /radar/topics/{id}/feedback/{findingId}.
+func (h *HTTP) DeleteTopicFeedbackHandler() http.HandlerFunc { return h.deleteTopicFeedback }
+
+func (h *HTTP) listTopicFeedback(w http.ResponseWriter, r *http.Request) {
+	userID := coreauth.UserID(r.Context())
+	id, err := parseRadarID(r)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid id")
+		return
+	}
+
+	items, err := h.svc.ListTopicFeedback(r.Context(), userID, id)
+	if err != nil {
+		writeRadarError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+// parseFeedbackIDs reads the topic and finding ids of a feedback route.
+func parseFeedbackIDs(r *http.Request) (topicID, findingID int64, err error) {
+	if topicID, err = parseRadarID(r); err != nil {
+		return 0, 0, err
+	}
+
+	findingID, err = strconv.ParseInt(chi.URLParam(r, "findingId"), 10, 64)
+	if err != nil || findingID <= 0 {
+		return 0, 0, errors.New("invalid finding id")
+	}
+
+	return topicID, findingID, nil
+}
+
+func (h *HTTP) setTopicFeedback(w http.ResponseWriter, r *http.Request) {
+	userID := coreauth.UserID(r.Context())
+	topicID, findingID, err := parseFeedbackIDs(r)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+
+	var req SetTopicFeedbackRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", "invalid json body")
+		return
+	}
+
+	if err := h.svc.SetTopicFeedback(r.Context(), userID, topicID, findingID, req.Verdict); err != nil {
+		writeRadarError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *HTTP) deleteTopicFeedback(w http.ResponseWriter, r *http.Request) {
+	userID := coreauth.UserID(r.Context())
+	topicID, findingID, err := parseFeedbackIDs(r)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+
+	if err := h.svc.DeleteTopicFeedback(r.Context(), userID, topicID, findingID); err != nil {
+		writeRadarError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // ListMatchesHandler returns the http.HandlerFunc for GET /radar/matches.
 func (h *HTTP) ListMatchesHandler() http.HandlerFunc { return h.listMatches }
 

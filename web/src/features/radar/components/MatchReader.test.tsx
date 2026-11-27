@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
@@ -152,5 +153,45 @@ describe("MatchReader", () => {
       (l) => l.getAttribute("href") === "/radar/topics/7",
     );
     expect(topicLinks).toHaveLength(2);
+  });
+
+  it("marks the match as not about its topic and takes the mark back", async () => {
+    let verdict: string | null = null;
+    const calls: string[] = [];
+    server.use(
+      http.get("/api/radar/matches/42", () =>
+        HttpResponse.json({ ...rawMatch("seen"), verdict })),
+      http.put("/api/radar/topics/7/feedback/100", async ({ request }) => {
+        verdict = ((await request.json()) as { verdict: string }).verdict;
+        calls.push(`PUT ${verdict}`);
+        return new HttpResponse(null, { status: 204 });
+      }),
+      http.delete("/api/radar/topics/7/feedback/100", () => {
+        verdict = null;
+        calls.push("DELETE");
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    const user = userEvent.setup();
+    render(<Wrap><MatchReader matchId={42} /></Wrap>);
+
+    expect(await screen.findByText("Is this about Local-first?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /not about it/i }));
+    expect(await screen.findByText(/hidden from local-first/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(await screen.findByText("Is this about Local-first?")).toBeInTheDocument();
+    expect(calls).toEqual(["PUT irrelevant", "DELETE"]);
+  });
+
+  it("shows a ✓ given before", async () => {
+    server.use(
+      http.get("/api/radar/matches/42", () =>
+        HttpResponse.json({ ...rawMatch("seen"), verdict: "relevant" })),
+    );
+
+    render(<Wrap><MatchReader matchId={42} /></Wrap>);
+    expect(await screen.findByText(/marked as about local-first/i)).toBeInTheDocument();
   });
 });

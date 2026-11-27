@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "@/test/setup";
 import { useAuthStore } from "@/features/auth/store";
 import { TopicPreviewPanel } from "./TopicPreviewPanel";
+import type { TopicMark } from "../types";
 
 function Wrap({ children }: { children: React.ReactNode }) {
   const qc = new QueryClient({
@@ -119,5 +122,78 @@ describe("TopicPreviewPanel", () => {
     );
 
     expect(await screen.findByText(/embedder is offline/i)).toBeInTheDocument();
+  });
+
+  it("has no mark buttons when nothing listens for marks", async () => {
+    server.use(
+      http.post("/api/radar/topics/preview", () =>
+        HttpResponse.json({
+          items: [{ similarity: 0.3, finding: rawFinding(1, "Local-first software") }],
+          threshold: 0.18,
+        })),
+    );
+
+    render(
+      <Wrap>
+        <TopicPreviewPanel description={DESCRIPTION} />
+      </Wrap>,
+    );
+
+    expect(await screen.findByText("Local-first software")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /about this topic/i })).not.toBeInTheDocument();
+  });
+
+  it("marks rows, sends the marks with the next preview and lets them be undone", async () => {
+    const sent: unknown[] = [];
+    server.use(
+      http.post("/api/radar/topics/preview", async ({ request }) => {
+        const body = (await request.json()) as { feedback?: unknown };
+        sent.push(body.feedback ?? null);
+        return HttpResponse.json({
+          items: [
+            { similarity: 0.31, finding: rawFinding(1, "Local-first software") },
+            { similarity: 0.26, finding: rawFinding(2, "When Ldaxr doesn't work") },
+          ],
+          threshold: 0.18,
+        });
+      }),
+    );
+
+    function Marking() {
+      const [marks, setMarks] = useState<TopicMark[]>([]);
+      return <TopicPreviewPanel description={DESCRIPTION} marks={marks} onMarksChange={setMarks} />;
+    }
+
+    const user = userEvent.setup();
+    render(
+      <Wrap>
+        <Marking />
+      </Wrap>,
+    );
+
+    const good = (await screen.findByText("Local-first software")).closest("li")!;
+    await user.click(within(good).getByRole("button", { name: "About this topic" }));
+    expect(within(good).getByRole("button", { name: "About this topic" }))
+      .toHaveAttribute("aria-pressed", "true");
+
+    const noise = screen.getByText("When Ldaxr doesn't work").closest("li")!;
+    await user.click(within(noise).getByRole("button", { name: "Not about this topic" }));
+    expect(screen.queryByText("When Ldaxr doesn't work")).not.toBeInTheDocument();
+    expect(screen.getByText("Marked 1 ✓ · 1 ✗")).toBeInTheDocument();
+
+    await waitFor(() =>
+      expect(sent.at(-1)).toEqual([
+        { finding_id: 1, verdict: "relevant" },
+        { finding_id: 2, verdict: "irrelevant" },
+      ]));
+
+    await user.click(screen.getByRole("button", { name: "Show" }));
+    const hidden = screen.getByText("When Ldaxr doesn't work").closest("li")!;
+    await user.click(within(hidden).getByRole("button", { name: "Undo" }));
+    expect(screen.getByText("Marked 1 ✓ · 0 ✗")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Forget all" }));
+    expect(screen.queryByText(/^Marked/)).not.toBeInTheDocument();
+    await waitFor(() => expect(sent.at(-1)).toBeNull());
   });
 });

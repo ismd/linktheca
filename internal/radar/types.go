@@ -18,11 +18,14 @@ var (
 )
 
 type Topic struct {
-	ID             int64     `json:"id"`
-	UserID         int64     `json:"user_id"`
-	Name           string    `json:"name"`
-	Description    string    `json:"description"`
+	ID          int64  `json:"id"`
+	UserID      int64  `json:"user_id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	// MatchThreshold is the base the user sets; MatchCutoff is what findings
+	// are held to after the topic learned from the user's marks (LearnTopic).
 	MatchThreshold float32   `json:"match_threshold"`
+	MatchCutoff    float32   `json:"match_cutoff"`
 	IsActive       bool      `json:"is_active"`
 	HasEmbedding   bool      `json:"has_embedding"`
 	CreatedAt      time.Time `json:"created_at"`
@@ -77,6 +80,29 @@ type CreateTopicRequest struct {
 	Name           string   `json:"name,omitempty"`
 	Description    string   `json:"description"`
 	MatchThreshold *float32 `json:"match_threshold,omitempty"`
+	// Feedback holds the marks given in the topic preview before saving.
+	Feedback []TopicFeedback `json:"feedback,omitempty"`
+}
+
+// TopicFeedback is the user's verdict on one finding for a topic:
+// VerdictRelevant or VerdictIrrelevant.
+type TopicFeedback struct {
+	FindingID int64  `json:"finding_id"`
+	Verdict   string `json:"verdict"`
+}
+
+// TopicFeedbackView is a mark with the finding it is on, for
+// GET /radar/topics/{id}/feedback.
+type TopicFeedbackView struct {
+	Verdict   string       `json:"verdict"`
+	CreatedAt time.Time    `json:"created_at"`
+	Finding   MatchFinding `json:"finding"`
+}
+
+// SetTopicFeedbackRequest is the payload for
+// PUT /radar/topics/{id}/feedback/{findingId}.
+type SetTopicFeedbackRequest struct {
+	Verdict string `json:"verdict"`
 }
 
 type AddFeedRequest struct {
@@ -130,6 +156,9 @@ type TopicStats struct {
 	TotalCount  int        `json:"total_count"`
 	SourceCount int        `json:"source_count"`
 	LastMatchAt *time.Time `json:"last_match_at"`
+	// How many findings the user marked as about the topic and not.
+	MarkedRelevant   int `json:"marked_relevant"`
+	MarkedIrrelevant int `json:"marked_irrelevant"`
 }
 
 // TopicWithStats is a Topic enriched with aggregate match stats.
@@ -168,13 +197,15 @@ type FindingContent struct {
 // MatchView is a Match denormalized with topic name and finding metadata.
 // Returned by GET /radar/matches.
 type MatchView struct {
-	ID         int64        `json:"id"`
-	TopicID    int64        `json:"topic_id"`
-	TopicName  string       `json:"topic_name"`
-	Similarity float32      `json:"similarity"`
-	State      string       `json:"state"`
-	MatchedAt  time.Time    `json:"matched_at"`
-	Finding    MatchFinding `json:"finding"`
+	ID         int64     `json:"id"`
+	TopicID    int64     `json:"topic_id"`
+	TopicName  string    `json:"topic_name"`
+	Similarity float32   `json:"similarity"`
+	State      string    `json:"state"`
+	MatchedAt  time.Time `json:"matched_at"`
+	// Verdict is the user's mark on the finding for this topic, if any.
+	Verdict *string      `json:"verdict"`
+	Finding MatchFinding `json:"finding"`
 }
 
 // ListMatchesParams holds query parameters for GET /radar/matches.
@@ -231,6 +262,9 @@ type UpdateTopicRequest struct {
 	Description    *string  `json:"description,omitempty"`
 	MatchThreshold *float32 `json:"match_threshold,omitempty"`
 	IsActive       *bool    `json:"is_active,omitempty"`
+	// Feedback, when present, replaces the topic's marks; an empty list
+	// forgets them.
+	Feedback *[]TopicFeedback `json:"feedback,omitempty"`
 }
 
 // UpdateTopicParams is the store-level analogue of UpdateTopicRequest.
@@ -246,6 +280,9 @@ type UpdateTopicParams struct {
 // persisted.
 type PreviewTopicRequest struct {
 	Description string `json:"description"`
+	// Feedback holds the marks given so far; marked findings teach the draft
+	// topic, and those marked irrelevant are left out of the preview.
+	Feedback []TopicFeedback `json:"feedback,omitempty"`
 }
 
 // PreviewMatch is a finding scored against a draft topic. It mirrors the
@@ -257,8 +294,9 @@ type PreviewMatch struct {
 }
 
 // TopicPreview is the response for POST /radar/topics/preview. Threshold is
-// the cutoff the topic would be created with, so the client can show which of
-// the returned findings would actually have become matches.
+// the cutoff the topic would be created with, after learning from the marks,
+// so the client can show which of the returned findings would actually have
+// become matches.
 type TopicPreview struct {
 	Items     []PreviewMatch `json:"items"`
 	Threshold float32        `json:"threshold"`

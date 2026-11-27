@@ -67,15 +67,24 @@ func TestStore_UpdateTopicEmbedding(t *testing.T) {
 		vec[i] = 0.01
 		match[i] = -0.02
 	}
-	err = store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec), pgvector.NewVector(match))
+	require.Equal(t, float32(0.75), topic.MatchCutoff, "a new topic is held to its threshold")
+
+	err = store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec),
+		radar.TopicModel{MatchVec: match, Offset: 0.03, Cutoff: 0.8})
 	require.NoError(t, err)
 
-	var gotVec, gotMatch pgvector.Vector
+	var (
+		gotVec, gotMatch pgvector.Vector
+		offset, cutoff   float32
+	)
 	err = pool.QueryRow(ctx,
-		`SELECT embedding, match_embedding FROM radar_topics WHERE id=$1`, topic.ID).Scan(&gotVec, &gotMatch)
+		`SELECT embedding, match_embedding, match_offset, match_cutoff FROM radar_topics WHERE id=$1`,
+		topic.ID).Scan(&gotVec, &gotMatch, &offset, &cutoff)
 	require.NoError(t, err)
 	require.Equal(t, vec, gotVec.Slice())
 	require.Equal(t, match, gotMatch.Slice())
+	require.Equal(t, float32(0.03), offset)
+	require.Equal(t, float32(0.8), cutoff)
 }
 
 func TestStore_AddFeed(t *testing.T) {
@@ -182,7 +191,7 @@ func TestStore_UpdateFindingEmbedding_AndMatch(t *testing.T) {
 	// Topic embedding.
 	vec := make([]float32, 1024)
 	vec[0] = 1.0
-	err = store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec), pgvector.NewVector(vec))
+	err = store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec), radar.TopicModel{MatchVec: vec, Cutoff: 0.5})
 	require.NoError(t, err)
 
 	feed, err := store.AddFeed(ctx, radar.AddFeedParams{URL: "https://f.example/x", Kind: "rss", FetchIntervalSeconds: 3600})
@@ -234,7 +243,7 @@ func TestStore_MatchFindingToTopics_scoresMatchVectors(t *testing.T) {
 		UserID: userID, Name: "t", Description: "topic", MatchThreshold: 0.3,
 	})
 	require.NoError(t, err)
-	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, unitVec(1), unitVec(0, 1)))
+	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, unitVec(1), radar.TopicModel{MatchVec: unitVec(0, 1).Slice(), Cutoff: 0.3}))
 
 	// Same embedding as the topic, but a match vector the topic's is
 	// orthogonal to: score 0.
@@ -314,7 +323,7 @@ func TestStore_FillTopicMatchEmbeddings(t *testing.T) {
 
 	_, err := pool.Exec(ctx, `UPDATE radar_topics SET embedding = $1 WHERE id = $2`, unitVec(1, 0.5), pending)
 	require.NoError(t, err)
-	require.NoError(t, store.UpdateTopicEmbedding(ctx, done, unitVec(1), unitVec(9)))
+	require.NoError(t, store.UpdateTopicEmbedding(ctx, done, unitVec(1), radar.TopicModel{MatchVec: unitVec(9).Slice(), Cutoff: 0.18}))
 
 	n, err := store.FillTopicMatchEmbeddings(ctx, unitVec(0.25, 0.5))
 	require.NoError(t, err)
@@ -383,8 +392,8 @@ func seedTopic(t *testing.T, pool *pgxpool.Pool, userID int64, name, desc string
 	t.Helper()
 	var id int64
 	err := pool.QueryRow(context.Background(),
-		`INSERT INTO radar_topics (user_id, name, description, match_threshold, is_active)
-		 VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		`INSERT INTO radar_topics (user_id, name, description, match_threshold, match_cutoff, is_active)
+		 VALUES ($1, $2, $3, $4, $4, $5) RETURNING id`,
 		userID, name, desc, threshold, active).Scan(&id)
 	require.NoError(t, err)
 	return id
@@ -917,7 +926,7 @@ func TestStore_SummaryFallsBackToPageExcerpt(t *testing.T) {
 
 	vec := make([]float32, 1024)
 	vec[0] = 1
-	preview, err := store.PreviewFindings(ctx, userID, pgvector.NewVector(vec), 10)
+	preview, err := store.PreviewFindings(ctx, userID, radar.TopicModel{MatchVec: vec}, nil, 10)
 	require.NoError(t, err)
 	require.Len(t, preview, 2)
 	for _, p := range preview {
@@ -1044,7 +1053,7 @@ func TestStore_PreviewFindings_ranksSubscribedFindings(t *testing.T) {
 	probe := make([]float32, 1024)
 	probe[0] = 1
 
-	items, err := store.PreviewFindings(ctx, userID, pgvector.NewVector(probe), 5)
+	items, err := store.PreviewFindings(ctx, userID, radar.TopicModel{MatchVec: probe}, nil, 5)
 	require.NoError(t, err)
 	require.Len(t, items, 2, "unsubscribed findings and those without a match vector must not appear")
 
@@ -1082,7 +1091,7 @@ func TestStore_PreviewFindings_respectsLimit(t *testing.T) {
 	probe := make([]float32, 1024)
 	probe[0] = 1
 
-	items, err := store.PreviewFindings(ctx, userID, pgvector.NewVector(probe), 2)
+	items, err := store.PreviewFindings(ctx, userID, radar.TopicModel{MatchVec: probe}, nil, 2)
 	require.NoError(t, err)
 	require.Len(t, items, 2)
 }
@@ -1100,7 +1109,7 @@ func TestStore_PreviewFindings_emptyForUserWithoutSubscriptions(t *testing.T) {
 	probe := make([]float32, 1024)
 	probe[0] = 1
 
-	items, err := store.PreviewFindings(ctx, userID, pgvector.NewVector(probe), 5)
+	items, err := store.PreviewFindings(ctx, userID, radar.TopicModel{MatchVec: probe}, nil, 5)
 	require.NoError(t, err)
 	require.Empty(t, items)
 }

@@ -55,11 +55,13 @@ type Props = {
   backLink: ReactNode;
   /** Stamps shown above the title. */
   stamps?: ReactNode;
+  /** Shown between the header and the article, e.g. the topic marks. */
+  aside?: ReactNode;
 };
 
 /** The reader body shared by a match and a bare finding: title, byline,
  * the downloaded article (or its summary), and the actions under it. */
-export function FindingArticle({ finding: f, backLink, stamps }: Props) {
+export function FindingArticle({ finding: f, backLink, stamps, aside }: Props) {
   const [saving, setSaving] = useState(false);
   const title = f.title ?? f.url;
   const source = f.feedTitle ?? host(f.url);
@@ -106,6 +108,8 @@ export function FindingArticle({ finding: f, backLink, stamps }: Props) {
           )}
         </div>
       </header>
+
+      {aside}
 
       <ArticleBody
         html={article?.html}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -67,8 +68,21 @@ type mockStore struct {
 	previewErr        error
 	previewCalled     bool
 	previewUserID     int64
-	previewVec        pgvector.Vector
+	previewModel      radar.TopicModel
+	previewExclude    []int64
 	previewLimit      int
+
+	// Learning from marks: topic -> finding -> verdict, and the match vectors
+	// of findings the user can see.
+	topicModels       map[int64]radar.TopicModel
+	feedback          map[int64]map[int64]string
+	findingVecs       map[int64][]float32
+	replaceFeedback   []radar.TopicFeedback
+	replaceCalled     bool
+	examplesUserID    int64
+	listFeedbackItems []radar.TopicFeedbackView
+	streamMean        []float32
+	streamMeanCalls   int
 	unsubscribeErr    error
 	updateFeedCalled  bool
 	updateFeedParams  radar.UpdateFeedParams
@@ -86,6 +100,9 @@ func newMockStore() *mockStore {
 		topics:        make(map[int64]*radar.Topic),
 		topicEmb:      make(map[int64]pgvector.Vector),
 		topicMatchEmb: make(map[int64]pgvector.Vector),
+		topicModels:   make(map[int64]radar.TopicModel),
+		feedback:      make(map[int64]map[int64]string),
+		findingVecs:   make(map[int64][]float32),
 		feeds:         make(map[int64]*radar.Feed),
 		feedsByURL:    make(map[string]*radar.Feed),
 		feedOwners:    make(map[int64]*int64),
@@ -100,14 +117,14 @@ func (m *mockStore) CreateTopic(_ context.Context, p radar.CreateTopicParams) (*
 	m.nextTopicID++
 	t := &radar.Topic{
 		ID: m.nextTopicID, UserID: p.UserID, Name: p.Name,
-		Description: p.Description, MatchThreshold: p.MatchThreshold,
+		Description: p.Description, MatchThreshold: p.MatchThreshold, MatchCutoff: p.MatchThreshold,
 		IsActive: true, CreatedAt: time.Now(), UpdatedAt: time.Now(),
 	}
 	m.topics[t.ID] = t
 	return t, nil
 }
 
-func (m *mockStore) UpdateTopicEmbedding(_ context.Context, topicID int64, vec, matchVec pgvector.Vector) error {
+func (m *mockStore) UpdateTopicEmbedding(_ context.Context, topicID int64, vec pgvector.Vector, model radar.TopicModel) error {
 	if m.updateEmbErr != nil {
 		return m.updateEmbErr
 	}
@@ -116,9 +133,86 @@ func (m *mockStore) UpdateTopicEmbedding(_ context.Context, topicID int64, vec, 
 		return radar.ErrNotFound
 	}
 	m.topicEmb[topicID] = vec
-	m.topicMatchEmb[topicID] = matchVec
+	m.topicMatchEmb[topicID] = pgvector.NewVector(model.MatchVec)
+	m.topicModels[topicID] = model
 	t.HasEmbedding = true
+	t.MatchCutoff = model.Cutoff
 	return nil
+}
+
+func (m *mockStore) GetTopicLearnInput(_ context.Context, topicID int64) (*radar.TopicLearnInput, error) {
+	t, ok := m.topics[topicID]
+	if !ok {
+		return nil, radar.ErrNotFound
+	}
+	in := &radar.TopicLearnInput{ID: t.ID, Description: t.Description, MatchThreshold: t.MatchThreshold}
+	if vec, ok := m.topicEmb[topicID]; ok {
+		in.Embedding = &vec
+	}
+	return in, nil
+}
+
+func (m *mockStore) ListTopicExamples(_ context.Context, topicID int64) ([]radar.Example, error) {
+	var out []radar.Example
+	for id, verdict := range m.feedback[topicID] {
+		if vec, ok := m.findingVecs[id]; ok {
+			out = append(out, radar.Example{FindingID: id, Vec: vec, Relevant: verdict == radar.VerdictRelevant})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].FindingID < out[j].FindingID })
+	return out, nil
+}
+
+func (m *mockStore) FindingExamples(_ context.Context, userID int64, fb []radar.TopicFeedback) ([]radar.Example, error) {
+	m.examplesUserID = userID
+	var out []radar.Example
+	for _, f := range fb {
+		if vec, ok := m.findingVecs[f.FindingID]; ok {
+			out = append(out, radar.Example{FindingID: f.FindingID, Vec: vec, Relevant: f.Verdict == radar.VerdictRelevant})
+		}
+	}
+	return out, nil
+}
+
+func (m *mockStore) SetTopicFeedback(_ context.Context, _, topicID, findingID int64, verdict string) error {
+	if _, ok := m.topics[topicID]; !ok {
+		return radar.ErrNotFound
+	}
+	if _, ok := m.findingVecs[findingID]; !ok {
+		return radar.ErrNotFound
+	}
+	if m.feedback[topicID] == nil {
+		m.feedback[topicID] = map[int64]string{}
+	}
+	m.feedback[topicID][findingID] = verdict
+	return nil
+}
+
+func (m *mockStore) ReplaceTopicFeedback(_ context.Context, _, topicID int64, fb []radar.TopicFeedback) error {
+	m.replaceCalled = true
+	m.replaceFeedback = fb
+	m.feedback[topicID] = map[int64]string{}
+	for _, f := range fb {
+		m.feedback[topicID][f.FindingID] = f.Verdict
+	}
+	return nil
+}
+
+func (m *mockStore) DeleteTopicFeedback(_ context.Context, _, topicID, findingID int64) error {
+	if _, ok := m.feedback[topicID][findingID]; !ok {
+		return radar.ErrNotFound
+	}
+	delete(m.feedback[topicID], findingID)
+	return nil
+}
+
+func (m *mockStore) ListTopicFeedback(_ context.Context, _, _ int64) ([]radar.TopicFeedbackView, error) {
+	return m.listFeedbackItems, nil
+}
+
+func (m *mockStore) StreamMean(_ context.Context, _ int) ([]float32, error) {
+	m.streamMeanCalls++
+	return m.streamMean, nil
 }
 
 func (m *mockStore) AddFeed(_ context.Context, p radar.AddFeedParams) (*radar.Feed, error) {
@@ -589,11 +683,12 @@ func (m *mockStore) ListFeeds(_ context.Context, userID int64, p radar.ListFeeds
 }
 
 func (m *mockStore) PreviewFindings(
-	_ context.Context, userID int64, vec pgvector.Vector, limit int,
+	_ context.Context, userID int64, model radar.TopicModel, exclude []int64, limit int,
 ) ([]radar.PreviewMatch, error) {
 	m.previewCalled = true
 	m.previewUserID = userID
-	m.previewVec = vec
+	m.previewModel = model
+	m.previewExclude = exclude
 	m.previewLimit = limit
 	return m.previewResult, m.previewErr
 }
@@ -901,13 +996,15 @@ func TestService_PreviewTopic_ProbesLikeCreateTopic(t *testing.T) {
 
 	require.True(t, store.previewCalled)
 	require.Equal(t, int64(7), store.previewUserID)
-	require.Equal(t, 5, store.previewLimit)
+	require.Equal(t, 10, store.previewLimit)
+	require.Empty(t, store.previewExclude)
 
 	raw, _ := emb.Embed(context.Background(), radar.TopicEmbedText("webauthn passkeys"))
 	expected, err := radar.NewReference(emb).TopicMatchVector(context.Background(), raw)
 	require.NoError(t, err)
-	require.Equal(t, pgvector.NewVector(expected), store.previewVec,
+	require.Equal(t, expected, store.previewModel.MatchVec,
 		"preview must probe with the match vector CreateTopic stores")
+	require.Zero(t, store.previewModel.Offset)
 }
 
 func TestService_PreviewTopic_ReturnsScoredFindings(t *testing.T) {
@@ -1052,4 +1149,202 @@ func TestService_UpdateGlobalFeed_Validation(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1800, *store.updateFeedParams.FetchIntervalSeconds)
 	require.False(t, *store.updateFeedParams.IsActive)
+}
+
+// --- learning from marks ---
+
+// markedFindings gives the mock two findings the user can see: one the fake
+// embedder makes close to "webauthn passkeys", one unrelated.
+func markedFindings(t *testing.T, store *mockStore, emb embeddings.Client) (near, far int64) {
+	t.Helper()
+	ctx := context.Background()
+
+	q, _ := emb.Embed(ctx, "webauthn passkeys")
+	other, _ := emb.Embed(ctx, "chess openings")
+	store.findingVecs[1] = q
+	store.findingVecs[2] = other
+	return 1, 2
+}
+
+func TestService_CreateTopic_LearnsFromMarks(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+	near, _ := markedFindings(t, store, emb)
+
+	topic, err := svc.CreateTopic(context.Background(), 1, radar.CreateTopicRequest{
+		Description: "webauthn passkeys",
+		Feedback: []radar.TopicFeedback{
+			{FindingID: near, Verdict: radar.VerdictRelevant},
+			{FindingID: near, Verdict: radar.VerdictIrrelevant},
+		},
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, []radar.TopicFeedback{{FindingID: near, Verdict: radar.VerdictIrrelevant}},
+		store.replaceFeedback, "a finding marked twice keeps the last verdict")
+
+	model := store.topicModels[topic.ID]
+	require.Greater(t, model.Cutoff, float32(0.18), "the rejected finding lifted the cutoff")
+	require.Less(t, model.Score(store.findingVecs[near]), model.Cutoff)
+	require.Equal(t, model.Cutoff, topic.MatchCutoff)
+	require.Equal(t, float32(0.18), topic.MatchThreshold, "the user's threshold is kept apart")
+}
+
+func TestService_CreateTopic_RejectsBadMarks(t *testing.T) {
+	svc := radar.NewService(newMockStore(), &embeddings.FakeEmbedder{Dim: 1024})
+	ctx := context.Background()
+
+	for _, fb := range [][]radar.TopicFeedback{
+		{{FindingID: 1, Verdict: "maybe"}},
+		{{FindingID: 0, Verdict: radar.VerdictRelevant}},
+		make([]radar.TopicFeedback, 201),
+	} {
+		_, err := svc.CreateTopic(ctx, 1, radar.CreateTopicRequest{Description: "webauthn passkeys", Feedback: fb})
+		require.ErrorIs(t, err, radar.ErrInvalidInput)
+	}
+}
+
+func TestService_PreviewTopic_LearnsFromMarksAndHidesRejected(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+	near, far := markedFindings(t, store, emb)
+
+	got, err := svc.PreviewTopic(context.Background(), 7, radar.PreviewTopicRequest{
+		Description: "webauthn passkeys",
+		Feedback: []radar.TopicFeedback{
+			{FindingID: near, Verdict: radar.VerdictIrrelevant},
+			{FindingID: far, Verdict: radar.VerdictRelevant},
+		},
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, int64(7), store.examplesUserID, "only the user's own findings teach the draft")
+	require.Equal(t, []int64{near}, store.previewExclude)
+	require.Equal(t, store.previewModel.Cutoff, got.Threshold)
+	require.Greater(t, got.Threshold, float32(0.18))
+}
+
+func TestService_SetTopicFeedback_RelearnsTheTopic(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+	ctx := context.Background()
+	near, _ := markedFindings(t, store, emb)
+
+	topic, err := svc.CreateTopic(ctx, 1, radar.CreateTopicRequest{Description: "webauthn passkeys"})
+	require.NoError(t, err)
+	require.Equal(t, float32(0.18), store.topicModels[topic.ID].Cutoff)
+
+	require.NoError(t, svc.SetTopicFeedback(ctx, 1, topic.ID, near, radar.VerdictIrrelevant))
+	raised := store.topicModels[topic.ID].Cutoff
+	require.Greater(t, raised, float32(0.18))
+
+	require.NoError(t, svc.DeleteTopicFeedback(ctx, 1, topic.ID, near))
+	require.Equal(t, float32(0.18), store.topicModels[topic.ID].Cutoff, "taking the mark back undoes it")
+
+	require.ErrorIs(t, svc.SetTopicFeedback(ctx, 1, topic.ID, near, "maybe"), radar.ErrInvalidInput)
+	require.ErrorIs(t, svc.SetTopicFeedback(ctx, 1, topic.ID, 99, radar.VerdictRelevant), radar.ErrNotFound)
+	require.ErrorIs(t, svc.DeleteTopicFeedback(ctx, 1, topic.ID, near), radar.ErrNotFound)
+}
+
+func TestService_UpdateTopic_FeedbackOnlyRelearnsWithoutEmbedding(t *testing.T) {
+	store := newMockStore()
+	inner := &embeddings.FakeEmbedder{Dim: 1024}
+	counter := &countingEmbedder{inner: inner}
+	svc := radar.NewService(store, counter)
+	ctx := context.Background()
+	near, _ := markedFindings(t, store, inner)
+
+	topic, err := svc.CreateTopic(ctx, 1, radar.CreateTopicRequest{Description: "webauthn passkeys"})
+	require.NoError(t, err)
+	store.getTopicResult = &radar.TopicWithStats{Topic: *topic}
+	embedded := counter.calls
+
+	fb := []radar.TopicFeedback{{FindingID: near, Verdict: radar.VerdictIrrelevant}}
+	got, err := svc.UpdateTopic(ctx, 1, topic.ID, radar.UpdateTopicRequest{Feedback: &fb})
+	require.NoError(t, err)
+
+	require.False(t, store.updateTopicCalled, "no topic field changed")
+	require.True(t, store.replaceCalled)
+	require.Equal(t, embedded, counter.calls, "the stored embedding is reused")
+	require.Greater(t, got.MatchCutoff, float32(0.18))
+
+	// An empty list forgets the marks.
+	empty := []radar.TopicFeedback{}
+	got, err = svc.UpdateTopic(ctx, 1, topic.ID, radar.UpdateTopicRequest{Feedback: &empty})
+	require.NoError(t, err)
+	require.Equal(t, float32(0.18), got.MatchCutoff)
+}
+
+func TestService_UpdateTopic_ThresholdMovesTheCutoff(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+	ctx := context.Background()
+
+	topic, err := svc.CreateTopic(ctx, 1, radar.CreateTopicRequest{Description: "webauthn passkeys"})
+	require.NoError(t, err)
+
+	thr := float32(0.3)
+	store.updateTopicResult = &radar.Topic{ID: topic.ID, Description: topic.Description, MatchThreshold: thr}
+	got, err := svc.UpdateTopic(ctx, 1, topic.ID, radar.UpdateTopicRequest{MatchThreshold: &thr})
+	require.NoError(t, err)
+	require.Equal(t, float32(0.3), got.MatchCutoff)
+}
+
+func TestService_StreamMeanIsFetchedForConfirmedMarksOnlyAndCached(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+	ctx := context.Background()
+	near, far := markedFindings(t, store, emb)
+	store.streamMean = make([]float32, 1024)
+	store.streamMean[0] = 0.1
+
+	topic, err := svc.CreateTopic(ctx, 1, radar.CreateTopicRequest{Description: "webauthn passkeys"})
+	require.NoError(t, err)
+
+	require.NoError(t, svc.SetTopicFeedback(ctx, 1, topic.ID, near, radar.VerdictIrrelevant))
+	require.Zero(t, store.streamMeanCalls, "✗ alone does not move the topic")
+
+	// ✓ on an unrelated finding moves the topic away from its description.
+	require.NoError(t, svc.SetTopicFeedback(ctx, 1, topic.ID, far, radar.VerdictRelevant))
+	require.NoError(t, svc.DeleteTopicFeedback(ctx, 1, topic.ID, near))
+	require.Equal(t, 1, store.streamMeanCalls)
+	require.NotZero(t, store.topicModels[topic.ID].Offset)
+}
+
+func TestService_ListTopicFeedback_checksTheTopic(t *testing.T) {
+	store := newMockStore()
+	svc := radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024})
+	ctx := context.Background()
+
+	_, err := svc.ListTopicFeedback(ctx, 1, 7)
+	require.ErrorIs(t, err, radar.ErrNotFound)
+
+	store.getTopicResult = &radar.TopicWithStats{Topic: radar.Topic{ID: 7}}
+	store.listFeedbackItems = []radar.TopicFeedbackView{{Verdict: radar.VerdictRelevant}}
+	items, err := svc.ListTopicFeedback(ctx, 1, 7)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+}
+
+func TestService_ReembedTopic_KeepsWhatMarksTaught(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+	ctx := context.Background()
+	near, _ := markedFindings(t, store, emb)
+
+	topic, err := svc.CreateTopic(ctx, 1, radar.CreateTopicRequest{
+		Description: "webauthn passkeys",
+		Feedback:    []radar.TopicFeedback{{FindingID: near, Verdict: radar.VerdictIrrelevant}},
+	})
+	require.NoError(t, err)
+	learned := store.topicModels[topic.ID]
+
+	require.NoError(t, svc.ReembedTopic(ctx, topic.ID))
+	require.Equal(t, learned, store.topicModels[topic.ID])
 }

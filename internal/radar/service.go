@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ismd/linktheca/internal/core/content"
@@ -20,7 +21,16 @@ import (
 // match_threshold lets users tighten or loosen a topic.
 const defaultMatchThreshold = .18
 
-const previewLimit = 5
+// previewLimit leaves room below the cutoff, so a mark that raises it shows
+// what drops out.
+const previewLimit = 10
+
+// maxTopicFeedback caps the marks one request may carry.
+const maxTopicFeedback = 200
+
+// streamMeanTTL is how long the stream's mean match vector is reused. It
+// moves with the mix of feeds, not with every finding.
+const streamMeanTTL = 10 * time.Minute
 
 // TopicEmbedText is the text a topic is embedded from. Only the description
 // takes part: the name is a display label, so renaming a topic never changes
@@ -69,7 +79,7 @@ func validateTopicDescription(desc string) error {
 
 type StoreAPI interface {
 	CreateTopic(ctx context.Context, p CreateTopicParams) (*Topic, error)
-	UpdateTopicEmbedding(ctx context.Context, topicID int64, vec, matchVec pgvector.Vector) error
+	UpdateTopicEmbedding(ctx context.Context, topicID int64, vec pgvector.Vector, m TopicModel) error
 	AddFeed(ctx context.Context, p AddFeedParams) (*Feed, error)
 	Subscribe(ctx context.Context, userID, feedID int64) (*Subscription, error)
 
@@ -86,11 +96,21 @@ type StoreAPI interface {
 	ListFeeds(ctx context.Context, userID int64, p ListFeedsParams) ([]FeedListItem, int, error)
 	GetGlobalFeedByURL(ctx context.Context, url string) (*Feed, error)
 	CountUserFeeds(ctx context.Context, userID int64) (int, error)
-	PreviewFindings(ctx context.Context, userID int64, matchVec pgvector.Vector, limit int) ([]PreviewMatch, error)
+	PreviewFindings(ctx context.Context, userID int64, m TopicModel, exclude []int64, limit int) ([]PreviewMatch, error)
 	Unsubscribe(ctx context.Context, userID, feedID int64) error
 	UpdateFeed(ctx context.Context, feedID int64, owner *int64, p UpdateFeedParams) (*Feed, error)
 	DeleteFeed(ctx context.Context, feedID int64, owner *int64) error
 	SeedSubscriptions(ctx context.Context, userID int64) (int, error)
+
+	// Learning from the user's marks:
+	GetTopicLearnInput(ctx context.Context, topicID int64) (*TopicLearnInput, error)
+	ListTopicExamples(ctx context.Context, topicID int64) ([]Example, error)
+	FindingExamples(ctx context.Context, userID int64, feedback []TopicFeedback) ([]Example, error)
+	SetTopicFeedback(ctx context.Context, userID, topicID, findingID int64, verdict string) error
+	ReplaceTopicFeedback(ctx context.Context, userID, topicID int64, feedback []TopicFeedback) error
+	DeleteTopicFeedback(ctx context.Context, userID, topicID, findingID int64) error
+	ListTopicFeedback(ctx context.Context, userID, topicID int64) ([]TopicFeedbackView, error)
+	StreamMean(ctx context.Context, sample int) ([]float32, error)
 }
 
 // defaultMaxUserFeeds caps personal feeds per account. An open write endpoint
@@ -102,6 +122,10 @@ type Service struct {
 	embedder     embeddings.Client
 	reference    *Reference
 	maxUserFeeds int
+
+	meanMu sync.Mutex
+	mean   []float32
+	meanAt time.Time
 }
 
 // ServiceOption tunes optional Service behaviour.
@@ -140,20 +164,140 @@ func NewService(store StoreAPI, embedder embeddings.Client, opts ...ServiceOptio
 	return s
 }
 
-// embedTopic embeds a topic description and derives the vector it is matched
-// with. Either failing means the embedder is unavailable.
-func (s *Service) embedTopic(ctx context.Context, description string) (vec, matchVec pgvector.Vector, err error) {
-	raw, err := s.embedder.Embed(ctx, TopicEmbedText(description))
+// embedDescription embeds a topic description, wrapping a failure as
+// ErrEmbedderUnavailable.
+func (s *Service) embedDescription(ctx context.Context, description string) ([]float32, error) {
+	q, err := s.embedder.Embed(ctx, TopicEmbedText(description))
 	if err != nil {
-		return vec, matchVec, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
+		return nil, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
 	}
 
-	match, err := s.reference.TopicMatchVector(ctx, raw)
+	return q, nil
+}
+
+// learn builds a topic's model from its description embedding q, its
+// threshold and the findings marked for it (see LearnTopic).
+func (s *Service) learn(ctx context.Context, q []float32, threshold float32, examples []Example) (TopicModel, error) {
+	centroid, err := s.reference.Centroid(ctx)
 	if err != nil {
-		return vec, matchVec, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
+		return TopicModel{}, fmt.Errorf("%w: %v", ErrEmbedderUnavailable, err)
 	}
 
-	return pgvector.NewVector(raw), pgvector.NewVector(match), nil
+	var mean []float32
+	for _, e := range examples {
+		if e.Relevant {
+			if mean, err = s.streamMean(ctx); err != nil {
+				return TopicModel{}, err
+			}
+			break
+		}
+	}
+
+	return LearnTopic(q, centroid, mean, threshold, examples)
+}
+
+// streamMean returns the mean match vector of recent findings, refreshed
+// every streamMeanTTL. Nil while there are no findings.
+func (s *Service) streamMean(ctx context.Context) ([]float32, error) {
+	s.meanMu.Lock()
+	defer s.meanMu.Unlock()
+
+	if s.mean != nil && time.Since(s.meanAt) < streamMeanTTL {
+		return s.mean, nil
+	}
+
+	mean, err := s.store.StreamMean(ctx, streamMeanSample)
+	if err != nil {
+		return nil, err
+	}
+
+	if mean != nil {
+		s.mean, s.meanAt = mean, time.Now()
+	}
+
+	return mean, nil
+}
+
+// relearnTopic rebuilds a saved topic's model from its description embedding
+// and marks and stores both. q is the new embedding when the description
+// changed, nil to reuse the stored one. A topic never embedded has nothing to
+// learn yet: the nil model says so.
+func (s *Service) relearnTopic(ctx context.Context, topicID int64, q []float32) (*TopicModel, error) {
+	in, err := s.store.GetTopicLearnInput(ctx, topicID)
+	if err != nil {
+		return nil, err
+	}
+
+	if q == nil {
+		if in.Embedding == nil {
+			return nil, nil
+		}
+		q = in.Embedding.Slice()
+	}
+
+	examples, err := s.store.ListTopicExamples(ctx, topicID)
+	if err != nil {
+		return nil, err
+	}
+
+	model, err := s.learn(ctx, q, in.MatchThreshold, examples)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.store.UpdateTopicEmbedding(ctx, topicID, pgvector.NewVector(q), model); err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, err
+		}
+		return nil, fmt.Errorf("save topic model: %w", err)
+	}
+
+	return &model, nil
+}
+
+// ReembedTopic embeds a topic's description again and relearns it from its
+// marks. For cmd/reembed-topics, after the way topics are embedded changed.
+func (s *Service) ReembedTopic(ctx context.Context, topicID int64) error {
+	in, err := s.store.GetTopicLearnInput(ctx, topicID)
+	if err != nil {
+		return err
+	}
+
+	q, err := s.embedDescription(ctx, in.Description)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.relearnTopic(ctx, topicID, q)
+	return err
+}
+
+// validateFeedback checks marks sent by a client and drops repeats of a
+// finding, keeping the last verdict given for it.
+func validateFeedback(feedback []TopicFeedback) ([]TopicFeedback, error) {
+	if len(feedback) > maxTopicFeedback {
+		return nil, fmt.Errorf("%w: at most %d marks", ErrInvalidInput, maxTopicFeedback)
+	}
+
+	last := make(map[int64]int, len(feedback))
+	for i, f := range feedback {
+		if f.FindingID <= 0 {
+			return nil, fmt.Errorf("%w: finding_id must be positive", ErrInvalidInput)
+		}
+		if !validVerdict(f.Verdict) {
+			return nil, fmt.Errorf("%w: verdict must be relevant|irrelevant", ErrInvalidInput)
+		}
+		last[f.FindingID] = i
+	}
+
+	out := make([]TopicFeedback, 0, len(last))
+	for i, f := range feedback {
+		if last[f.FindingID] == i {
+			out = append(out, f)
+		}
+	}
+
+	return out, nil
 }
 
 // MaxUserFeeds exposes the personal-feed quota so the UI can show "n / max".
@@ -187,6 +331,11 @@ func (s *Service) CreateTopic(ctx context.Context, userID int64, req CreateTopic
 		}
 	}
 
+	feedback, err := validateFeedback(req.Feedback)
+	if err != nil {
+		return nil, err
+	}
+
 	topic, err := s.store.CreateTopic(ctx, CreateTopicParams{
 		UserID: userID, Name: name, Description: desc, MatchThreshold: threshold,
 	})
@@ -194,19 +343,24 @@ func (s *Service) CreateTopic(ctx context.Context, userID int64, req CreateTopic
 		return nil, fmt.Errorf("create topic: %w", err)
 	}
 
-	vec, matchVec, err := s.embedTopic(ctx, desc)
+	if len(feedback) > 0 {
+		if err := s.store.ReplaceTopicFeedback(ctx, userID, topic.ID, feedback); err != nil {
+			return nil, err
+		}
+	}
+
+	q, err := s.embedDescription(ctx, desc)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.store.UpdateTopicEmbedding(ctx, topic.ID, vec, matchVec); err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return nil, err
-		}
-		return nil, fmt.Errorf("save embedding: %w", err)
+	model, err := s.relearnTopic(ctx, topic.ID, q)
+	if err != nil {
+		return nil, err
 	}
 
 	topic.HasEmbedding = true
+	topic.MatchCutoff = model.Cutoff
 	return topic, nil
 }
 
@@ -329,15 +483,28 @@ func (s *Service) DeleteTopic(ctx context.Context, userID, topicID int64) error 
 	return s.store.DeleteTopic(ctx, userID, topicID)
 }
 
-// UpdateTopic validates the patch, persists changed fields, and — if
-// `description` was in the patch — re-embeds the topic. Mirrors CreateTopic:
-// embedder failure leaves the topic's fields updated and embedding stale, and
-// returns ErrEmbedderUnavailable. The caller can retry with the same payload.
+// UpdateTopic validates the patch, persists changed fields and marks, and
+// relearns the topic when its description, threshold or marks changed — a
+// new description is embedded first. Mirrors CreateTopic: embedder failure
+// leaves the topic's fields updated and its model stale, and returns
+// ErrEmbedderUnavailable. The caller can retry with the same payload.
 func (s *Service) UpdateTopic(ctx context.Context, userID, topicID int64, req UpdateTopicRequest) (*Topic, error) {
-	p := UpdateTopicParams(req)
+	p := UpdateTopicParams{
+		Name: req.Name, Description: req.Description,
+		MatchThreshold: req.MatchThreshold, IsActive: req.IsActive,
+	}
+	fieldsChanged := p.Name != nil || p.Description != nil || p.MatchThreshold != nil || p.IsActive != nil
 
-	if p.Name == nil && p.Description == nil && p.MatchThreshold == nil && p.IsActive == nil {
+	if !fieldsChanged && req.Feedback == nil {
 		return nil, fmt.Errorf("%w: no fields to update", ErrInvalidInput)
+	}
+
+	var feedback []TopicFeedback
+	if req.Feedback != nil {
+		var err error
+		if feedback, err = validateFeedback(*req.Feedback); err != nil {
+			return nil, err
+		}
 	}
 
 	if p.Name != nil {
@@ -360,30 +527,98 @@ func (s *Service) UpdateTopic(ctx context.Context, userID, topicID int64, req Up
 		}
 	}
 
-	topic, err := s.store.UpdateTopic(ctx, userID, topicID, p)
+	topic, err := s.updateTopicFields(ctx, userID, topicID, p, fieldsChanged)
 	if err != nil {
 		return nil, err
 	}
 
-	if p.Description != nil {
-		vec, matchVec, err := s.embedTopic(ctx, topic.Description)
-		if err != nil {
+	if req.Feedback != nil {
+		if err := s.store.ReplaceTopicFeedback(ctx, userID, topicID, feedback); err != nil {
 			return nil, err
 		}
-		if err := s.store.UpdateTopicEmbedding(ctx, topic.ID, vec, matchVec); err != nil {
-			if errors.Is(err, ErrNotFound) {
-				return nil, err
-			}
-			return nil, fmt.Errorf("save embedding: %w", err)
+	}
+
+	if p.Description == nil && p.MatchThreshold == nil && req.Feedback == nil {
+		return topic, nil
+	}
+
+	var q []float32
+	if p.Description != nil {
+		if q, err = s.embedDescription(ctx, topic.Description); err != nil {
+			return nil, err
 		}
+	}
+
+	model, err := s.relearnTopic(ctx, topic.ID, q)
+	if err != nil {
+		return nil, err
+	}
+
+	if model != nil {
 		topic.HasEmbedding = true
+		topic.MatchCutoff = model.Cutoff
 	}
 
 	return topic, nil
 }
 
-// PreviewTopic scores the subscribed findings against a draft description,
-// embedded exactly the way CreateTopic would embed it.
+// updateTopicFields saves the topic's own fields, or only checks the topic is
+// the user's when the patch carries marks alone.
+func (s *Service) updateTopicFields(ctx context.Context, userID, topicID int64, p UpdateTopicParams, changed bool) (*Topic, error) {
+	if changed {
+		return s.store.UpdateTopic(ctx, userID, topicID, p)
+	}
+
+	t, err := s.store.GetTopicWithStats(ctx, userID, topicID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &t.Topic, nil
+}
+
+// SetTopicFeedback records the user's verdict on a finding for one of their
+// topics and relearns the topic. A finding marked irrelevant leaves the
+// topic's matches until the mark is taken back.
+func (s *Service) SetTopicFeedback(ctx context.Context, userID, topicID, findingID int64, verdict string) error {
+	if findingID <= 0 {
+		return fmt.Errorf("%w: finding id must be positive", ErrInvalidInput)
+	}
+	if !validVerdict(verdict) {
+		return fmt.Errorf("%w: verdict must be relevant|irrelevant", ErrInvalidInput)
+	}
+
+	if err := s.store.SetTopicFeedback(ctx, userID, topicID, findingID, verdict); err != nil {
+		return err
+	}
+
+	_, err := s.relearnTopic(ctx, topicID, nil)
+	return err
+}
+
+// DeleteTopicFeedback takes back the user's verdict on a finding for one of
+// their topics and relearns the topic.
+func (s *Service) DeleteTopicFeedback(ctx context.Context, userID, topicID, findingID int64) error {
+	if err := s.store.DeleteTopicFeedback(ctx, userID, topicID, findingID); err != nil {
+		return err
+	}
+
+	_, err := s.relearnTopic(ctx, topicID, nil)
+	return err
+}
+
+// ListTopicFeedback returns the marks on one of the user's topics.
+func (s *Service) ListTopicFeedback(ctx context.Context, userID, topicID int64) ([]TopicFeedbackView, error) {
+	if _, err := s.store.GetTopicWithStats(ctx, userID, topicID); err != nil {
+		return nil, err
+	}
+
+	return s.store.ListTopicFeedback(ctx, userID, topicID)
+}
+
+// PreviewTopic scores the subscribed findings against a draft description and
+// the marks given so far, learned exactly the way CreateTopic would learn
+// them. Findings marked irrelevant are left out.
 func (s *Service) PreviewTopic(ctx context.Context, userID int64, req PreviewTopicRequest) (*TopicPreview, error) {
 	desc := strings.TrimSpace(req.Description)
 
@@ -391,17 +626,39 @@ func (s *Service) PreviewTopic(ctx context.Context, userID int64, req PreviewTop
 		return nil, err
 	}
 
-	_, matchVec, err := s.embedTopic(ctx, desc)
+	feedback, err := validateFeedback(req.Feedback)
 	if err != nil {
 		return nil, err
 	}
 
-	items, err := s.store.PreviewFindings(ctx, userID, matchVec, previewLimit)
+	q, err := s.embedDescription(ctx, desc)
+	if err != nil {
+		return nil, err
+	}
+
+	examples, err := s.store.FindingExamples(ctx, userID, feedback)
+	if err != nil {
+		return nil, err
+	}
+
+	model, err := s.learn(ctx, q, defaultMatchThreshold, examples)
+	if err != nil {
+		return nil, err
+	}
+
+	exclude := []int64{}
+	for _, f := range feedback {
+		if f.Verdict == VerdictIrrelevant {
+			exclude = append(exclude, f.FindingID)
+		}
+	}
+
+	items, err := s.store.PreviewFindings(ctx, userID, model, exclude, previewLimit)
 	if err != nil {
 		return nil, fmt.Errorf("preview findings: %w", err)
 	}
 
-	return &TopicPreview{Items: items, Threshold: defaultMatchThreshold}, nil
+	return &TopicPreview{Items: items, Threshold: model.Cutoff}, nil
 }
 
 // ListMatches returns paginated matches for a user, optionally filtered by

@@ -6,7 +6,7 @@ import type { MatchView } from "../types";
 
 const match: MatchView = {
   id: 42, topicId: 7, topicName: "Local-first", similarity: 0.7,
-  state: "new", matchedAt: new Date("2026-05-18T10:00:00Z"),
+  state: "new", matchedAt: new Date("2026-05-18T10:00:00Z"), verdict: null,
   finding: {
     id: 100, feedId: 5, feedTitle: "Ink & Switch",
     url: "https://inkandswitch.com/local-first/",

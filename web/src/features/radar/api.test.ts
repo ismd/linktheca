@@ -16,6 +16,9 @@ import {
   listFeeds,
   updateFeed,
   addFeed,
+  listTopicMarks,
+  setTopicMark,
+  deleteTopicMark,
 } from "./api";
 
 const rawTopic = (overrides: Record<string, unknown> = {}) => ({
@@ -301,5 +304,53 @@ describe("radar feeds api", () => {
 
     await updateFeed(3, { title: "" });
     expect(captured).toEqual({ title: "" });
+  });
+});
+
+describe("topic marks api", () => {
+  it("lists, sets and deletes marks", async () => {
+    const calls: string[] = [];
+    server.use(
+      http.get("/api/radar/topics/7/feedback", () =>
+        HttpResponse.json({
+          items: [{
+            verdict: "relevant", created_at: "2026-05-18T10:00:00Z",
+            finding: {
+              id: 3, feed_id: 5, feed_title: "HN", url: "https://x.example/3", title: "T",
+              summary: null, published_at: null, discovered_at: "2026-05-18T09:00:00Z",
+            },
+          }],
+        })),
+      http.put("/api/radar/topics/7/feedback/3", async ({ request }) => {
+        calls.push(`PUT ${JSON.stringify(await request.json())}`);
+        return new HttpResponse(null, { status: 204 });
+      }),
+      http.delete("/api/radar/topics/7/feedback/3", () => {
+        calls.push("DELETE");
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    const marks = await listTopicMarks(7);
+    expect(marks).toHaveLength(1);
+    expect(marks[0]?.verdict).toBe("relevant");
+    expect(marks[0]?.finding.id).toBe(3);
+
+    await setTopicMark(7, 3, "irrelevant");
+    await deleteTopicMark(7, 3);
+    expect(calls).toEqual(['PUT {"verdict":"irrelevant"}', "DELETE"]);
+  });
+
+  it("updateTopic sends marks as feedback, an empty list included", async () => {
+    let body: unknown = null;
+    server.use(
+      http.patch("/api/radar/topics/1", async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(rawTopic());
+      }),
+    );
+
+    await updateTopic(1, { marks: [] });
+    expect(body).toEqual({ feedback: [] });
   });
 });

@@ -9,13 +9,15 @@ import {
   addFeed,
   updateFeed,
   deleteFeed,
+  setTopicMark,
+  deleteTopicMark,
   type CreateTopicInput,
   type UpdateTopicInput,
   type AddFeedInput,
   type UpdateFeedInput,
 } from "./api";
 import { radarKeys } from "./use-radar";
-import type { Topic, TopicWithStats, FeedListItem } from "./types";
+import type { Topic, TopicWithStats, FeedListItem, Verdict } from "./types";
 
 type UpdateArgs = { id: number; input: UpdateTopicInput };
 
@@ -68,7 +70,32 @@ export function useUpdateTopic() {
     onSettled: (_data, _err, vars) => {
       qc.invalidateQueries({ queryKey: radarKeys.topic(vars.id) });
       qc.invalidateQueries({ queryKey: radarKeys.topics });
+      if (vars.input.marks !== undefined) invalidateMarks(qc, vars.id);
     },
+  });
+}
+
+/** What a changed mark touches: the topic's counts and cutoff, its marks, and
+ * the match lists a ✗ hides a match from. */
+function invalidateMarks(qc: ReturnType<typeof useQueryClient>, topicId: number) {
+  qc.invalidateQueries({ queryKey: radarKeys.topicMarks(topicId) });
+  qc.invalidateQueries({ queryKey: radarKeys.topic(topicId) });
+  qc.invalidateQueries({ queryKey: radarKeys.topics });
+  qc.invalidateQueries({ queryKey: ["radar", "matches"] });
+  qc.invalidateQueries({ queryKey: ["radar", "match"] });
+}
+
+type MarkArgs = { topicId: number; findingId: number; verdict: Verdict | null };
+
+/** Sets the user's verdict on a finding for a topic; null takes it back. */
+export function useSetTopicMark() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ topicId, findingId, verdict }: MarkArgs) =>
+      verdict === null
+        ? deleteTopicMark(topicId, findingId)
+        : setTopicMark(topicId, findingId, verdict),
+    onSettled: (_data, _err, vars) => invalidateMarks(qc, vars.topicId),
   });
 }
 

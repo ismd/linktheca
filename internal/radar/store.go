@@ -23,27 +23,29 @@ func NewStore(db *pgxpool.Pool) *Store {
 
 func (s *Store) CreateTopic(ctx context.Context, p CreateTopicParams) (*Topic, error) {
 	row := s.db.QueryRow(ctx, `
-		INSERT INTO radar_topics (user_id, name, description, match_threshold)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, user_id, name, description, match_threshold, is_active,
+		INSERT INTO radar_topics (user_id, name, description, match_threshold, match_cutoff)
+		VALUES ($1, $2, $3, $4, $4)
+		RETURNING id, user_id, name, description, match_threshold, match_cutoff, is_active,
 		          embedding IS NOT NULL, created_at, updated_at
 	`, p.UserID, p.Name, p.Description, p.MatchThreshold)
 
 	var t Topic
 	if err := row.Scan(&t.ID, &t.UserID, &t.Name, &t.Description,
-		&t.MatchThreshold, &t.IsActive, &t.HasEmbedding, &t.CreatedAt, &t.UpdatedAt); err != nil {
+		&t.MatchThreshold, &t.MatchCutoff, &t.IsActive, &t.HasEmbedding, &t.CreatedAt, &t.UpdatedAt); err != nil {
 		return nil, fmt.Errorf("create topic: %w", err)
 	}
 
 	return &t, nil
 }
 
-// UpdateTopicEmbedding stores a topic's embedding together with the vector it
-// is matched with (see Reference.TopicMatchVector).
-func (s *Store) UpdateTopicEmbedding(ctx context.Context, topicID int64, vec, matchVec pgvector.Vector) error {
-	cmd, err := s.db.Exec(ctx,
-		`UPDATE radar_topics SET embedding=$1, match_embedding=$2, updated_at=now() WHERE id=$3`,
-		vec, matchVec, topicID)
+// UpdateTopicEmbedding stores a topic's embedding together with the model it
+// is matched with (see LearnTopic).
+func (s *Store) UpdateTopicEmbedding(ctx context.Context, topicID int64, vec pgvector.Vector, m TopicModel) error {
+	cmd, err := s.db.Exec(ctx, `
+		UPDATE radar_topics
+		SET embedding = $1, match_embedding = $2, match_offset = $3, match_cutoff = $4, updated_at = now()
+		WHERE id = $5`,
+		vec, pgvector.NewVector(m.MatchVec), m.Offset, m.Cutoff, topicID)
 	if err != nil {
 		return fmt.Errorf("update topic embedding: %w", err)
 	}
@@ -274,8 +276,9 @@ func (s *Store) UpdateFindingEmbedding(ctx context.Context, findingID int64, vec
 }
 
 // MatchFindingToTopics inserts matches for all subscribed+active topics of
-// the finding's feed whose match score reaches topic.match_threshold. The
-// score is the inner product of the two match vectors (see Reference); it is
+// the finding's feed whose score reaches the topic's cutoff and that the user
+// has not marked the finding irrelevant for. The score is the inner product
+// of the two match vectors less the topic's offset (see LearnTopic); it is
 // stored as the match's similarity.
 // Returns the number of matches inserted (existing rows are not counted).
 func (s *Store) MatchFindingToTopics(ctx context.Context, findingID int64) (int64, error) {
@@ -283,7 +286,7 @@ func (s *Store) MatchFindingToTopics(ctx context.Context, findingID int64) (int6
 		INSERT INTO radar_topic_matches (topic_id, finding_id, similarity, state)
 		SELECT rt.id,
 		       $1,
-		       -(rt.match_embedding <#> f.match_embedding) AS score,
+		       -(rt.match_embedding <#> f.match_embedding) - rt.match_offset AS score,
 		       'new'
 		FROM radar_topics rt
 		JOIN radar_feed_subscriptions rfs ON rfs.user_id = rt.user_id
@@ -292,7 +295,10 @@ func (s *Store) MatchFindingToTopics(ctx context.Context, findingID int64) (int6
 		  AND rt.is_active
 		  AND rt.match_embedding IS NOT NULL
 		  AND f.match_embedding IS NOT NULL
-		  AND -(rt.match_embedding <#> f.match_embedding) >= rt.match_threshold
+		  AND -(rt.match_embedding <#> f.match_embedding) - rt.match_offset >= rt.match_cutoff
+		  AND NOT EXISTS (
+		      SELECT 1 FROM radar_topic_feedback fb
+		      WHERE fb.topic_id = rt.id AND fb.finding_id = f.id AND fb.verdict = 'irrelevant')
 		ON CONFLICT (topic_id, finding_id) DO NOTHING
 	`, findingID)
 
@@ -303,11 +309,17 @@ func (s *Store) MatchFindingToTopics(ctx context.Context, findingID int64) (int6
 	return cmd.RowsAffected(), nil
 }
 
-// PreviewFindings ranks the user's subscribed findings by their match score
-// against a topic match vector, the way MatchFindingToTopics would score them.
-func (s *Store) PreviewFindings(ctx context.Context, userID int64, matchVec pgvector.Vector, limit int) ([]PreviewMatch, error) {
+// PreviewFindings ranks the user's subscribed findings by their score against
+// a topic model, the way MatchFindingToTopics would score them, leaving out
+// the findings in exclude.
+func (s *Store) PreviewFindings(ctx context.Context, userID int64, m TopicModel, exclude []int64, limit int) ([]PreviewMatch, error) {
+	if exclude == nil {
+		exclude = []int64{}
+	}
+
+	matchVec := pgvector.NewVector(m.MatchVec)
 	rows, err := s.db.Query(ctx, `
-		SELECT -(f.match_embedding <#> $2) AS score,
+		SELECT -(f.match_embedding <#> $2) - $4 AS score,
 		       f.id, f.feed_id, fd.title AS feed_title,
 		       f.url, f.title, COALESCE(f.summary, ac.excerpt),
 		       f.published_at, f.discovered_at
@@ -317,8 +329,9 @@ func (s *Store) PreviewFindings(ctx context.Context, userID int64, matchVec pgve
 		  ON rfs.feed_id = f.feed_id AND rfs.user_id = $1
 		LEFT JOIN article_contents ac ON ac.id = f.content_id
 		WHERE f.match_embedding IS NOT NULL
+		  AND f.id <> ALL($5)
 		ORDER BY f.match_embedding <#> $2
-		LIMIT $3`, userID, matchVec, limit)
+		LIMIT $3`, userID, matchVec, limit, m.Offset, exclude)
 	if err != nil {
 		return nil, fmt.Errorf("preview findings: %w", err)
 	}
@@ -516,13 +529,15 @@ func (s *Store) PruneFindingContent(ctx context.Context, cutoff time.Time) (int6
 const topicsWithStatsSQL = `
 SELECT
   t.id, t.user_id, t.name, t.description,
-  t.match_threshold, t.is_active,
+  t.match_threshold, t.match_cutoff, t.is_active,
   t.embedding IS NOT NULL AS has_embedding,
   t.created_at, t.updated_at,
   COALESCE(m.new_count, 0)    AS new_count,
   COALESCE(m.total_count, 0)  AS total_count,
   COALESCE(m.source_count, 0) AS source_count,
-  m.last_match_at
+  m.last_match_at,
+  COALESCE(fb.relevant, 0)    AS marked_relevant,
+  COALESCE(fb.irrelevant, 0)  AS marked_irrelevant
 FROM radar_topics t
 LEFT JOIN LATERAL (
   SELECT
@@ -533,16 +548,34 @@ LEFT JOIN LATERAL (
   FROM radar_topic_matches m
   JOIN radar_findings f ON f.id = m.finding_id
   WHERE m.topic_id = t.id
+    AND ` + notHiddenSQL + `
 ) m ON true
+LEFT JOIN LATERAL (
+  SELECT
+    COUNT(*) FILTER (WHERE verdict = 'relevant')   AS relevant,
+    COUNT(*) FILTER (WHERE verdict = 'irrelevant') AS irrelevant
+  FROM radar_topic_feedback
+  WHERE topic_id = t.id
+) fb ON true
 WHERE t.user_id = $1`
+
+// notHiddenSQL keeps a match m out of lists and counts once the user marked
+// its finding as not about the topic. The match row stays, so taking the mark
+// back restores it as it was.
+const notHiddenSQL = `NOT EXISTS (
+    SELECT 1 FROM radar_topic_feedback hidden
+    WHERE hidden.topic_id = m.topic_id
+      AND hidden.finding_id = m.finding_id
+      AND hidden.verdict = 'irrelevant')`
 
 func scanTopicWithStats(row pgx.Row) (*TopicWithStats, error) {
 	var t TopicWithStats
 	if err := row.Scan(
 		&t.ID, &t.UserID, &t.Name, &t.Description,
-		&t.MatchThreshold, &t.IsActive, &t.HasEmbedding,
+		&t.MatchThreshold, &t.MatchCutoff, &t.IsActive, &t.HasEmbedding,
 		&t.CreatedAt, &t.UpdatedAt,
 		&t.Stats.NewCount, &t.Stats.TotalCount, &t.Stats.SourceCount, &t.Stats.LastMatchAt,
+		&t.Stats.MarkedRelevant, &t.Stats.MarkedIrrelevant,
 	); err != nil {
 		return nil, err
 	}
@@ -619,7 +652,7 @@ func (s *Store) UpdateTopic(ctx context.Context, userID, topicID int64, p Update
 	query := fmt.Sprintf(`UPDATE radar_topics
 		SET %s
 		WHERE id = $%d AND user_id = $%d
-		RETURNING id, user_id, name, description, match_threshold, is_active,
+		RETURNING id, user_id, name, description, match_threshold, match_cutoff, is_active,
 		          embedding IS NOT NULL, created_at, updated_at`,
 		strings.Join(setClauses, ", "), argIdx, argIdx+1)
 	args = append(args, topicID, userID)
@@ -627,7 +660,7 @@ func (s *Store) UpdateTopic(ctx context.Context, userID, topicID int64, p Update
 	var t Topic
 	err := s.db.QueryRow(ctx, query, args...).Scan(
 		&t.ID, &t.UserID, &t.Name, &t.Description,
-		&t.MatchThreshold, &t.IsActive, &t.HasEmbedding,
+		&t.MatchThreshold, &t.MatchCutoff, &t.IsActive, &t.HasEmbedding,
 		&t.CreatedAt, &t.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -658,7 +691,8 @@ func (s *Store) ListMatches(ctx context.Context, userID int64, p ListMatchesPara
 		JOIN radar_topics t ON t.id = m.topic_id
 		WHERE t.user_id = $1
 		  AND ($2::bigint IS NULL OR m.topic_id = $2)
-		  AND ($3::text   IS NULL OR m.state    = $3)`
+		  AND ($3::text   IS NULL OR m.state    = $3)
+		  AND ` + notHiddenSQL
 	var total int
 	if err := s.db.QueryRow(ctx, countQuery, userID, p.TopicID, p.State).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count matches: %w", err)
@@ -667,7 +701,7 @@ func (s *Store) ListMatches(ctx context.Context, userID int64, p ListMatchesPara
 	rows, err := s.db.Query(ctx, `
 		SELECT
 		  m.id, m.topic_id, t.name AS topic_name,
-		  m.similarity, m.state, m.matched_at,
+		  m.similarity, m.state, m.matched_at, fb.verdict,
 		  f.id, f.feed_id, fd.title AS feed_title,
 		  f.url, f.title, COALESCE(f.summary, ac.excerpt),
 		  f.published_at, f.discovered_at
@@ -676,9 +710,11 @@ func (s *Store) ListMatches(ctx context.Context, userID int64, p ListMatchesPara
 		JOIN radar_findings f ON f.id = m.finding_id
 		JOIN radar_feeds fd   ON fd.id = f.feed_id
 		LEFT JOIN article_contents ac ON ac.id = f.content_id
+		LEFT JOIN radar_topic_feedback fb ON fb.topic_id = m.topic_id AND fb.finding_id = m.finding_id
 		WHERE t.user_id = $1
 		  AND ($2::bigint IS NULL OR m.topic_id = $2)
 		  AND ($3::text   IS NULL OR m.state    = $3)
+		  AND `+notHiddenSQL+`
 		ORDER BY m.matched_at DESC
 		LIMIT $4 OFFSET $5`,
 		userID, p.TopicID, p.State, p.Limit, p.Offset)
@@ -692,7 +728,7 @@ func (s *Store) ListMatches(ctx context.Context, userID int64, p ListMatchesPara
 		var m MatchView
 		if err := rows.Scan(
 			&m.ID, &m.TopicID, &m.TopicName,
-			&m.Similarity, &m.State, &m.MatchedAt,
+			&m.Similarity, &m.State, &m.MatchedAt, &m.Verdict,
 			&m.Finding.ID, &m.Finding.FeedID, &m.Finding.FeedTitle,
 			&m.Finding.URL, &m.Finding.Title, &m.Finding.Summary,
 			&m.Finding.PublishedAt, &m.Finding.DiscoveredAt,
@@ -711,7 +747,7 @@ func (s *Store) GetMatch(ctx context.Context, userID, matchID int64) (*MatchView
 	row := s.db.QueryRow(ctx, `
 		SELECT
 		  m.id, m.topic_id, t.name AS topic_name,
-		  m.similarity, m.state, m.matched_at,
+		  m.similarity, m.state, m.matched_at, fb.verdict,
 		  f.id, f.feed_id, fd.title AS feed_title,
 		  f.url, f.title, COALESCE(f.summary, ac.excerpt),
 		  f.published_at, f.discovered_at,
@@ -721,6 +757,7 @@ func (s *Store) GetMatch(ctx context.Context, userID, matchID int64) (*MatchView
 		JOIN radar_findings f ON f.id = m.finding_id
 		JOIN radar_feeds fd   ON fd.id = f.feed_id
 		LEFT JOIN article_contents ac ON ac.id = f.content_id
+		LEFT JOIN radar_topic_feedback fb ON fb.topic_id = m.topic_id AND fb.finding_id = m.finding_id
 		WHERE m.id = $1 AND t.user_id = $2`,
 		matchID, userID)
 
@@ -731,7 +768,7 @@ func (s *Store) GetMatch(ctx context.Context, userID, matchID int64) (*MatchView
 	)
 	if err := row.Scan(
 		&mv.ID, &mv.TopicID, &mv.TopicName,
-		&mv.Similarity, &mv.State, &mv.MatchedAt,
+		&mv.Similarity, &mv.State, &mv.MatchedAt, &mv.Verdict,
 		&mv.Finding.ID, &mv.Finding.FeedID, &mv.Finding.FeedTitle,
 		&mv.Finding.URL, &mv.Finding.Title, &mv.Finding.Summary,
 		&mv.Finding.PublishedAt, &mv.Finding.DiscoveredAt,

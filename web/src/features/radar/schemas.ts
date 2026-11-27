@@ -8,6 +8,7 @@ import type {
   RadarStatus,
   TopicPreview,
   FeedListItem,
+  TopicMark,
 } from "./types";
 
 export const RawTopicStatsSchema = z.object({
@@ -15,6 +16,8 @@ export const RawTopicStatsSchema = z.object({
   total_count: z.number().int(),
   source_count: z.number().int(),
   last_match_at: z.string().nullable(),
+  marked_relevant: z.number().int().optional(),
+  marked_irrelevant: z.number().int().optional(),
 });
 
 export const RawTopicSchema = z.object({
@@ -23,6 +26,7 @@ export const RawTopicSchema = z.object({
   name: z.string(),
   description: z.string(),
   match_threshold: z.number(),
+  match_cutoff: z.number().optional(),
   is_active: z.boolean(),
   has_embedding: z.boolean(),
   created_at: z.string(),
@@ -60,7 +64,18 @@ export const RawMatchViewSchema = z.object({
   similarity: z.number(),
   state: z.enum(["new", "seen"]),
   matched_at: z.string(),
+  verdict: z.enum(["relevant", "irrelevant"]).nullish(),
   finding: RawMatchFindingSchema,
+});
+
+export const RawTopicFeedbackListSchema = z.object({
+  items: z.array(
+    z.object({
+      verdict: z.enum(["relevant", "irrelevant"]),
+      created_at: z.string(),
+      finding: RawMatchFindingSchema,
+    }),
+  ),
 });
 
 export const RawMatchListSchema = z.object({
@@ -98,6 +113,7 @@ export function mapTopic(raw: RawTopic): Topic {
     name: raw.name,
     description: raw.description,
     matchThreshold: raw.match_threshold,
+    matchCutoff: raw.match_cutoff ?? raw.match_threshold,
     isActive: raw.is_active,
     hasEmbedding: raw.has_embedding,
     createdAt: new Date(raw.created_at),
@@ -113,6 +129,8 @@ export function mapTopicWithStats(raw: RawTopicWithStats): TopicWithStats {
       totalCount: raw.stats.total_count,
       sourceCount: raw.stats.source_count,
       lastMatchAt: raw.stats.last_match_at ? new Date(raw.stats.last_match_at) : null,
+      markedRelevant: raw.stats.marked_relevant ?? 0,
+      markedIrrelevant: raw.stats.marked_irrelevant ?? 0,
     },
   };
 }
@@ -147,8 +165,18 @@ export function mapMatchView(raw: RawMatchView): MatchView {
     similarity: raw.similarity,
     state: raw.state,
     matchedAt: new Date(raw.matched_at),
+    verdict: raw.verdict ?? null,
     finding: mapMatchFinding(raw.finding),
   };
+}
+
+export function mapTopicFeedbackList(
+  raw: z.infer<typeof RawTopicFeedbackListSchema>,
+): TopicMark[] {
+  return raw.items.map((i) => ({
+    verdict: i.verdict,
+    finding: mapMatchFinding(i.finding),
+  }));
 }
 
 export function mapTopicPreview(

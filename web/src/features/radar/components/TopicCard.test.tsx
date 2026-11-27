@@ -6,9 +6,12 @@ import type { TopicWithStats } from "../types";
 
 const topic: TopicWithStats = {
   id: 7, userId: 1, name: "Local-first software", description: "CRDTs and beyond",
-  matchThreshold: 0.55, isActive: true, hasEmbedding: true,
+  matchThreshold: 0.55, matchCutoff: 0.55, isActive: true, hasEmbedding: true,
   createdAt: new Date("2026-04-01"), updatedAt: new Date("2026-05-01"),
-  stats: { newCount: 3, totalCount: 21, sourceCount: 4, lastMatchAt: new Date() },
+  stats: {
+    newCount: 3, totalCount: 21, sourceCount: 4, lastMatchAt: new Date(),
+    markedRelevant: 0, markedIrrelevant: 0,
+  },
 };
 
 function r(node: React.ReactElement) {

@@ -344,7 +344,7 @@ func TestIntegrationUnsubscribeStopsNewMatchesOnly(t *testing.T) {
 
 	vec := make([]float32, 1024)
 	vec[0] = 1
-	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec), pgvector.NewVector(vec)))
+	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec), radar.TopicModel{MatchVec: vec, Cutoff: topic.MatchThreshold}))
 
 	feed, err := store.AddFeed(ctx, radar.AddFeedParams{
 		URL: "https://feed.example/unsub.xml", Kind: "rss", FetchIntervalSeconds: 3600,
@@ -390,7 +390,7 @@ func TestIntegrationDeleteFeedCascades(t *testing.T) {
 
 	vec := make([]float32, 1024)
 	vec[0] = 1
-	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec), pgvector.NewVector(vec)))
+	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(vec), radar.TopicModel{MatchVec: vec, Cutoff: topic.MatchThreshold}))
 
 	feed, err := store.AddFeed(ctx, radar.AddFeedParams{
 		URL: "https://feed.example/cascade.xml", Kind: "rss", FetchIntervalSeconds: 3600,
@@ -480,4 +480,60 @@ func TestIntegrationPersonalFeedMatchesOnlyItsOwner(t *testing.T) {
 	require.Equal(t, 1, countMatches(t, pool, ownerTopic.ID))
 	require.Equal(t, 0, countMatches(t, pool, otherTopic.ID),
 		"a personal feed must not reach another account's topics")
+}
+
+// A topic learns from ✗ in the preview: the rejected finding stays out, and a
+// finding that scores the same is not matched until the mark is taken back.
+func TestIntegrationTopicLearnsFromMarks(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	pool := testdb.New(t)
+	store := radar.NewStore(pool)
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+	ctx := context.Background()
+
+	const desc = "rust language news and releases"
+	userID := seedRadarUser(t, pool, false)
+	feed, err := store.AddFeed(ctx, radar.AddFeedParams{
+		URL: "https://feed.example/marks.xml", Kind: "rss", FetchIntervalSeconds: 3600,
+	})
+	require.NoError(t, err)
+	_, err = store.Subscribe(ctx, userID, feed.ID)
+	require.NoError(t, err)
+
+	// The fake embedder puts this finding right on the topic.
+	onTopic, _ := emb.Embed(ctx, desc)
+	noise := matchFinding(t, ctx, store, onTopic, feed.ID, "noise")
+	marks := []radar.TopicFeedback{{FindingID: noise, Verdict: radar.VerdictIrrelevant}}
+
+	plain, err := svc.PreviewTopic(ctx, userID, radar.PreviewTopicRequest{Description: desc})
+	require.NoError(t, err)
+	require.Equal(t, noise, plain.Items[0].Finding.ID)
+	require.Equal(t, float32(0.18), plain.Threshold)
+
+	marked, err := svc.PreviewTopic(ctx, userID, radar.PreviewTopicRequest{Description: desc, Feedback: marks})
+	require.NoError(t, err)
+	require.Empty(t, marked.Items, "the rejected finding leaves the preview")
+	require.Greater(t, marked.Threshold, plain.Items[0].Similarity)
+
+	topic, err := svc.CreateTopic(ctx, userID, radar.CreateTopicRequest{Description: desc, Feedback: marks})
+	require.NoError(t, err)
+	require.Equal(t, marked.Threshold, topic.MatchCutoff, "the topic is saved as previewed")
+
+	_ = matchFinding(t, ctx, store, onTopic, feed.ID, "same story again")
+	require.Equal(t, 0, countMatches(t, pool, topic.ID))
+
+	require.NoError(t, svc.DeleteTopicFeedback(ctx, userID, topic.ID, noise))
+	again := matchFinding(t, ctx, store, onTopic, feed.ID, "and once more")
+	require.Equal(t, 1, countMatches(t, pool, topic.ID))
+
+	items, _, err := store.ListMatches(ctx, userID, radar.ListMatchesParams{Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	require.Equal(t, again, items[0].Finding.ID)
+	require.InDelta(t, plain.Items[0].Similarity, items[0].Similarity, 1e-4,
+		"without marks the topic scores like its preview")
 }

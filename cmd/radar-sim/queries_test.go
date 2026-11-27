@@ -57,8 +57,8 @@ func seedTopic(t *testing.T, pool *pgxpool.Pool, userID int64, name string, thre
 	t.Helper()
 	var id int64
 	require.NoError(t, pool.QueryRow(context.Background(),
-		`INSERT INTO radar_topics (user_id, name, description, match_threshold, embedding, match_embedding)
-		 VALUES ($1, $2, 'seeded topic description', $3, $4, $4) RETURNING id`,
+		`INSERT INTO radar_topics (user_id, name, description, match_threshold, match_cutoff, embedding, match_embedding)
+		 VALUES ($1, $2, 'seeded topic description', $3, $3, $4, $4) RETURNING id`,
 		userID, name, threshold, embedding).Scan(&id))
 	return id
 }
@@ -205,6 +205,33 @@ func TestTopFindingsByTopic_ranksByMatchScoreNotCosine(t *testing.T) {
 	require.InDelta(t, 1.0, rows[1].Cos, 0.001)
 }
 
+// A topic that learned from ✓ marks scores with its offset subtracted, the
+// way the matcher does.
+func TestTopFindingsByTopic_subtractsTheLearnedOffset(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test")
+	}
+
+	pool := testdb.New(t)
+	ctx := context.Background()
+
+	user := seedUser(t, pool)
+	embedding := vec(1)
+	topicID := seedTopic(t, pool, user, "ai", 0.18, &embedding)
+	_, err := pool.Exec(ctx, `UPDATE radar_topics SET match_offset = 0.25 WHERE id = $1`, topicID)
+	require.NoError(t, err)
+
+	feed := seedFeed(t, pool, "https://f.example/offset")
+	v := vec(1)
+	seedFinding(t, pool, feed, "on topic", &v)
+
+	rows, err := topFindingsByTopic(ctx, pool, topicID, 10, false)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.InDelta(t, 0.75, rows[0].Score, 0.001)
+	require.InDelta(t, 1.0, rows[0].Cos, 0.001)
+}
+
 func TestTopFindingsByTopic_subscribedOnlyFiltersUnsubscribedFeeds(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test")
@@ -249,10 +276,14 @@ func TestLoadTopic_returnsNameAndThreshold(t *testing.T) {
 	embedding := vec(1)
 	topicID := seedTopic(t, pool, user, "webauthn", 0.62, &embedding)
 
+	_, err := pool.Exec(ctx, `UPDATE radar_topics SET match_cutoff = 0.7 WHERE id = $1`, topicID)
+	require.NoError(t, err)
+
 	topic, err := loadTopic(ctx, pool, topicID)
 	require.NoError(t, err)
 	require.Equal(t, "webauthn", topic.Name)
 	require.InDelta(t, 0.62, topic.MatchThreshold, 0.0001)
+	require.InDelta(t, 0.7, topic.MatchCutoff, 0.0001)
 }
 
 func TestLoadTopic_missingTopic(t *testing.T) {

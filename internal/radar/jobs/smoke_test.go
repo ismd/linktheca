@@ -81,7 +81,7 @@ func TestSmoke_PipelineWithRealTEI(t *testing.T) {
 	require.Len(t, tvec, 1024)
 	tmatch, err := radar.NewReference(teiClient).TopicMatchVector(ctx, tvec)
 	require.NoError(t, err)
-	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(tvec), pgvector.NewVector(tmatch)))
+	require.NoError(t, store.UpdateTopicEmbedding(ctx, topic.ID, pgvector.NewVector(tvec), radar.TopicModel{MatchVec: tmatch}))
 
 	scheduler := jobs.NewScheduleCrawlsWorker(store)
 	crawl := jobs.NewCrawlFeedWorker(store, crawler.NewHTTPFetcher(netsafe.NewClient(netsafe.Options{

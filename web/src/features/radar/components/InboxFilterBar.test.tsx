@@ -15,6 +15,7 @@ function topic(
     name,
     description: "D",
     matchThreshold: 0.55,
+    matchCutoff: 0.55,
     isActive: opts.isActive ?? true,
     hasEmbedding: true,
     createdAt: new Date("2026-05-01T10:00:00Z"),
@@ -24,6 +25,8 @@ function topic(
       totalCount: 10,
       sourceCount: 2,
       lastMatchAt: null,
+      markedRelevant: 0,
+      markedIrrelevant: 0,
     },
   };
 }

@@ -27,6 +27,14 @@ export function StatsLine({ topic }: Props) {
       <span className="label-sc text-muted-foreground">
         created {fmtDate(topic.createdAt)}
       </span>
+      {s.markedRelevant + s.markedIrrelevant > 0 && (
+        <>
+          <span className="label-sc text-muted-foreground">·</span>
+          <span className="label-sc text-muted-foreground">
+            learned from {s.markedRelevant} ✓ · {s.markedIrrelevant} ✗
+          </span>
+        </>
+      )}
     </div>
   );
 }

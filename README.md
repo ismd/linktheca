@@ -85,6 +85,8 @@ Releases from November 2026 change what Radar compares: a topic is embedded from
 
 From migration 018 on, a finding is also scored against its title, and findings that resemble every topic are discounted. Nothing needs to be run by hand: the server fills in the new vectors for existing topics at start and embeds the titles of existing findings in the background, newest first and behind new findings. Until a finding's title is embedded it does not show up in topic previews. Thresholds move to the new scale automatically.
 
+Migration 019 lets topics learn from the user's ✓ / ✗ marks on findings. Existing topics keep matching exactly as before until someone marks something; nothing needs to be run.
+
 ## Status
 
 Active development. APIs and schema may still change.

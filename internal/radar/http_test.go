@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -742,4 +743,106 @@ func TestHTTP_ListGlobalFeeds_UsesGlobalScope(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, radar.FeedScopeGlobal, store.listFeedsParams.Scope)
+}
+
+// feedbackRequest builds a request for a /radar/topics/{id}/feedback route.
+func feedbackRequest(method, topicID, findingID string, body []byte) *http.Request {
+	path := "/radar/topics/" + topicID + "/feedback"
+	if findingID != "" {
+		path += "/" + findingID
+	}
+
+	req := httptest.NewRequest(method, path, bytes.NewReader(body))
+	ctx := userOnlyContext(req.Context(), 1, false)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", topicID)
+	if findingID != "" {
+		rctx.URLParams.Add("findingId", findingID)
+	}
+
+	return req.WithContext(context.WithValue(ctx, chi.RouteCtxKey, rctx))
+}
+
+func TestHTTP_TopicFeedback_setAndDelete(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	svc := radar.NewService(store, emb)
+	h := radar.NewHTTP(svc)
+	near, _ := markedFindings(t, store, emb)
+
+	topic, err := svc.CreateTopic(context.Background(), 1, radar.CreateTopicRequest{Description: "webauthn passkeys"})
+	require.NoError(t, err)
+	id := strconv.FormatInt(topic.ID, 10)
+	finding := strconv.FormatInt(near, 10)
+
+	put := func(findingID, body string) int {
+		rec := httptest.NewRecorder()
+		h.SetTopicFeedbackHandler()(rec, feedbackRequest(http.MethodPut, id, findingID, []byte(body)))
+		return rec.Code
+	}
+	del := func(findingID string) int {
+		rec := httptest.NewRecorder()
+		h.DeleteTopicFeedbackHandler()(rec, feedbackRequest(http.MethodDelete, id, findingID, nil))
+		return rec.Code
+	}
+
+	require.Equal(t, http.StatusNoContent, put(finding, `{"verdict":"irrelevant"}`))
+	require.Equal(t, "irrelevant", store.feedback[topic.ID][near])
+	require.Greater(t, store.topicModels[topic.ID].Cutoff, float32(0.18))
+
+	require.Equal(t, http.StatusBadRequest, put(finding, `{"verdict":"maybe"}`))
+	require.Equal(t, http.StatusBadRequest, put(finding, `{`))
+	require.Equal(t, http.StatusBadRequest, put("x", `{"verdict":"relevant"}`))
+	require.Equal(t, http.StatusNotFound, put("99", `{"verdict":"relevant"}`))
+
+	require.Equal(t, http.StatusNoContent, del(finding))
+	require.Equal(t, http.StatusNotFound, del(finding))
+	require.Equal(t, http.StatusBadRequest, del("0"))
+}
+
+func TestHTTP_ListTopicFeedback(t *testing.T) {
+	store := newMockStore()
+	store.getTopicResult = &radar.TopicWithStats{Topic: radar.Topic{ID: 7}}
+	store.listFeedbackItems = []radar.TopicFeedbackView{
+		{Verdict: radar.VerdictIrrelevant, Finding: radar.MatchFinding{ID: 3, URL: "https://x.example/a"}},
+	}
+	h := radar.NewHTTP(radar.NewService(store, &embeddings.FakeEmbedder{Dim: 1024}))
+
+	rec := httptest.NewRecorder()
+	h.ListTopicFeedbackHandler()(rec, feedbackRequest(http.MethodGet, "7", "", nil))
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	var got struct {
+		Items []radar.TopicFeedbackView `json:"items"`
+	}
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&got))
+	require.Len(t, got.Items, 1)
+	require.Equal(t, "irrelevant", got.Items[0].Verdict)
+	require.Equal(t, int64(3), got.Items[0].Finding.ID)
+
+	store.getTopicResult = nil
+	rec = httptest.NewRecorder()
+	h.ListTopicFeedbackHandler()(rec, feedbackRequest(http.MethodGet, "7", "", nil))
+	require.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestHTTP_PreviewTopic_takesFeedback(t *testing.T) {
+	store := newMockStore()
+	emb := &embeddings.FakeEmbedder{Dim: 1024}
+	h := radar.NewHTTP(radar.NewService(store, emb))
+	near, _ := markedFindings(t, store, emb)
+
+	body := []byte(`{"description":"webauthn passkeys","feedback":[{"finding_id":` +
+		strconv.FormatInt(near, 10) + `,"verdict":"irrelevant"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/radar/topics/preview", bytes.NewReader(body))
+	req = req.WithContext(userOnlyContext(req.Context(), 7, false))
+	rec := httptest.NewRecorder()
+
+	h.PreviewTopicHandler()(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	var got radar.TopicPreview
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&got))
+	require.Greater(t, got.Threshold, float32(0.18))
+	require.Equal(t, []int64{near}, store.previewExclude)
 }

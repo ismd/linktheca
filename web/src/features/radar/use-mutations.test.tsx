@@ -177,6 +177,7 @@ function mapTopic(raw: ReturnType<typeof rawTopic>) {
     name: raw.name,
     description: raw.description,
     matchThreshold: raw.match_threshold,
+    matchCutoff: raw.match_threshold,
     isActive: raw.is_active,
     hasEmbedding: raw.has_embedding,
     createdAt: new Date(raw.created_at),
@@ -186,6 +187,8 @@ function mapTopic(raw: ReturnType<typeof rawTopic>) {
       totalCount: raw.stats.total_count,
       sourceCount: raw.stats.source_count,
       lastMatchAt: raw.stats.last_match_at ? new Date(raw.stats.last_match_at) : null,
+      markedRelevant: 0,
+      markedIrrelevant: 0,
     },
   };
 }

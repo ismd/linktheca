@@ -137,4 +137,44 @@ describe("RawFeedListItemSchema", () => {
 
     expect(mapFeedListItem(RawFeedListItemSchema.parse(raw)).title).toBeNull();
   });
+
+  it("mapTopicWithStats carries the learned cutoff and the mark counts", () => {
+    const base = {
+      id: 1, user_id: 7, name: "Topic", description: "Desc",
+      match_threshold: 0.18, is_active: true, has_embedding: true,
+      created_at: "2026-05-01T10:00:00Z", updated_at: "2026-05-02T10:00:00Z",
+    };
+    const learned = mapTopicWithStats(RawTopicWithStatsSchema.parse({
+      ...base,
+      match_cutoff: 0.27,
+      stats: {
+        new_count: 0, total_count: 0, source_count: 0, last_match_at: null,
+        marked_relevant: 2, marked_irrelevant: 3,
+      },
+    }));
+    expect(learned.matchCutoff).toBe(0.27);
+    expect(learned.stats.markedRelevant).toBe(2);
+    expect(learned.stats.markedIrrelevant).toBe(3);
+
+    const plain = mapTopicWithStats(RawTopicWithStatsSchema.parse({
+      ...base,
+      stats: { new_count: 0, total_count: 0, source_count: 0, last_match_at: null },
+    }));
+    expect(plain.matchCutoff).toBe(0.18);
+    expect(plain.stats.markedRelevant).toBe(0);
+  });
+
+  it("mapMatchView carries the user's verdict", () => {
+    const raw = {
+      id: 42, topic_id: 7, topic_name: "T", similarity: 0.3, state: "seen",
+      matched_at: "2026-05-18T10:00:00Z",
+      finding: {
+        id: 100, feed_id: 5, feed_title: null, url: "https://x.example/a", title: null,
+        summary: null, published_at: null, discovered_at: "2026-05-18T09:00:00Z",
+      },
+    };
+    expect(mapMatchView(RawMatchViewSchema.parse({ ...raw, verdict: "irrelevant" })).verdict)
+      .toBe("irrelevant");
+    expect(mapMatchView(RawMatchViewSchema.parse(raw)).verdict).toBeNull();
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
@@ -148,5 +148,44 @@ describe("NewTopicDialog", () => {
     await user.type(screen.getByLabelText(/what to watch for/i), "   short   ");
     await user.click(screen.getByRole("button", { name: /save/i }));
     expect(await screen.findByText(/at least 10 characters/i)).toBeInTheDocument();
+  });
+
+  it("sends the marks given in the preview with the new topic", async () => {
+    let captured: unknown = null;
+    server.use(
+      http.post("/api/radar/topics/preview", () =>
+        HttpResponse.json({
+          items: [{
+            similarity: 0.26,
+            finding: {
+              id: 9, feed_id: 5, feed_title: "HN", url: "https://x.example/9",
+              title: "Docker has always used microVMs", summary: null,
+              published_at: null, discovered_at: "2026-05-18T09:00:00Z",
+            },
+          }],
+          threshold: 0.18,
+        })),
+      http.post("/api/radar/topics", async ({ request }) => {
+        captured = await request.json();
+        return HttpResponse.json(rawTopic, { status: 201 });
+      }),
+    );
+    const user = userEvent.setup();
+    render(
+      <Wrap>
+        <NewTopicDialog />
+      </Wrap>,
+    );
+    await user.type(screen.getByLabelText(/what to watch for/i), "BlackArch Linux in Docker");
+
+    const row = (await screen.findByText("Docker has always used microVMs")).closest("li")!;
+    await user.click(within(row).getByRole("button", { name: "Not about this topic" }));
+    await user.click(screen.getByRole("button", { name: /save/i }));
+
+    await screen.findByText(/saved/i);
+    expect(captured).toEqual({
+      description: "BlackArch Linux in Docker",
+      feedback: [{ finding_id: 9, verdict: "irrelevant" }],
+    });
   });
 });

@@ -18,6 +18,7 @@ import { useNewTopicStore } from "../use-new-topic-store";
 import { useCreateTopic } from "../use-mutations";
 import { TopicPreviewPanel } from "./TopicPreviewPanel";
 import { TOPIC_DESCRIPTION_PLACEHOLDER, TopicWritingTips } from "./TopicWritingTips";
+import type { TopicMark } from "../types";
 
 const schema = z.object({
   description: z
@@ -53,12 +54,13 @@ function NewTopicForm({ onClose }: { onClose: () => void }) {
     defaultValues: { description: "" },
   });
   const draftDescription = useWatch({ control, name: "description" });
+  const [marks, setMarks] = useState<TopicMark[]>([]);
   const [topError, setTopError] = useState<string | null>(null);
 
   const onSubmit = handleSubmit(async ({ description }) => {
     setTopError(null);
     try {
-      await create.mutateAsync({ description });
+      await create.mutateAsync({ description, marks });
       toast.success("Saved");
       onClose();
     } catch (err) {
@@ -97,7 +99,11 @@ function NewTopicForm({ onClose }: { onClose: () => void }) {
         <TopicWritingTips id="new-topic-tips" />
       </div>
 
-      <TopicPreviewPanel description={draftDescription} />
+      <TopicPreviewPanel
+        description={draftDescription}
+        marks={marks}
+        onMarksChange={setMarks}
+      />
 
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose} disabled={create.isPending}>

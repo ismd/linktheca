@@ -1,10 +1,16 @@
 export type MatchState = "new" | "seen";
 
+/** The user's mark on a finding for one topic. */
+export type Verdict = "relevant" | "irrelevant";
+
 export type TopicStats = {
   newCount: number;
   totalCount: number;
   sourceCount: number;
   lastMatchAt: Date | null;
+  /** How many findings the user marked as about the topic, and as not. */
+  markedRelevant: number;
+  markedIrrelevant: number;
 };
 
 export type Topic = {
@@ -12,7 +18,10 @@ export type Topic = {
   userId: number;
   name: string;
   description: string;
+  /** The base the user sets. */
   matchThreshold: number;
+  /** What findings are held to after the topic learned from the marks. */
+  matchCutoff: number;
   isActive: boolean;
   hasEmbedding: boolean;
   createdAt: Date;
@@ -54,6 +63,13 @@ export type MatchView = {
   similarity: number;
   state: MatchState;
   matchedAt: Date;
+  verdict: Verdict | null;
+  finding: MatchFinding;
+};
+
+/** A mark together with the finding it is on, so a dialog can list it. */
+export type TopicMark = {
+  verdict: Verdict;
   finding: MatchFinding;
 };
 

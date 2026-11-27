@@ -11,6 +11,7 @@ const match = (id: number, topicName: string): MatchView => ({
   similarity: 0.7,
   state: "new",
   matchedAt: new Date("2026-05-18T10:00:00Z"),
+  verdict: null,
   finding: {
     id: id + 100,
     feedId: 5,
